@@ -4081,6 +4081,7 @@ dependencies = [
  "globwalk",
  "log",
  "pprof",
+ "serde_json",
  "superconsole",
  "walkdir",
  "wild",
