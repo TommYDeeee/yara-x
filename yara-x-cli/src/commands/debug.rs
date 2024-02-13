@@ -68,17 +68,14 @@ fn exec_wasm(args: &ArgMatches) -> anyhow::Result<()> {
     let mut rules_path =
         args.get_one::<PathBuf>("RULES_PATH").unwrap().to_path_buf();
 
-    let src = fs::read(rules_path.as_path())
+    let src = fs::read_to_string(rules_path.as_path())
         .with_context(|| format!("can not read `{}`", rules_path.display()))?;
-
-    let src = SourceCode::from(src.as_slice())
-        .with_origin(rules_path.as_os_str().to_str().unwrap());
 
     rules_path.set_extension("wasm");
 
     let mut compiler = Compiler::new().colorize_errors(true);
 
-    compiler.add_source(src)?;
+    compiler.add_source(&src)?;
     compiler.emit_wasm_file(rules_path.as_path())?;
 
     Ok(())

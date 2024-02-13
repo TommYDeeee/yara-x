@@ -78,7 +78,7 @@ impl<'src> AST<'src> {
 
 bitmask! {
     /// A set of flags associated to a YARA rule.
-    #[derive(Debug)]
+    #[derive(Debug, Default)]
     pub mask RuleFlags: u8 where
     /// Each of the flags that a YARA rule can have.
     flags RuleFlag {

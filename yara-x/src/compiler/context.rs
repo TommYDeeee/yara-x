@@ -14,7 +14,7 @@ use crate::wasm;
 
 /// Structure that contains information and data structures required during the
 /// current compilation process.
-pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
+pub(in crate::compiler) struct CompileContext<'a, 'sym> {
     /// Builder for creating error and warning reports.
     pub report_builder: &'a ReportBuilder,
 
@@ -32,7 +32,7 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
 
     /// A slice that contains the IR for the patterns declared in the current
     /// rule.
-    pub current_rule_patterns: &'a mut [ir::PatternInRule<'src>],
+    pub current_rule_patterns: &'a mut [ir::PatternInRule],
 
     /// Warnings generated during the compilation.
     pub warnings: &'a mut Vec<Warning>,
@@ -45,7 +45,7 @@ pub(in crate::compiler) struct CompileContext<'a, 'src, 'sym> {
     pub vars: VarStack,
 }
 
-impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
+impl<'a, 'src, 'sym> CompileContext<'a, 'sym> {
     /// Returns a [`RuleInfo`] given its [`RuleId`].
     ///
     /// # Panics
@@ -100,10 +100,7 @@ impl<'a, 'src, 'sym> CompileContext<'a, 'src, 'sym> {
     /// # Panics
     ///
     /// Panics if the current rule does not have the requested pattern.
-    pub fn get_pattern_mut(
-        &mut self,
-        ident: &str,
-    ) -> &mut ir::PatternInRule<'src> {
+    pub fn get_pattern_mut(&mut self, ident: &str) -> &mut ir::PatternInRule {
         // Make sure that identifier starts with `$`, `#`, `@` or `!`.
         debug_assert!("$#@!".contains(
             ident

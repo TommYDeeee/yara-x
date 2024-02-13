@@ -41,7 +41,8 @@ use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
-pub(in crate::compiler) use ast2ir::patterns_from_ast;
+pub(in crate::compiler) use ast2ir::text_pattern_from_ast;
+//pub(in crate::compiler) use ast2ir::patterns_from_ast;
 
 use crate::re;
 
@@ -83,15 +84,15 @@ bitmask! {
 /// within the confines of a specific rule. If two distinct rules declare
 /// precisely the same pattern, including any modifiers, they will reference
 /// the same [`Pattern`] instance.
-pub(in crate::compiler) struct PatternInRule<'src> {
-    identifier: &'src str,
+pub(in crate::compiler) struct PatternInRule {
+    identifier: String,
     pattern: Pattern,
 }
 
-impl<'src> PatternInRule<'src> {
+impl PatternInRule {
     #[inline]
-    pub fn identifier(&self) -> &'src str {
-        self.identifier
+    pub fn identifier(&self) -> &str {
+        &self.identifier
     }
 
     #[inline]

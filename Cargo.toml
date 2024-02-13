@@ -91,6 +91,7 @@ yara-x-macros = { path = "yara-x-macros" }
 yara-x-parser = { path = "yara-x-parser" }
 yara-x-proto = { path = "yara-x-proto" }
 yara-x-proto-yaml = { path = "yara-x-proto-yaml" }
+yara-parser = { path = "../yara-parser" }
 
 
 [profile.release]

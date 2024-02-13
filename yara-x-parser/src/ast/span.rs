@@ -21,7 +21,7 @@ pub struct Span {
 }
 
 impl Span {
-    pub(crate) fn new(source_id: SourceId, start: usize, end: usize) -> Self {
+    pub fn new(source_id: SourceId, start: usize, end: usize) -> Self {
         Self { source_id, start, end }
     }
 
