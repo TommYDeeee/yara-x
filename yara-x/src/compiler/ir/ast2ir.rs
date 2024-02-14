@@ -66,6 +66,10 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     let string_token =
         string_pattern.string_lit_token().unwrap().text().to_owned();
 
+    // As we for now support only ascii patterns we can set the ascii flag
+    // by default
+    flags.set(PatternFlags::Ascii);
+
     Ok(PatternInRule {
         identifier,
         pattern: Pattern::Literal(LiteralPattern {
