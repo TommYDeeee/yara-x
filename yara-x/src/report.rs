@@ -5,34 +5,17 @@ use std::fmt::{Debug, Display};
 use std::ops::Range;
 
 use ariadne::{Color, Label, ReportKind, Source};
-use pest::error::ErrorVariant::{CustomError, ParsingError};
-use pest::error::InputLocation;
 use yansi::Style;
 
-use crate::ast::Span;
-use crate::parser::GrammarRule;
-use crate::parser::SourceCode;
-use crate::parser::{Error, ErrorInfo};
+use crate::SourceCode;
+use yara_x_parser::ast::Span;
+use yara_x_parser::SourceId;
 
 /// Types of reports created by [`ReportBuilder`].
 pub enum ReportType {
     Error,
     Warning,
 }
-
-/// Identifier associated to each source file registered in a [`ReportBuilder`].
-///
-/// Each source file gets its own unique `SourceId` when it is registered
-/// via [register_source]. These identifiers are stored in [`Span`] instances
-/// all over the `AST`, indicating the original source file that contained the
-/// span. When some [`Span`] is passed to [create_report], the report builder
-/// can use the [`SourceId`] for locating the original source file and extract
-/// the corresponding code snippet from it.
-///
-/// [register_source]: ReportBuilder::register_source
-/// [create_report]: ReportBuilder::create_report
-#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug, Default)]
-pub struct SourceId(pub u32);
 
 /// Builds error and warning reports.
 ///
@@ -234,70 +217,6 @@ impl ReportBuilder {
         report.write(&*self.cache.borrow(), &mut buffer).unwrap();
 
         String::from_utf8(buffer).unwrap()
-    }
-
-    pub(crate) fn convert_pest_error(
-        &self,
-        pest_error: pest::error::Error<GrammarRule>,
-    ) -> Error {
-        // Start and ending offset within the original code that is going
-        // to be highlighted in the error message. The span can cover
-        // multiple lines.
-        let error_span = match pest_error.location {
-            InputLocation::Pos(p) => {
-                Span::new(self.current_source_id.get().unwrap(), p, p)
-            }
-            InputLocation::Span(span) => Span::new(
-                self.current_source_id.get().unwrap(),
-                span.0,
-                span.1,
-            ),
-        };
-
-        let (title, error_msg, note) = match &pest_error.variant {
-            CustomError { message } => {
-                // 'call limit reached' is the error message returned by Pest
-                // when it reaches the limit set with pest::set_call_limit.
-                // This error message is not useful for final users, here we
-                // replace the message and provide more information.
-                if message == "call limit reached" {
-                    (
-                        "code is too complex or large",
-                        "parser aborted here".to_owned(),
-                        Some(
-                            "reduce the number of nested parenthesis or the \
-                            size of your source code "
-                                .to_owned(),
-                        ),
-                    )
-                } else {
-                    ("syntax error", message.to_owned(), None)
-                }
-            }
-            ParsingError { positives, negatives } => (
-                "syntax error",
-                ErrorInfo::syntax_error_message(
-                    positives,
-                    negatives,
-                    ErrorInfo::printable_string,
-                ),
-                None,
-            ),
-        };
-
-        let detailed_report = self.create_report(
-            ReportType::Error,
-            error_span,
-            title.to_string(),
-            vec![(error_span, error_msg.clone(), Color::Red.style().bold())],
-            note,
-        );
-
-        Error::from(ErrorInfo::SyntaxError {
-            detailed_report,
-            error_msg,
-            error_span,
-        })
     }
 
     /// Converts an AST [`Span`] to an ariadne span.

@@ -3,10 +3,10 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::report::ReportBuilder;
+use crate::report::ReportType;
 use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
-use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::report::ReportType;
 use yara_x_parser::Error as ParseError;
 
 /// Errors returned while serializing/deserializing compiled rules.
@@ -227,4 +227,8 @@ pub enum CompileErrorInfo {
         span: Span,
         note: Option<String>,
     },
+
+    #[error("invalid UTF-8")]
+    #[label("invalid UTF-8 character", error_span)]
+    InvalidUTF8 { detailed_report: String, error_span: Span },
 }

@@ -49,6 +49,8 @@ pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
 
+pub use sourcecode::SourceCode;
+
 pub use scanner::Match;
 pub use scanner::Matches;
 pub use scanner::MatchingRules;
@@ -69,11 +71,14 @@ pub use variables::VariableError;
 mod compiler;
 mod modules;
 mod re;
+mod report;
 mod scanner;
+mod sourcecode;
 mod string_pool;
 mod symbols;
 mod types;
 mod variables;
+mod warnings;
 mod wasm;
 
 #[cfg(test)]

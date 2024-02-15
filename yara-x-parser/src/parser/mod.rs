@@ -10,7 +10,7 @@ pub use crate::parser::grammar::Rule as GrammarRule;
 
 pub(crate) use crate::parser::context::*;
 pub(crate) use crate::parser::cst2ast::*;
-pub(crate) use crate::report::*;
+pub use crate::report::*;
 
 mod context;
 mod cst2ast;

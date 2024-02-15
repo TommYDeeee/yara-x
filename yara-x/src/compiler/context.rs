@@ -2,8 +2,8 @@ use itertools::Itertools;
 use std::mem::size_of;
 use std::rc::Rc;
 
-use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::Warning;
+use crate::report::ReportBuilder;
+use crate::warnings::Warning;
 
 use crate::compiler::ir::PatternIdx;
 use crate::compiler::{ir, IdentId, RuleId, RuleInfo};

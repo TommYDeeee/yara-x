@@ -23,8 +23,8 @@ use crossterm::tty::IsTty;
 use serde_json::Value;
 use superconsole::{Component, Line, Lines, Span, SuperConsole};
 
+use yara_x::SourceCode;
 use yara_x::{Compiler, Rules};
-use yara_x_parser::SourceCode;
 
 use crate::walk::DirWalker;
 
@@ -92,17 +92,19 @@ where
                     console.render(&state).unwrap();
                 }
 
-                let src =
-                    fs::read_to_string(file_path).with_context(|| {
-                        format!("can not read `{}`", file_path.display())
-                    })?;
+                let src = fs::read(file_path).with_context(|| {
+                    format!("can not read `{}`", file_path.display())
+                })?;
+
+                let src = SourceCode::from(src.as_slice())
+                    .with_origin(file_path.as_os_str().to_str().unwrap());
 
                 if path_as_namespace {
                     compiler
                         .new_namespace(file_path.to_string_lossy().as_ref());
                 }
 
-                compiler.add_source(&src)?;
+                compiler.add_source(src)?;
                 state.num_compiled_files.fetch_add(1, Ordering::Relaxed);
 
                 Ok(())

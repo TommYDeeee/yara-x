@@ -34,6 +34,7 @@ pub use parser::*;
 pub use warnings::*;
 
 mod parser;
+pub use parser::SourceId;
 
 #[doc(hidden)]
 pub mod report;

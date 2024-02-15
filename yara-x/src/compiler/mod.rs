@@ -27,12 +27,13 @@ use serde::{Deserialize, Serialize};
 use std::time::Instant;
 use walrus::FunctionId;
 
+use crate::report::ReportBuilder;
+use crate::warnings::Warning;
+use crate::SourceCode;
 use text_size::TextSize;
 use yara_parser::{AstNode, Rule, SourceFile};
 use yara_x_parser::ast::{HasSpan, Ident, Import, RuleFlag, RuleFlags, Span};
-use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::warnings::Warning;
-use yara_x_parser::{report::SourceId, Parser, SourceCode};
+use yara_x_parser::{report::SourceId, Parser};
 
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};
@@ -86,7 +87,10 @@ mod tests;
 /// let results = scanner.scan("Lorem ipsum".as_bytes()).unwrap();
 /// assert_eq!(results.matching_rules().len(), 1);
 /// ```
-pub fn compile(src: &str) -> Result<Rules, Error> {
+pub fn compile<'src, S>(src: S) -> Result<Rules, Error>
+where
+    S: Into<SourceCode<'src>>,
+{
     let mut compiler = Compiler::new();
     compiler.add_source(src)?;
     Ok(compiler.build())
@@ -313,8 +317,39 @@ impl<'a> Compiler<'a> {
     /// Adds a YARA source code to be compiled.
     ///
     /// This function can be called multiple times.
-    pub fn add_source(&mut self, src: &str) -> Result<&mut Self, Error> {
-        let ast2 = SourceFile::parse(src);
+    pub fn add_source<'src, S>(&mut self, src: S) -> Result<&mut Self, Error>
+    where
+        S: Into<SourceCode<'src>>,
+    {
+        let mut src = src.into();
+
+        // Make sure that source code is valid UTF-8.
+        let utf8_validation = src.validate_utf8();
+        self.report_builder.register_source(&src);
+
+        // If the code is not valid UTF-8 fail with an error.
+        if let Err(err) = utf8_validation {
+            let span_start = err.valid_up_to();
+            let span_end = if let Some(error_len) = err.error_len() {
+                // `error_len` is the number of invalid UTF-8 bytes found
+                // after `span_start`. Round the number up to the next 3
+                // bytes boundary because invalid bytes are replaced with
+                // the Unicode replacement characters that takes 3 bytes.
+                // This way the span ends at a valid UTF-8 character
+                // boundary.
+                span_start + error_len.next_multiple_of(3)
+            } else {
+                span_start
+            };
+            return Err(Error::from(CompileError::from(
+                CompileErrorInfo::invalid_utf_8(
+                    &self.report_builder,
+                    Span::new(SourceId(0), span_start.into(), span_end.into()),
+                ),
+            )));
+        }
+
+        let ast2 = SourceFile::parse(src.valid.unwrap());
 
         for rule in ast2.tree().rules() {
             self.c_rule(rule)?;
