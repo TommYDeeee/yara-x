@@ -140,6 +140,9 @@ pub struct Compiler<'a> {
     /// Used for generating error and warning reports.
     report_builder: ReportBuilder,
 
+    /// Context for semantic checks that were previously done inside parsing
+    parse_context: Context,
+
     /// The main symbol table used by the compiler. This is actually a stack of
     /// symbol tables where the bottom-most table is the one that contains
     /// global identifiers like built-in functions and user-defined global
@@ -308,6 +311,7 @@ impl<'a> Compiler<'a> {
             imported_modules: Vec::new(),
             root_struct: Struct::new().make_root(),
             report_builder: ReportBuilder::new(),
+            parse_context: Context::new(),
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
@@ -767,7 +771,13 @@ impl<'a> Compiler<'a> {
             .unwrap()
             .variable_stmts()
             .into_iter()
-            .map(|p| text_pattern_from_ast(&self.report_builder, p))
+            .map(|p| {
+                text_pattern_from_ast(
+                    &mut self.parse_context,
+                    &self.report_builder,
+                    p,
+                )
+            })
             .collect::<Result<Vec<PatternInRule>, CompileError>>()?;
 
         // The RuleId for the new rule is current length of `self.rules`. The

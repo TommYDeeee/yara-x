@@ -3,6 +3,7 @@
 use std::borrow::Borrow;
 use std::iter;
 use std::ops::RangeInclusive;
+use std::process::exit;
 use std::rc::Rc;
 
 use crate::report::ReportBuilder;
@@ -18,7 +19,7 @@ use yara_x_parser::{ast, report::SourceId, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
-    Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
+    Context, Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
@@ -58,7 +59,8 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 //}
 
 pub(in crate::compiler) fn text_pattern_from_ast<'src>(
-    _report_builder: &ReportBuilder,
+    parse_context: &mut Context,
+    report_builder: &ReportBuilder,
     pattern: yara_parser::VariableStmt,
 ) -> Result<PatternInRule, CompileError> {
     let mut flags = PatternFlagSet::none();
@@ -66,6 +68,45 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     let string_pattern = pattern.pattern().unwrap();
     let string_token =
         string_pattern.string_lit_token().unwrap().text().to_owned();
+
+    if identifier != "$" {
+        if let Some(existing_pattern_ident) =
+            parse_context.declared_patterns.get(&identifier[1..])
+        {
+            return Err(CompileError::from(
+                CompileErrorInfo::duplicate_pattern(
+                    report_builder,
+                    identifier,
+                    Span::new(
+                        SourceId(0),
+                        pattern
+                            .variable_token()
+                            .unwrap()
+                            .text_range()
+                            .start()
+                            .into(),
+                        pattern
+                            .variable_token()
+                            .unwrap()
+                            .text_range()
+                            .end()
+                            .into(),
+                    ),
+                    Span::new(
+                        SourceId(0),
+                        existing_pattern_ident.text_range().start().into(),
+                        existing_pattern_ident.text_range().end().into(),
+                    ),
+                ),
+            ));
+        }
+    }
+
+    parse_context.unused_patterns.insert(identifier[1..].to_owned());
+
+    parse_context
+        .declared_patterns
+        .insert(identifier[1..].to_owned(), pattern.variable_token().unwrap());
 
     // As we for now support only ascii patterns we can set the ascii flag
     // by default

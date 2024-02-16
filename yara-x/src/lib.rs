@@ -49,7 +49,7 @@ pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
 
-pub use sourcecode::SourceCode;
+pub use source_code::SourceCode;
 
 pub use scanner::Match;
 pub use scanner::Matches;
@@ -73,7 +73,7 @@ mod modules;
 mod re;
 mod report;
 mod scanner;
-mod sourcecode;
+mod source_code;
 mod string_pool;
 mod symbols;
 mod types;

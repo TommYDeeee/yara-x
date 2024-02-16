@@ -72,6 +72,20 @@ impl std::error::Error for CompileError {}
 #[derive(DeriveError)]
 #[non_exhaustive]
 pub enum CompileErrorInfo {
+    #[error("duplicate pattern `{pattern_ident}`")]
+    #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
+    #[label(
+        "`{pattern_ident}` declared here for the first time",
+        existing_pattern_span,
+        style = "note"
+    )]
+    DuplicatePattern {
+        detailed_report: String,
+        pattern_ident: String,
+        new_pattern_span: Span,
+        existing_pattern_span: Span,
+    },
+
     #[error("wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",
