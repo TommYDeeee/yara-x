@@ -62,7 +62,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     parse_context: &mut Context,
     report_builder: &ReportBuilder,
     pattern: yara_parser::VariableStmt,
-) -> Result<PatternInRule, CompileError> {
+) -> Result<PatternInRule, Box<CompileError>> {
     let mut flags = PatternFlagSet::none();
     let identifier = pattern.variable_token().unwrap().text().to_string();
     let string_pattern = pattern.pattern().unwrap();
@@ -73,7 +73,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         if let Some(existing_pattern_ident) =
             parse_context.declared_patterns.get(&identifier[1..])
         {
-            return Err(CompileError::duplicate_pattern(
+            return Err(Box::new(CompileError::duplicate_pattern(
                 report_builder,
                 identifier,
                 Span::new(
@@ -96,7 +96,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
                     existing_pattern_ident.text_range().start().into(),
                     existing_pattern_ident.text_range().end().into(),
                 ),
-            ));
+            )));
         }
     }
 

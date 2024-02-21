@@ -3,11 +3,11 @@ use std::io;
 
 use thiserror::Error;
 
+use crate::report::ReportBuilder;
+use crate::report::ReportType;
 use crate::VariableError;
 use yara_x_macros::Error as DeriveError;
 use yara_x_parser::ast::Span;
-use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::report::ReportType;
 use yara_x_parser::Error as ParseError;
 
 /// Errors returned while serializing/deserializing compiled rules.
@@ -46,6 +46,51 @@ pub enum Error {
 #[derive(DeriveError, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CompileError {
+    #[error("duplicate pattern `{pattern_ident}`")]
+    #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
+    #[label(
+        "`{pattern_ident}` declared here for the first time",
+        existing_pattern_span,
+        style = "note"
+    )]
+    DuplicatePattern {
+        detailed_report: String,
+        pattern_ident: String,
+        new_pattern_span: Span,
+        existing_pattern_span: Span,
+    },
+
+    #[error("unknown pattern `{pattern_ident}`")]
+    #[label(
+        "this pattern is not declared in the `strings` section",
+        pattern_ident_span
+    )]
+    UnknownPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
+
+    #[error("unused pattern `{pattern_ident}`")]
+    #[label("this pattern was not used in the condition", pattern_ident_span)]
+    UnusedPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
+
+    #[error("syntax error")]
+    #[label("{error_msg}", error_span)]
+    SyntaxError {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
+    #[error("invalid UTF-8")]
+    #[label("invalid UTF-8 character", error_span)]
+    InvalidUTF8 { detailed_report: String, error_span: Span },
+
     #[error("wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",
