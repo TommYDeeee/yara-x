@@ -847,6 +847,16 @@ impl<'a> Compiler<'a> {
             &mut self.parse_context,
         );
 
+        // In case of error, restore the compiler to the state it was before
+        // entering this function.
+        let mut condition = match condition {
+            Ok(condition) => condition,
+            Err(e) => {
+                self.restore_snapshot(snapshot);
+                return Err(e);
+            }
+        };
+
         for unused_pattern in self.parse_context.unused_patterns.drain() {
             let ident = self
                 .parse_context
@@ -868,16 +878,6 @@ impl<'a> Compiler<'a> {
         }
 
         self.parse_context.declared_patterns.clear();
-
-        // In case of error, restore the compiler to the state it was before
-        // entering this function.
-        let mut condition = match condition {
-            Ok(condition) => condition,
-            Err(e) => {
-                self.restore_snapshot(snapshot);
-                return Err(e);
-            }
-        };
 
         // Create a new symbol of bool type for the rule.
         let new_symbol = Symbol::new(
