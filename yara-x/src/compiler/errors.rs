@@ -86,6 +86,33 @@ pub enum CompileErrorInfo {
         existing_pattern_span: Span,
     },
 
+    #[error("unknown pattern `{pattern_ident}`")]
+    #[label(
+        "this pattern is not declared in the `strings` section",
+        pattern_ident_span
+    )]
+    UnknownPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
+
+    #[error("unused pattern `{pattern_ident}`")]
+    #[label("this pattern was not used in the condition", pattern_ident_span)]
+    UnusedPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        pattern_ident_span: Span,
+    },
+
+    #[error("syntax error")]
+    #[label("{error_msg}", error_span)]
+    SyntaxError {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
     #[error("wrong type")]
     #[label(
         "expression should be {expected_types}, but is `{actual_type}`",

@@ -218,6 +218,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 pub(in crate::compiler) fn expr_from_ast(
     ctx: &mut CompileContext,
     expr: yara_parser::Expr,
+    parse_context: &mut Context,
 ) -> Result<Expr, CompileError> {
     match &expr {
         yara_parser::Expr::Literal(lit) => match lit.kind() {
@@ -235,6 +236,27 @@ pub(in crate::compiler) fn expr_from_ast(
                 ),
             }),
             LiteralKind::Variable(value) => {
+                if value.text() != "$" {
+                    if parse_context
+                        .declared_patterns
+                        .get(&value.text()[1..])
+                        .is_none()
+                    {
+                        return Err(CompileError::from(
+                            CompileErrorInfo::unknown_pattern(
+                                ctx.report_builder,
+                                value.text().to_string(),
+                                Span::new(
+                                    SourceId(0),
+                                    value.syntax().text_range().start().into(),
+                                    value.syntax().text_range().end().into(),
+                                ),
+                            ),
+                        ));
+                    }
+                    parse_context.unused_patterns.remove(&value.text()[1..]);
+                }
+
                 let pattern = ctx.get_pattern_mut(value.text());
                 pattern.make_non_anchorable();
                 Ok(Expr::PatternMatch {
@@ -245,19 +267,21 @@ pub(in crate::compiler) fn expr_from_ast(
         },
         yara_parser::Expr::PrefixExpr(prefix) => {
             match prefix.op_kind().unwrap() {
-                yara_parser::UnaryOp::Not => {
-                    not_expr_from_ast(ctx, prefix.expr().unwrap())
-                }
+                yara_parser::UnaryOp::Not => not_expr_from_ast(
+                    ctx,
+                    prefix.expr().unwrap(),
+                    parse_context,
+                ),
             }
         }
         yara_parser::Expr::Expression(expresion) => {
             match expresion.op_kind().unwrap() {
                 yara_parser::BinaryOp::LogicOp(op) => match op {
                     yara_parser::LogicOp::And => {
-                        and_expr_from_ast(ctx, expresion)
+                        and_expr_from_ast(ctx, expresion, parse_context)
                     }
                     yara_parser::LogicOp::Or => {
-                        or_expr_from_ast(ctx, expresion)
+                        or_expr_from_ast(ctx, expresion, parse_context)
                     }
                 },
             }
@@ -673,17 +697,18 @@ pub(in crate::compiler) fn expr_from_ast(
 pub(in crate::compiler) fn bool_expr_from_ast(
     ctx: &mut CompileContext,
     ast: yara_parser::Expr,
+    parse_context: &mut Context,
 ) -> Result<Expr, CompileError> {
-    let expr = expr_from_ast(ctx, ast)?;
-    //warn_if_not_bool(
-    //    ctx,
-    //    expr.ty(),
-    //    Span::new(
-    //        SourceId(0),
-    //        ast.syntax().text_range().start().into(),
-    //        ast.syntax().text_range().end().into(),
-    //    ),
-    //);
+    let expr = expr_from_ast(ctx, ast.clone(), parse_context)?;
+    warn_if_not_bool(
+        ctx,
+        expr.ty(),
+        Span::new(
+            SourceId(0),
+            ast.syntax().text_range().start().into(),
+            ast.syntax().text_range().end().into(),
+        ),
+    );
     Ok(expr)
 }
 
@@ -1421,8 +1446,9 @@ macro_rules! gen_unary_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: yara_parser::Expr,
+            parse_context: &mut Context,
         ) -> Result<Expr, CompileError> {
-            let operand = Box::new(expr_from_ast(ctx, expr.clone())?);
+            let operand = Box::new(expr_from_ast(ctx, expr.clone(), parse_context)?);
             let operand_span = Span::new(SourceId(0), expr.syntax().text_range().start().into(), expr.syntax().text_range().end().into());
 
             // The `not` operator accepts integers, floats and strings because
@@ -1532,6 +1558,7 @@ macro_rules! gen_n_ary_operation {
         fn $name(
             ctx: &mut CompileContext,
             expr: &yara_parser::Expression,
+            parse_context: &mut Context,
         ) -> Result<Expr, CompileError> {
             let accepted_types = &[$( $accepted_types ),+];
             let compatible_types = &[$( $compatible_types ),+];
@@ -1539,7 +1566,7 @@ macro_rules! gen_n_ary_operation {
             let operands = vec![expr.lhs().unwrap(), expr.rhs().unwrap()];
             let operands_hir: Vec<Expr> = operands
                 .iter()
-                .map(|expr| expr_from_ast(ctx, expr.clone()))
+                .map(|expr| expr_from_ast(ctx, expr.clone(), parse_context))
                 .collect::<Result<Vec<Expr>, CompileError>>()?;
 
             let check_fn:

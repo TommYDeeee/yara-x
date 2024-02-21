@@ -182,9 +182,7 @@ impl ReportBuilder {
         // The span specified in the AST are byte-wise, but the spans expected
         // by Ariadne are character-wise. Some conversion is required.
 
-        println!("span: {:?}", title);
         let span = self.ast_span_to_ariadne(span);
-        println!("span: {:?}", span);
 
         let mut report_builder =
             ariadne::Report::build(kind, source_id, span.start)

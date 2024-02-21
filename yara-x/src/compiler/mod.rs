@@ -355,6 +355,25 @@ impl<'a> Compiler<'a> {
 
         let ast2 = SourceFile::parse(src.valid.unwrap());
 
+        if !ast2.errors().is_empty() {
+            for error in ast2.errors() {
+                let error = Error::from(CompileError::from(
+                    CompileErrorInfo::syntax_error(
+                        &self.report_builder,
+                        error.to_string(),
+                        Span::new(
+                            SourceId(0),
+                            error.range().start().into(),
+                            error.range().end().into(),
+                        ),
+                    ),
+                ));
+
+                eprintln!("{}", error);
+            }
+            std::process::exit(1);
+        }
+
         for rule in ast2.tree().rules() {
             self.c_rule(rule)?;
         }
@@ -830,7 +849,32 @@ impl<'a> Compiler<'a> {
                 .unwrap()
                 .expr()
                 .unwrap(),
+            &mut self.parse_context,
         );
+
+        for unused_pattern in self.parse_context.unused_patterns.drain() {
+            let ident = self
+                .parse_context
+                .declared_patterns
+                .get(&unused_pattern)
+                .unwrap();
+
+            if !unused_pattern.starts_with("_") {
+                return Err(CompileError::from(
+                    CompileErrorInfo::unused_pattern(
+                        &self.report_builder,
+                        ident.text().to_string(),
+                        Span::new(
+                            SourceId(0),
+                            ident.text_range().start().into(),
+                            ident.text_range().end().into(),
+                        ),
+                    ),
+                ));
+            }
+        }
+
+        self.parse_context.declared_patterns.clear();
 
         // In case of error, restore the compiler to the state it was before
         // entering this function.
