@@ -1,10 +1,13 @@
 name: Code coverage with grcov
 
 on:
-  schedule:
   # Run at every day at 2:15.
+  schedule:
   - cron: '15 2 * * *'
-
+  # Also run then this file is changed.
+  push:
+    paths:
+    - '.github/workflows/coverage.yaml'
 jobs:
   coverage:
     name: Coverage
@@ -29,5 +32,6 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: lcov.info
         fail_ci_if_error: true
