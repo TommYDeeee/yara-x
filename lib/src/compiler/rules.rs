@@ -10,8 +10,8 @@ use log::*;
 use regex_automata::meta::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::span::Span;
 use crate::warnings::Warning;
-use yara_x_parser::ast::Span;
 
 use crate::compiler::atoms::Atom;
 use crate::compiler::{

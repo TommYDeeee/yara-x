@@ -6,7 +6,8 @@ use std::ops::RangeInclusive;
 use std::process::exit;
 use std::rc::Rc;
 
-use crate::report::ReportBuilder;
+use crate::report::{ReportBuilder, SourceId};
+use crate::span::{HasSpan, Span};
 use crate::warnings::Warning;
 use bstr::ByteSlice;
 use itertools::Itertools;
@@ -14,8 +15,7 @@ use serde_json::value;
 use yara_parser::AstNode;
 use yara_parser::AstToken;
 use yara_parser::LiteralKind;
-use yara_x_parser::ast::{HasSpan, Span};
-use yara_x_parser::{ast, report::SourceId, ErrorInfo};
+use yara_x_parser::{ast, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{

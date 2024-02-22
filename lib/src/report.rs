@@ -7,15 +7,28 @@ use std::ops::Range;
 use ariadne::{Color, Label, ReportKind, Source};
 use yansi::Style;
 
+use crate::span::Span;
 use crate::SourceCode;
-use yara_x_parser::ast::Span;
-use yara_x_parser::SourceId;
 
 /// Types of reports created by [`ReportBuilder`].
 pub enum ReportType {
     Error,
     Warning,
 }
+
+/// Identifier associated to each source file registered in a [`ReportBuilder`].
+///
+/// Each source file gets its own unique `SourceId` when it is registered
+/// via [register_source]. These identifiers are stored in [`Span`] instances
+/// all over the `AST`, indicating the original source file that contained the
+/// span. When some [`Span`] is passed to [create_report], the report builder
+/// can use the [`SourceId`] for locating the original source file and extract
+/// the corresponding code snippet from it.
+///
+/// [register_source]: ReportBuilder::register_source
+/// [create_report]: ReportBuilder::create_report
+#[derive(Hash, Eq, PartialEq, Clone, Copy, Debug, Default)]
+pub struct SourceId(pub u32);
 
 /// Builds error and warning reports.
 ///

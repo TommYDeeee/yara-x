@@ -5,9 +5,9 @@ use thiserror::Error;
 
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
+use crate::span::Span;
 use crate::VariableError;
 use yara_x_macros::Error as DeriveError;
-use yara_x_parser::ast::Span;
 use yara_x_parser::Error as ParseError;
 
 /// Errors returned while serializing/deserializing compiled rules.

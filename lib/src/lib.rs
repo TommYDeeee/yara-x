@@ -73,6 +73,7 @@ mod re;
 mod report;
 mod scanner;
 mod source_code;
+mod span;
 mod string_pool;
 mod symbols;
 mod types;

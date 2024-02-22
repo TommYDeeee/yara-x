@@ -25,13 +25,14 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
-use crate::report::ReportBuilder;
+use crate::report::{ReportBuilder, SourceId};
+use crate::span::Span;
 use crate::warnings::Warning;
 use crate::SourceCode;
 use text_size::TextSize;
 use yara_parser::{AstNode, Rule, SourceFile};
-use yara_x_parser::ast::{HasSpan, Ident, Import, RuleFlag, RuleFlags, Span};
-use yara_x_parser::{report::SourceId, Parser};
+use yara_x_parser::ast::{Ident, Import, RuleFlag, RuleFlags};
+use yara_x_parser::Parser;
 
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};
@@ -702,14 +703,14 @@ impl<'a> Compiler<'a> {
         let module = BUILTIN_MODULES.get(module_name);
 
         // Does a module with the given name actually exist? ...
-        if module.is_none() {
-            // The module does not exist, that's an error.
-            return Err(Box::new(CompileError::unknown_module(
-                &self.report_builder,
-                module_name.to_string(),
-                import.span(),
-            )));
-        }
+        //if module.is_none() {
+        //    // The module does not exist, that's an error.
+        //    return Err(Box::new(CompileError::unknown_module(
+        //        &self.report_builder,
+        //        module_name.to_string(),
+        //        import.span(),
+        //    )));
+        //}
 
         // Yes, module exists.
         let module = module.unwrap();

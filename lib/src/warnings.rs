@@ -3,7 +3,7 @@ use yara_x_macros::Error;
 
 use crate::report::ReportBuilder;
 use crate::report::ReportType;
-use yara_x_parser::ast::Span;
+use crate::span::Span;
 
 /// A warning raised while parsing YARA rules.
 #[rustfmt::skip]
