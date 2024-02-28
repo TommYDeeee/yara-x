@@ -6,7 +6,7 @@ module implements the YARA compiler.
 
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
@@ -30,8 +30,8 @@ use crate::span::Span;
 use crate::warnings::Warning;
 use crate::SourceCode;
 use text_size::TextSize;
-use yara_parser::{AstNode, HasModifier, Rule, SourceFile};
-use yara_x_parser::ast::{Ident, Import, RuleFlag, RuleFlags};
+use yara_parser::{AstNode, HasModifier, ImportStmt, Rule, SourceFile};
+use yara_x_parser::ast::{self, Ident, Import, RuleFlag, RuleFlags};
 use yara_x_parser::Parser;
 
 use crate::compiler::base64::base64_patterns;
@@ -384,7 +384,47 @@ impl<'a> Compiler<'a> {
         // actually exist, and raise warnings in case of duplicated
         // imports within the same source file. For each module add a
         // symbol to the current namespace.
-        //self.c_imports(&ast.imports)?;
+        let mut seen_imports = HashMap::new();
+        for import in ast2.tree().import_stmts() {
+            let import_token = import.string_lit_token().unwrap();
+
+            //Add safer validation check! using `utf8_string_lit_from_cst` when supported
+            let module_name = import_token.text().trim_matches('"');
+
+            // Add warnings for duplicate imports
+            if let Some(already_imported) = seen_imports
+                .insert(module_name.to_string(), import_token.clone())
+            {
+                self.warnings.push(Warning::duplicate_import(
+                    &self.report_builder,
+                    module_name.to_string(),
+                    Span::new(
+                        SourceId(0),
+                        import_token.text_range().start().into(),
+                        import_token.text_range().end().into(),
+                    ),
+                    Span::new(
+                        SourceId(0),
+                        already_imported.text_range().start().into(),
+                        already_imported.text_range().end().into(),
+                    ),
+                ))
+            }
+
+            self.import_module(import.clone())?;
+
+            let mut symbol_table =
+                self.current_namespace.symbols.as_ref().borrow_mut();
+
+            // Create a symbol for the module and insert it in the symbol
+            // table for this namespace, if it doesn't exist.
+            if !symbol_table.contains(module_name) {
+                symbol_table.insert(
+                    module_name,
+                    self.root_struct.lookup(module_name).unwrap(),
+                );
+            }
+        }
 
         // Iterate over the list of declared rules and verify that their
         // conditions are semantically valid. For each rule add a symbol
@@ -697,20 +737,26 @@ impl<'a> Compiler<'a> {
     /// imported modules. This field is created only if it don't exist yet.
     fn import_module(
         &mut self,
-        import: &Import,
+        import: ImportStmt,
     ) -> Result<(), Box<CompileError>> {
-        let module_name = import.module_name.as_str();
+        let import_token = import.string_lit_token().unwrap();
+        let module_name = import_token.text().trim_matches('"');
+        // TODO: change this trimming to `utf8_string_lit_from_cst` when supported
         let module = BUILTIN_MODULES.get(module_name);
 
         // Does a module with the given name actually exist? ...
-        //if module.is_none() {
-        //    // The module does not exist, that's an error.
-        //    return Err(Box::new(CompileError::unknown_module(
-        //        &self.report_builder,
-        //        module_name.to_string(),
-        //        import.span(),
-        //    )));
-        //}
+        if module.is_none() {
+            // The module does not exist, that's an error.
+            return Err(Box::new(CompileError::unknown_module(
+                &self.report_builder,
+                module_name.to_string(),
+                Span::new(
+                    SourceId(0),
+                    import_token.text_range().start().into(),
+                    import_token.text_range().end().into(),
+                ),
+            )));
+        }
 
         // Yes, module exists.
         let module = module.unwrap();
@@ -1612,32 +1658,6 @@ impl<'a> Compiler<'a> {
             ),
             SubPatternAtom::from_atom,
         )
-    }
-
-    fn c_imports(
-        &mut self,
-        imports: &[Import],
-    ) -> Result<(), Box<CompileError>> {
-        for import in imports {
-            // Import the module. This updates `self.root_struct` if
-            // necessary.
-            self.import_module(import)?;
-
-            let module_name = import.module_name.as_str();
-            let mut symbol_table =
-                self.current_namespace.symbols.as_ref().borrow_mut();
-
-            // Create a symbol for the module and insert it in the symbol
-            // table for this namespace, if it doesn't exist.
-            if !symbol_table.contains(module_name) {
-                symbol_table.insert(
-                    module_name,
-                    self.root_struct.lookup(module_name).unwrap(),
-                );
-            }
-        }
-
-        Ok(())
     }
 }
 
