@@ -223,9 +223,14 @@ pub(in crate::compiler) fn expr_from_ast(
             LiteralKind::Bool(value) => Ok(Expr::Const {
                 type_value: TypeValue::const_bool_from(value),
             }),
-            LiteralKind::Number(value) => Ok(Expr::Const {
+            LiteralKind::Int(value) => Ok(Expr::Const {
                 type_value: TypeValue::const_integer_from(
                     value.text().parse::<i64>().unwrap(),
+                ),
+            }),
+            LiteralKind::Float(value) => Ok(Expr::Const {
+                type_value: TypeValue::const_float_from(
+                    value.text().parse::<f64>().unwrap(),
                 ),
             }),
             LiteralKind::String(value) => Ok(Expr::Const {

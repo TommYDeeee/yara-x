@@ -30,7 +30,7 @@ use crate::span::Span;
 use crate::warnings::Warning;
 use crate::SourceCode;
 use text_size::TextSize;
-use yara_parser::{AstNode, Rule, SourceFile};
+use yara_parser::{AstNode, HasModifier, Rule, SourceFile};
 use yara_x_parser::ast::{Ident, Import, RuleFlag, RuleFlags};
 use yara_x_parser::Parser;
 
@@ -799,6 +799,31 @@ impl<'a> Compiler<'a> {
         // first rule has RuleId = 0.
         let rule_id = RuleId(self.rules.len() as i32);
 
+        // Check if rule tags contain any duplicates.
+        let mut tags = HashSet::new();
+        for tag in rule.tags() {
+            if !tags.insert(tag.identifier_token().unwrap().text().to_string())
+            {
+                return Err(Box::new(CompileError::duplicate_tag(
+                    &self.report_builder,
+                    tag.identifier_token().unwrap().text().to_string(),
+                    Span::new(
+                        SourceId(0),
+                        tag.identifier_token()
+                            .unwrap()
+                            .text_range()
+                            .start()
+                            .into(),
+                        tag.identifier_token()
+                            .unwrap()
+                            .text_range()
+                            .end()
+                            .into(),
+                    ),
+                )));
+            }
+        }
+
         // Add the new rule to `self.rules`. The only information about the
         // rule that we don't have right now is the PatternId corresponding to
         // each pattern, that's why the `pattern` fields is initialized as
@@ -819,8 +844,8 @@ impl<'a> Compiler<'a> {
                 rule.identifier_token().unwrap().text_range().end().into(),
             ),
             patterns: vec![],
-            is_global: false,
-            is_private: false,
+            is_global: rule.modifier().iter().any(|s| s == "global"),
+            is_private: rule.modifier().iter().any(|s| s == "private"),
         });
 
         // Convert the rule condition's AST to the intermediate representation

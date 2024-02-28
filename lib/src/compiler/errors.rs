@@ -46,6 +46,10 @@ pub enum Error {
 #[derive(DeriveError, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CompileError {
+    #[error("duplicate tag `{tag}`")]
+    #[label("duplicate tag", tag_span)]
+    DuplicateTag { detailed_report: String, tag: String, tag_span: Span },
+
     #[error("duplicate pattern `{pattern_ident}`")]
     #[label("duplicate declaration of `{pattern_ident}`", new_pattern_span)]
     #[label(
