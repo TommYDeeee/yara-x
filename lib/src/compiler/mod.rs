@@ -30,7 +30,7 @@ use crate::span::Span;
 use crate::warnings::Warning;
 use crate::SourceCode;
 use text_size::TextSize;
-use yara_parser::{AstNode, HasModifier, ImportStmt, Rule, SourceFile};
+use yara_parser::{AstNode, ImportStmt, Rule, SourceFile};
 use yara_x_parser::ast::{self, Ident, Import, RuleFlag, RuleFlags};
 use yara_x_parser::Parser;
 
@@ -156,7 +156,7 @@ pub struct Compiler<'a> {
     global_symbols: Rc<RefCell<SymbolTable>>,
 
     /// Information about the current namespace (i.e: the namespace that will
-    /// contain any new rules added via a call to `add_sources`.
+    /// contain any new rules added via a call to `add_sources`).
     current_namespace: Namespace,
 
     /// Pool that contains all the identifiers used in the rules. Each
@@ -890,8 +890,10 @@ impl<'a> Compiler<'a> {
                 rule.identifier_token().unwrap().text_range().end().into(),
             ),
             patterns: vec![],
-            is_global: rule.modifier().iter().any(|s| s == "global"),
-            is_private: rule.modifier().iter().any(|s| s == "private"),
+            is_global: rule.modifiers().any(|s| s.syntax().text() == "global"),
+            is_private: rule
+                .modifiers()
+                .any(|s| s.syntax().text() == "private"),
         });
 
         // Convert the rule condition's AST to the intermediate representation

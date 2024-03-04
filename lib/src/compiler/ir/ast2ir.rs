@@ -1,6 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::process::exit;
@@ -64,6 +65,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     pattern: yara_parser::VariableStmt,
 ) -> Result<PatternInRule, Box<CompileError>> {
     let mut flags = PatternFlagSet::none();
+
     let identifier = pattern.variable_token().unwrap().text().to_string();
     let string_pattern = pattern.pattern().unwrap();
     let string_token =
@@ -106,9 +108,41 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         .declared_patterns
         .insert(identifier[1..].to_owned(), pattern.variable_token().unwrap());
 
-    // As we for now support only ascii patterns we can set the ascii flag
-    // by default
-    flags.set(PatternFlags::Ascii);
+    //Pattern modifiers
+    let mut encountered_modifiers = HashSet::new();
+    for modifier in string_pattern.pattern_mods() {
+        // Check if there are no duplicates in modifiers
+        if !encountered_modifiers.insert(modifier.syntax().text().to_string())
+        {
+            return Err(Box::new(CompileError::duplicate_modifier(
+                report_builder,
+                Span::new(
+                    SourceId(0),
+                    modifier.syntax().text_range().start().into(),
+                    modifier.syntax().text_range().end().into(),
+                ),
+            )));
+        }
+
+        if modifier.ascii_token().is_some() || modifier.wide_token().is_none()
+        {
+            flags.set(PatternFlags::Ascii);
+        }
+
+        if modifier.wide_token().is_some() {
+            flags.set(PatternFlags::Wide);
+        }
+
+        if modifier.fullword_token().is_some() {
+            flags.set(PatternFlags::Fullword);
+        }
+
+        if modifier.nocase_token().is_some() {
+            flags.set(PatternFlags::Nocase);
+        }
+
+        // private flag is not supported on compiler level yet
+    }
 
     Ok(PatternInRule {
         identifier,

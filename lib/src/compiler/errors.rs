@@ -64,6 +64,10 @@ pub enum CompileError {
         existing_pattern_span: Span,
     },
 
+    #[error("duplicate pattern modifier")]
+    #[label("duplicate modifier", modifier_span)]
+    DuplicateModifier { detailed_report: String, modifier_span: Span },
+
     #[error("unknown pattern `{pattern_ident}`")]
     #[label(
         "this pattern is not declared in the `strings` section",
