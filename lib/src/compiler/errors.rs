@@ -64,9 +64,41 @@ pub enum CompileError {
         existing_pattern_span: Span,
     },
 
+    #[error("invalid pattern `{pattern_ident}`")]
+    #[label("{error_msg}", error_span)]
+    #[note(note)]
+    InvalidPattern {
+        detailed_report: String,
+        pattern_ident: String,
+        error_msg: String,
+        error_span: Span,
+        note: Option<String>,
+    },
+
     #[error("duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
     DuplicateModifier { detailed_report: String, modifier_span: Span },
+
+    #[error("invalid base64 alphabet")]
+    #[label("{error_msg}", error_span)]
+    InvalidBase64Alphabet {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
+    #[error("invalid modifier combination: `{modifier1}` `{modifier2}`")]
+    #[label("`{modifier1}` modifier used here", modifier1_span)]
+    #[label("`{modifier2}` modifier used here", modifier2_span)]
+    #[note(note)]
+    InvalidModifierCombination {
+        detailed_report: String,
+        modifier1: String,
+        modifier2: String,
+        modifier1_span: Span,
+        modifier2_span: Span,
+        note: Option<String>,
+    },
 
     #[error("unknown pattern `{pattern_ident}`")]
     #[label(

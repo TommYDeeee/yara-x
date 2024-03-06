@@ -1,7 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
 use std::borrow::Borrow;
-use std::collections::HashSet;
+use std::collections::BTreeMap;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::process::exit;
@@ -13,9 +13,9 @@ use crate::warnings::Warning;
 use bstr::ByteSlice;
 use itertools::Itertools;
 use serde_json::value;
-use yara_parser::AstNode;
 use yara_parser::AstToken;
 use yara_parser::LiteralKind;
+use yara_parser::{AstNode, XorRange};
 use yara_x_parser::{ast, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
@@ -109,10 +109,15 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         .insert(identifier[1..].to_owned(), pattern.variable_token().unwrap());
 
     //Pattern modifiers
-    let mut encountered_modifiers = HashSet::new();
+    let mut modifiers = BTreeMap::new();
+    let mut base64_alphabet = None;
+    let mut base64wide_alphabet = None;
+    let mut xor_range = None;
     for modifier in string_pattern.pattern_mods() {
         // Check if there are no duplicates in modifiers
-        if !encountered_modifiers.insert(modifier.syntax().text().to_string())
+        if modifiers
+            .insert(modifier.syntax().text().to_string(), modifier.clone())
+            .is_some()
         {
             return Err(Box::new(CompileError::duplicate_modifier(
                 report_builder,
@@ -141,19 +146,213 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             flags.set(PatternFlags::Nocase);
         }
 
+        if modifier.base64_token().is_some()
+            || modifier.base64wide_token().is_some()
+        {
+            if let Some(base64alphabet) = modifier.base_alphabet() {
+                let alphabet_token =
+                    base64alphabet.string_lit_token().unwrap();
+                let alphabet_str =
+                    alphabet_token.text().trim_matches(|c| c == '\"'); //use better string validation
+
+                match base64::alphabet::Alphabet::new(alphabet_str) {
+                    Ok(_) => {
+                        if modifier.base64_token().is_some() {
+                            base64_alphabet = Some(alphabet_str.to_owned());
+                        } else {
+                            base64wide_alphabet =
+                                Some(alphabet_str.to_owned());
+                        }
+                    }
+                    Err(err) => {
+                        return Err(Box::new(
+                            CompileError::invalid_base_64_alphabet(
+                                report_builder,
+                                err.to_string().to_lowercase(),
+                                Span::new(
+                                    SourceId(0),
+                                    base64alphabet
+                                        .string_lit_token()
+                                        .unwrap()
+                                        .text_range()
+                                        .start()
+                                        .into(),
+                                    base64alphabet
+                                        .string_lit_token()
+                                        .unwrap()
+                                        .text_range()
+                                        .end()
+                                        .into(),
+                                ),
+                            ),
+                        ))
+                    }
+                }
+            }
+            if modifier.base64_token().is_some() {
+                flags.set(PatternFlags::Base64);
+            } else {
+                flags.set(PatternFlags::Base64Wide);
+            }
+        }
+
+        if modifier.xor_token().is_some() {
+            let mut lower_bound = 0;
+            let mut upper_bound = 255;
+
+            // The `xor` modifier may be followed by arguments describing
+            // the xor range. e.g: `xor(2)`, `xor(0-10)`. If not, the
+            // default range is 0-255.
+            if modifier.xor_range().is_some() {
+                let lhs = modifier.xor_range().unwrap().lhs();
+                let rhs = modifier.xor_range().unwrap().rhs();
+
+                lower_bound =
+                    lhs.clone().unwrap().token().text().parse::<u8>().unwrap();
+                if rhs.is_some() {
+                    upper_bound = rhs
+                        .clone()
+                        .unwrap()
+                        .token()
+                        .text()
+                        .parse::<u8>()
+                        .unwrap();
+                } else {
+                    upper_bound =
+                        lhs.unwrap().token().text().parse::<u8>().unwrap();
+                }
+
+                if lower_bound > upper_bound {
+                    return Err(Box::new(CompileError::invalid_range(
+                        report_builder,
+                        Span::new(
+                            SourceId(0),
+                            rhs.clone()
+                                .unwrap()
+                                .token()
+                                .text_range()
+                                .start()
+                                .into(),
+                            rhs.unwrap().token().text_range().end().into(),
+                        ),
+                    )));
+                }
+            }
+            flags.set(PatternFlags::Xor);
+            xor_range = Some(lower_bound..=upper_bound)
+        }
+
         // private flag is not supported on compiler level yet
+    }
+
+    // Check for invalid modifier combinations
+    let invalid_combinations = [
+        ("xor", modifiers.get("xor"), "nocase", modifiers.get("nocase")),
+        ("base64", modifiers.get("base64"), "nocase", modifiers.get("nocase")),
+        (
+            "base64wide",
+            modifiers.get("base64wide"),
+            "nocase",
+            modifiers.get("nocase"),
+        ),
+        (
+            "base64",
+            modifiers.get("base64"),
+            "fullword",
+            modifiers.get("fullword"),
+        ),
+        (
+            "base64wide",
+            modifiers.get("base64wide"),
+            "fullword",
+            modifiers.get("fullword"),
+        ),
+        ("base64", modifiers.get("base64"), "xor", modifiers.get("xor")),
+        (
+            "base64wide",
+            modifiers.get("base64wide"),
+            "xor",
+            modifiers.get("xor"),
+        ),
+    ];
+
+    for &(flag1, flag1_option, flag2, flag2_option) in &invalid_combinations {
+        if flag1_option.is_some() && flag2_option.is_some() {
+            return Err(Box::new(CompileError::invalid_modifier_combination(
+                report_builder,
+                flag1.to_string(),
+                flag2.to_string(),
+                Span::new(
+                    SourceId(0),
+                    flag1_option.unwrap().syntax().text_range().start().into(),
+                    flag1_option.unwrap().syntax().text_range().end().into(),
+                ),
+                Span::new(
+                    SourceId(0),
+                    flag2_option.unwrap().syntax().text_range().start().into(),
+                    flag2_option.unwrap().syntax().text_range().end().into(),
+                ),
+                Some("these two modifiers can't be used together".to_string()),
+            )));
+        }
+    }
+
+    // Check minimum length
+    let (min_len, note) = if modifiers.get("base64").is_some() {
+        (
+            3,
+            Some(
+                "`base64` requires that pattern is at least 3 bytes long"
+                    .to_string(),
+            ),
+        )
+    } else if modifiers.get("base64wide").is_some() {
+        (
+            3,
+            Some(
+                "`base64wide` requires that pattern is at least 3 bytes long"
+                    .to_string(),
+            ),
+        )
+    } else {
+        (1, None)
+    };
+
+    let text = bstr::BString::from(string_token.trim_matches(|c| c == '\"')); //use better string validation
+    if text.len() < min_len {
+        return Err(Box::new(CompileError::invalid_pattern(
+            report_builder,
+            identifier,
+            "this pattern is too short".to_string(),
+            Span::new(
+                SourceId(0),
+                string_pattern
+                    .string_lit_token()
+                    .unwrap()
+                    .text_range()
+                    .start()
+                    .into(),
+                string_pattern
+                    .string_lit_token()
+                    .unwrap()
+                    .text_range()
+                    .end()
+                    .into(),
+            ),
+            note,
+        )));
     }
 
     Ok(PatternInRule {
         identifier,
         pattern: Pattern::Literal(LiteralPattern {
             flags,
-            xor_range: None,
-            base64_alphabet: None,
-            base64wide_alphabet: None,
+            xor_range,
+            base64_alphabet: base64_alphabet.map(String::from),
+            base64wide_alphabet: base64wide_alphabet.map(String::from),
             anchored_at: None,
 
-            text: bstr::BString::from(string_token),
+            text,
         }),
     })
 }
