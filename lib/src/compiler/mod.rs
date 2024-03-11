@@ -25,6 +25,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
+use crate::compiler::ir::string_lit_from_cst;
 use crate::report::{ReportBuilder, SourceId};
 use crate::span::Span;
 use crate::warnings::Warning;
@@ -388,8 +389,18 @@ impl<'a> Compiler<'a> {
         for import in ast2.tree().import_stmts() {
             let import_token = import.string_lit_token().unwrap();
 
-            //Add safer validation check! using `utf8_string_lit_from_cst` when supported
-            let module_name = import_token.text().trim_matches('"');
+            //optimize
+            let temp = string_lit_from_cst(
+                &self.report_builder,
+                import_token.text(),
+                false,
+            )
+            .unwrap();
+
+            let module_name = {
+                let temp_str = unsafe { temp.to_str_unchecked() };
+                temp_str
+            };
 
             // Add warnings for duplicate imports
             if let Some(already_imported) = seen_imports
@@ -740,8 +751,20 @@ impl<'a> Compiler<'a> {
         import: ImportStmt,
     ) -> Result<(), Box<CompileError>> {
         let import_token = import.string_lit_token().unwrap();
-        let module_name = import_token.text().trim_matches('"');
-        // TODO: change this trimming to `utf8_string_lit_from_cst` when supported
+
+        //optimize
+        let temp = string_lit_from_cst(
+            &self.report_builder,
+            import_token.text(),
+            false,
+        )
+        .unwrap();
+
+        let module_name = {
+            let temp_str = unsafe { temp.to_str_unchecked() };
+            temp_str
+        };
+
         let module = BUILTIN_MODULES.get(module_name);
 
         // Does a module with the given name actually exist? ...
@@ -833,8 +856,9 @@ impl<'a> Compiler<'a> {
             .variable_stmts()
             .into_iter()
             .map(|p| {
-                text_pattern_from_ast(
+                pattern_from_ast(
                     &mut self.parse_context,
+                    &mut self.warnings,
                     &self.report_builder,
                     p,
                 )

@@ -64,6 +64,14 @@ pub enum CompileError {
         existing_pattern_span: Span,
     },
 
+    #[error("invalid regexp modifier `{modifier}`")]
+    #[label("invalid modifier", error_span)]
+    InvalidRegexpModifier {
+        detailed_report: String,
+        modifier: String,
+        error_span: Span,
+    },
+
     #[error("invalid pattern `{pattern_ident}`")]
     #[label("{error_msg}", error_span)]
     #[note(note)]
@@ -73,6 +81,26 @@ pub enum CompileError {
         error_msg: String,
         error_span: Span,
         note: Option<String>,
+    },
+
+    #[error("invalid escape sequence")]
+    #[label("{error_msg}", error_span)]
+    InvalidEscapeSequence {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
+    #[error("unexpected escape sequence")]
+    #[label("escape sequences are not allowed in this string", error_span)]
+    UnexpectedEscapeSequence { detailed_report: String, error_span: Span },
+
+    #[error("invalid integer")]
+    #[label("{error_msg}", error_span)]
+    InvalidInteger {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
     },
 
     #[error("duplicate pattern modifier")]

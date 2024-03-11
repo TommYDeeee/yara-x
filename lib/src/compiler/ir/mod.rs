@@ -41,7 +41,8 @@ use crate::symbols::Symbol;
 use crate::types::{Type, TypeValue, Value};
 
 pub(in crate::compiler) use ast2ir::bool_expr_from_ast;
-pub(in crate::compiler) use ast2ir::text_pattern_from_ast;
+pub(in crate::compiler) use ast2ir::pattern_from_ast;
+pub(in crate::compiler) use ast2ir::string_lit_from_cst;
 pub(in crate::compiler) use parse_context::Context;
 //pub(in crate::compiler) use ast2ir::patterns_from_ast;
 

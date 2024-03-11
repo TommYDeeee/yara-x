@@ -1,6 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
-use std::borrow::Borrow;
+use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
+use std::borrow::{Borrow, Cow};
 use std::collections::BTreeMap;
 use std::iter;
 use std::ops::RangeInclusive;
@@ -9,8 +10,8 @@ use std::rc::Rc;
 
 use crate::report::{ReportBuilder, SourceId};
 use crate::span::{HasSpan, Span};
-use crate::warnings::Warning;
-use bstr::ByteSlice;
+use crate::warnings::{self, Warning};
+use bstr::{BStr, BString, ByteSlice, ByteVec};
 use itertools::Itertools;
 use serde_json::value;
 use yara_parser::AstToken;
@@ -31,6 +32,175 @@ use crate::re::parser::Error;
 use crate::symbols::{Symbol, SymbolKind, SymbolLookup, SymbolTable};
 use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
+pub fn string_lit_from_cst(
+    report_builder: &ReportBuilder,
+    literal: &str,
+    allow_escape_char: bool,
+) -> Result<BString, Box<CompileError>> {
+    // The string literal must be enclosed in double quotes.
+    debug_assert!(literal.starts_with('\"'));
+    debug_assert!(literal.ends_with('\"'));
+
+    // From now on ignore the quotes.
+    let literal = &literal[1..literal.len() - 1];
+
+    // Check if the string contains some backslash.
+    let backslash_pos = if let Some(backslash_pos) = literal.find('\\') {
+        if !allow_escape_char {
+            return Err(Box::new(CompileError::unexpected_escape_sequence(
+                report_builder,
+                Span::new(SourceId(0), 0, 0),
+            )));
+        }
+        backslash_pos
+    } else {
+        // If the literal does not contain a backslash it can't contain escaped
+        // characters, the literal is exactly as it appears in the source code.
+        // Therefore, we can return a reference to it in the form of a &BStr,
+        // allocating a new BString is not necessary.
+        return Ok(BString::from(literal));
+    };
+
+    // Initially the result is a copy of the literal string up to the first
+    // backslash found.
+    let mut result = BString::from(&literal[..backslash_pos]);
+
+    // Process the remaining part of the literal, starting at the backslash.
+    let literal = &literal[backslash_pos..];
+    let mut chars = literal.char_indices();
+
+    while let Some((backslash_pos, b)) = chars.next() {
+        match b {
+            // The backslash indicates an escape sequence.
+            '\\' => {
+                // Consume the backslash and see what's next. A character must
+                // follow the backslash, this is guaranteed by the grammar
+                // itself.
+                let escaped_char = chars.next().unwrap();
+
+                match escaped_char.1 {
+                    '\\' => result.push(b'\\'),
+                    'n' => result.push(b'\n'),
+                    'r' => result.push(b'\r'),
+                    't' => result.push(b'\t'),
+                    '0' => result.push(b'\0'),
+                    '"' => result.push(b'"'),
+                    'x' => match (chars.next(), chars.next()) {
+                        (Some((start, _)), Some((end, _))) => {
+                            if let Ok(hex_value) =
+                                u8::from_str_radix(&literal[start..=end], 16)
+                            {
+                                result.push(hex_value);
+                            } else {
+                                return Err(Box::new(
+                                    CompileError::invalid_escape_sequence(
+                                        report_builder,
+                                        format!(
+                                            r"invalid hex value `{}` after `\x`",
+                                            &literal[start..=end]
+                                        ),
+                                        Span::new(SourceId(0), 0, 0),
+                                    ),
+                                ));
+                            }
+                        }
+                        _ => {
+                            return Err(Box::new(
+                                CompileError::invalid_escape_sequence(
+                                    report_builder,
+                                    r"expecting two hex digits after `\x`"
+                                        .to_string(),
+                                    Span::new(SourceId(0), 0, 0),
+                                ),
+                            ));
+                        }
+                    },
+                    _ => {
+                        let (escaped_char_pos, escaped_char) = escaped_char;
+
+                        let escaped_char_end_pos =
+                            escaped_char_pos + escaped_char.len_utf8();
+
+                        return Err(Box::new(
+                            CompileError::invalid_escape_sequence(
+                                report_builder,
+                                format!(
+                                    "invalid escape sequence `{}`",
+                                    &literal
+                                        [backslash_pos..escaped_char_end_pos]
+                                ),
+                                Span::new(SourceId(0), 0, 0),
+                            ),
+                        ));
+                    }
+                }
+            }
+            // Non-escaped characters are copied as is.
+            c => result.push_char(c),
+        }
+    }
+
+    Ok(result)
+}
+
+pub fn integer_lit_from_cst<T>(
+    report_builder: &ReportBuilder,
+    mut literal: &str,
+) -> Result<T, Box<CompileError>>
+where
+    T: Num + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
+{
+    let mut multiplier = 1;
+
+    if let Some(without_suffix) = literal.strip_suffix("KB") {
+        literal = without_suffix;
+        multiplier = 1024;
+    }
+
+    if let Some(without_suffix) = literal.strip_suffix("MB") {
+        literal = without_suffix;
+        multiplier = 1024 * 1024;
+    }
+
+    if let Some(without_sign) = literal.strip_prefix('-') {
+        literal = without_sign;
+        multiplier = -multiplier;
+    }
+
+    let value = if literal.starts_with("0x") {
+        T::from_str_radix(literal.strip_prefix("0x").unwrap(), 16)
+    } else if literal.starts_with("0o") {
+        T::from_str_radix(literal.strip_prefix("0o").unwrap(), 8)
+    } else {
+        T::from_str_radix(literal, 10)
+    };
+
+    let build_error = || {
+        Box::new(CompileError::invalid_integer(
+            report_builder,
+            format!(
+                "this number is out of the valid range: [{}, {}]",
+                T::min_value(),
+                T::max_value()
+            ),
+            Span::new(SourceId(0), 0, 0),
+        ))
+    };
+
+    // Report errors that occur while parsing the literal. Some errors
+    // (like invalid characters or empty literals) never occur, because
+    // the grammar ensures that only valid integers reach this point,
+    // however the grammar doesn't make sure that the integer fits in
+    // type T.
+    let value = value.map_err(|_| build_error())?;
+
+    let multiplier = T::from_i32(multiplier).ok_or_else(|| build_error())?;
+
+    let value = value.checked_mul(&multiplier).ok_or_else(|| build_error())?;
+
+    Ok(value)
+}
+
 //pub(in crate::compiler) fn patterns_from_ast<'src>(
 //    report_builder: &ReportBuilder,
 //    patterns: Option<&Vec<ast::Pattern<'src>>>,
@@ -42,34 +212,13 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 //        .collect::<Result<Vec<PatternInRule<'src>>, CompileError>>()
 //}
 //
-//fn pattern_from_ast<'src>(
-//    report_builder: &ReportBuilder,
-//    pattern: &ast::Pattern<'src>,
-//) -> Result<PatternInRule<'src>, CompileError> {
-//    match pattern {
-//        ast::Pattern::Text(pattern) => {
-//            Ok(text_pattern_from_ast(report_builder, pattern)?)
-//        }
-//        ast::Pattern::Hex(pattern) => {
-//            Ok(hex_pattern_from_ast(report_builder, pattern)?)
-//        }
-//        ast::Pattern::Regexp(pattern) => {
-//            Ok(regexp_pattern_from_ast(report_builder, pattern)?)
-//        }
-//    }
-//}
-
-pub(in crate::compiler) fn text_pattern_from_ast<'src>(
+pub(in crate::compiler) fn pattern_from_ast<'src>(
     parse_context: &mut Context,
+    warnings: &mut Vec<Warning>,
     report_builder: &ReportBuilder,
     pattern: yara_parser::VariableStmt,
 ) -> Result<PatternInRule, Box<CompileError>> {
-    let mut flags = PatternFlagSet::none();
-
     let identifier = pattern.variable_token().unwrap().text().to_string();
-    let string_pattern = pattern.pattern().unwrap();
-    let string_token =
-        string_pattern.string_lit_token().unwrap().text().to_owned();
 
     if identifier != "$" {
         if let Some(existing_pattern_ident) =
@@ -108,6 +257,27 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         .declared_patterns
         .insert(identifier[1..].to_owned(), pattern.variable_token().unwrap());
 
+    let pattern_token = pattern.pattern().unwrap();
+    if pattern_token.string_lit_token().is_some() {
+        text_pattern_from_ast(report_builder, pattern)
+    } else if pattern_token.hex_pattern().is_some() {
+        hex_pattern_from_ast(warnings, report_builder, pattern)
+    } else {
+        todo!("regexp pattern")
+    }
+}
+
+fn text_pattern_from_ast<'src>(
+    report_builder: &ReportBuilder,
+    pattern: yara_parser::VariableStmt,
+) -> Result<PatternInRule, Box<CompileError>> {
+    let mut flags = PatternFlagSet::none();
+
+    let identifier = pattern.variable_token().unwrap().text().to_string();
+    let string_pattern = pattern.pattern().unwrap();
+    let binding = string_pattern.string_lit_token().unwrap();
+    let string_token = binding.text();
+
     //Pattern modifiers
     let mut modifiers = BTreeMap::new();
     let mut base64_alphabet = None;
@@ -116,7 +286,17 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
     for modifier in string_pattern.pattern_mods() {
         // Check if there are no duplicates in modifiers
         if modifiers
-            .insert(modifier.syntax().text().to_string(), modifier.clone())
+            .insert(
+                modifier
+                    .syntax()
+                    .first_child_or_token()
+                    .unwrap()
+                    .into_token()
+                    .unwrap()
+                    .text()
+                    .to_string(),
+                modifier.clone(),
+            )
             .is_some()
         {
             return Err(Box::new(CompileError::duplicate_modifier(
@@ -150,43 +330,16 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             || modifier.base64wide_token().is_some()
         {
             if let Some(base64alphabet) = modifier.base_alphabet() {
-                let alphabet_token =
-                    base64alphabet.string_lit_token().unwrap();
-                let alphabet_str =
-                    alphabet_token.text().trim_matches(|c| c == '\"'); //use better string validation
-
-                match base64::alphabet::Alphabet::new(alphabet_str) {
-                    Ok(_) => {
+                match validate_base64_alphabet(base64alphabet, report_builder)
+                {
+                    Ok(alphabet_str) => {
                         if modifier.base64_token().is_some() {
-                            base64_alphabet = Some(alphabet_str.to_owned());
+                            base64_alphabet = Some(alphabet_str);
                         } else {
-                            base64wide_alphabet =
-                                Some(alphabet_str.to_owned());
+                            base64wide_alphabet = Some(alphabet_str);
                         }
                     }
-                    Err(err) => {
-                        return Err(Box::new(
-                            CompileError::invalid_base_64_alphabet(
-                                report_builder,
-                                err.to_string().to_lowercase(),
-                                Span::new(
-                                    SourceId(0),
-                                    base64alphabet
-                                        .string_lit_token()
-                                        .unwrap()
-                                        .text_range()
-                                        .start()
-                                        .into(),
-                                    base64alphabet
-                                        .string_lit_token()
-                                        .unwrap()
-                                        .text_range()
-                                        .end()
-                                        .into(),
-                                ),
-                            ),
-                        ))
-                    }
+                    Err(err) => return Err(err),
                 }
             }
             if modifier.base64_token().is_some() {
@@ -197,47 +350,8 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         }
 
         if modifier.xor_token().is_some() {
-            let mut lower_bound = 0;
-            let mut upper_bound = 255;
-
-            // The `xor` modifier may be followed by arguments describing
-            // the xor range. e.g: `xor(2)`, `xor(0-10)`. If not, the
-            // default range is 0-255.
-            if modifier.xor_range().is_some() {
-                let lhs = modifier.xor_range().unwrap().lhs();
-                let rhs = modifier.xor_range().unwrap().rhs();
-
-                lower_bound =
-                    lhs.clone().unwrap().token().text().parse::<u8>().unwrap();
-                if rhs.is_some() {
-                    upper_bound = rhs
-                        .clone()
-                        .unwrap()
-                        .token()
-                        .text()
-                        .parse::<u8>()
-                        .unwrap();
-                } else {
-                    upper_bound =
-                        lhs.unwrap().token().text().parse::<u8>().unwrap();
-                }
-
-                if lower_bound > upper_bound {
-                    return Err(Box::new(CompileError::invalid_range(
-                        report_builder,
-                        Span::new(
-                            SourceId(0),
-                            rhs.clone()
-                                .unwrap()
-                                .token()
-                                .text_range()
-                                .start()
-                                .into(),
-                            rhs.unwrap().token().text_range().end().into(),
-                        ),
-                    )));
-                }
-            }
+            let (lower_bound, upper_bound) =
+                validate_xor(modifier, report_builder)?;
             flags.set(PatternFlags::Xor);
             xor_range = Some(lower_bound..=upper_bound)
         }
@@ -245,57 +359,7 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         // private flag is not supported on compiler level yet
     }
 
-    // Check for invalid modifier combinations
-    let invalid_combinations = [
-        ("xor", modifiers.get("xor"), "nocase", modifiers.get("nocase")),
-        ("base64", modifiers.get("base64"), "nocase", modifiers.get("nocase")),
-        (
-            "base64wide",
-            modifiers.get("base64wide"),
-            "nocase",
-            modifiers.get("nocase"),
-        ),
-        (
-            "base64",
-            modifiers.get("base64"),
-            "fullword",
-            modifiers.get("fullword"),
-        ),
-        (
-            "base64wide",
-            modifiers.get("base64wide"),
-            "fullword",
-            modifiers.get("fullword"),
-        ),
-        ("base64", modifiers.get("base64"), "xor", modifiers.get("xor")),
-        (
-            "base64wide",
-            modifiers.get("base64wide"),
-            "xor",
-            modifiers.get("xor"),
-        ),
-    ];
-
-    for &(flag1, flag1_option, flag2, flag2_option) in &invalid_combinations {
-        if flag1_option.is_some() && flag2_option.is_some() {
-            return Err(Box::new(CompileError::invalid_modifier_combination(
-                report_builder,
-                flag1.to_string(),
-                flag2.to_string(),
-                Span::new(
-                    SourceId(0),
-                    flag1_option.unwrap().syntax().text_range().start().into(),
-                    flag1_option.unwrap().syntax().text_range().end().into(),
-                ),
-                Span::new(
-                    SourceId(0),
-                    flag2_option.unwrap().syntax().text_range().start().into(),
-                    flag2_option.unwrap().syntax().text_range().end().into(),
-                ),
-                Some("these two modifiers can't be used together".to_string()),
-            )));
-        }
-    }
+    validate_pattern_modifiers(&modifiers, report_builder)?;
 
     // Check minimum length
     let (min_len, note) = if modifiers.get("base64").is_some() {
@@ -318,7 +382,11 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
         (1, None)
     };
 
-    let text = bstr::BString::from(string_token.trim_matches(|c| c == '\"')); //use better string validation
+    let text = bstr::BString::from(string_lit_from_cst(
+        report_builder,
+        string_token,
+        true,
+    )?); //use better string validation
     if text.len() < min_len {
         return Err(Box::new(CompileError::invalid_pattern(
             report_builder,
@@ -355,6 +423,183 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
             text,
         }),
     })
+}
+
+fn hex_pattern_from_ast<'src>(
+    warnings: &mut Vec<warnings::Warning>,
+    report_builder: &ReportBuilder,
+    pattern: yara_parser::VariableStmt,
+) -> Result<PatternInRule, Box<CompileError>> {
+    let identifier = pattern.variable_token().unwrap().text().to_string();
+    let hex_pattern = pattern.pattern().unwrap();
+
+    for modifier in hex_pattern.pattern_mods() {
+        if modifier.base64_token().is_some()
+            || modifier.base64wide_token().is_some()
+            || modifier.xor_token().is_some()
+            || modifier.nocase_token().is_some()
+            || modifier.fullword_token().is_some()
+            || modifier.ascii_token().is_some()
+            || modifier.wide_token().is_some()
+        {
+            return Err(Box::new(CompileError::invalid_regexp_modifier(
+                report_builder,
+                "this modifier can't be applied to a hex pattern".to_string(),
+                Span::new(
+                    SourceId(0),
+                    modifier.syntax().text_range().start().into(),
+                    modifier.syntax().text_range().end().into(),
+                ),
+            )));
+        }
+        // private not supported on compiler level
+    }
+
+    Ok(PatternInRule {
+        identifier: identifier.clone(),
+        pattern: Pattern::Regexp(RegexpPattern {
+            flags: PatternFlagSet::from(PatternFlags::Ascii),
+            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(
+                warnings,
+                report_builder,
+                hex_pattern,
+                identifier,
+            )?),
+            anchored_at: None,
+        }),
+    })
+}
+
+fn validate_pattern_modifiers(
+    modifiers: &BTreeMap<String, yara_parser::PatternMod>,
+    report_builder: &ReportBuilder,
+) -> Result<(), Box<CompileError>> {
+    let invalid_combinations = [
+        ("xor", modifiers.get("xor"), "nocase", modifiers.get("nocase")),
+        ("base64", modifiers.get("base64"), "nocase", modifiers.get("nocase")),
+        (
+            "base64wide",
+            modifiers.get("base64wide"),
+            "nocase",
+            modifiers.get("nocase"),
+        ),
+        (
+            "base64",
+            modifiers.get("base64"),
+            "fullword",
+            modifiers.get("fullword"),
+        ),
+        (
+            "base64wide",
+            modifiers.get("base64wide"),
+            "fullword",
+            modifiers.get("fullword"),
+        ),
+        ("base64", modifiers.get("base64"), "xor", modifiers.get("xor")),
+        (
+            "base64wide",
+            modifiers.get("base64wide"),
+            "xor",
+            modifiers.get("xor"),
+        ),
+    ];
+    // Check for invalid modifier combinations
+
+    for &(flag1, flag1_option, flag2, flag2_option) in &invalid_combinations {
+        if flag1_option.is_some() && flag2_option.is_some() {
+            return Err(Box::new(CompileError::invalid_modifier_combination(
+                report_builder,
+                flag1.to_string(),
+                flag2.to_string(),
+                Span::new(
+                    SourceId(0),
+                    flag1_option.unwrap().syntax().text_range().start().into(),
+                    flag1_option.unwrap().syntax().text_range().end().into(),
+                ),
+                Span::new(
+                    SourceId(0),
+                    flag2_option.unwrap().syntax().text_range().start().into(),
+                    flag2_option.unwrap().syntax().text_range().end().into(),
+                ),
+                Some("these two modifiers can't be used together".to_string()),
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_xor(
+    modifier: yara_parser::PatternMod,
+    report_builder: &ReportBuilder,
+) -> Result<(u8, u8), Box<CompileError>> {
+    let mut lower_bound = 0;
+    let mut upper_bound = 255;
+    if modifier.xor_range().is_some() {
+        let lhs = modifier.xor_range().unwrap().lhs();
+        let rhs = modifier.xor_range().unwrap().rhs();
+
+        lower_bound = integer_lit_from_cst::<u8>(
+            report_builder,
+            lhs.clone().unwrap().token().text(),
+        )?;
+        if rhs.is_some() {
+            upper_bound = integer_lit_from_cst::<u8>(
+                report_builder,
+                rhs.clone().unwrap().token().text(),
+            )?;
+        } else {
+            upper_bound = integer_lit_from_cst::<u8>(
+                report_builder,
+                lhs.clone().unwrap().token().text(),
+            )?;
+        }
+
+        if lower_bound > upper_bound {
+            return Err(Box::new(CompileError::invalid_range(
+                report_builder,
+                Span::new(
+                    SourceId(0),
+                    rhs.clone().unwrap().token().text_range().start().into(),
+                    rhs.unwrap().token().text_range().end().into(),
+                ),
+            )));
+        }
+    }
+    Ok((lower_bound, upper_bound))
+}
+
+fn validate_base64_alphabet(
+    base64alphabet: yara_parser::BaseAlphabet,
+    report_builder: &ReportBuilder,
+) -> Result<String, Box<CompileError>> {
+    let alphabet_token = base64alphabet.string_lit_token().unwrap();
+    let temp =
+        string_lit_from_cst(report_builder, alphabet_token.text(), false)
+            .unwrap();
+    let alphabet_str = unsafe { temp.to_str_unchecked() };
+
+    match base64::alphabet::Alphabet::new(alphabet_str) {
+        Ok(_) => Ok(alphabet_str.to_owned()),
+        Err(err) => Err(Box::new(CompileError::invalid_base_64_alphabet(
+            report_builder,
+            err.to_string().to_lowercase(),
+            Span::new(
+                SourceId(0),
+                base64alphabet
+                    .string_lit_token()
+                    .unwrap()
+                    .text_range()
+                    .start()
+                    .into(),
+                base64alphabet
+                    .string_lit_token()
+                    .unwrap()
+                    .text_range()
+                    .end()
+                    .into(),
+            ),
+        ))),
+    }
 }
 
 //pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
