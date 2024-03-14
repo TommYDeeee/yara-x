@@ -699,7 +699,9 @@ pub(in crate::compiler) fn expr_from_ast(
     match &expr {
         yara_parser::Expr::Literal(lit) => match lit.kind() {
             LiteralKind::Bool(value) => Ok(Expr::Const {
-                type_value: TypeValue::const_bool_from(value),
+                type_value: TypeValue::const_bool_from(
+                    value.text().parse::<bool>().unwrap(),
+                ),
             }),
             LiteralKind::Int(value) => Ok(Expr::Const {
                 type_value: TypeValue::const_integer_from(

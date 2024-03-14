@@ -82,22 +82,6 @@ fn process_hex_byte(
         byte_literal = b;
     }
 
-    if byte_literal.len() != 2
-        || byte_literal.chars().any(|c| !c.is_hex_digit() && c != '?')
-    {
-        return Err(Box::new(CompileError::invalid_pattern(
-            report_builder,
-            identifier,
-            "Invalid hexadecimal byte".to_string(),
-            Span::new(
-                SourceId(0),
-                hex_byte.syntax().text_range().start().into(),
-                hex_byte.syntax().text_range().end().into(),
-            ),
-            None,
-        )));
-    }
-
     let mut nibbles = byte_literal.chars();
     let high_nibble = nibbles.next().unwrap();
 
@@ -116,6 +100,21 @@ fn process_hex_byte(
             value |= low_nibble.to_digit(16).unwrap() as u8;
         }
     } else {
+        return Err(Box::new(CompileError::invalid_pattern(
+            report_builder,
+            identifier,
+            "uneven number of nibbles".to_string(),
+            Span::new(
+                SourceId(0),
+                hex_byte.syntax().text_range().start().into(),
+                hex_byte.syntax().text_range().end().into(),
+            ),
+            None,
+        )));
+    }
+
+    // ~?? is not allowed.
+    if negated && mask == 0x00 {
         return Err(Box::new(CompileError::invalid_pattern(
             report_builder,
             identifier,
