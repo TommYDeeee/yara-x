@@ -60,12 +60,16 @@ impl Parser {
     }
 
     /// Parses the regexp and returns its HIR.
-    pub fn parse(&self, regexp: &ast::Regexp) -> Result<Hir, Error> {
+    pub fn parse(
+        &self,
+        regexp: yara_parser::RegexPattern,
+    ) -> Result<Hir, Error> {
         let mut parser =
             re::ast::parse::ParserBuilder::new().empty_min_range(true).build();
 
-        let ast =
-            parser.parse(regexp.src).map_err(|err| Error::SyntaxError {
+        let ast = parser
+            .parse(regexp.regex_lit_token().unwrap().text())
+            .map_err(|err| Error::SyntaxError {
                 msg: err.kind().to_string(),
                 span: *err.span(),
             })?;
@@ -86,23 +90,27 @@ impl Parser {
         let case_insensitive = if self.force_case_insensitive {
             true
         } else {
-            regexp.case_insensitive
+            regexp.regex_mods().any(|m| m.case_insensitive_token().is_some())
         };
 
         let mut translator =
             regex_syntax::hir::translate::TranslatorBuilder::new()
                 .case_insensitive(case_insensitive)
-                .dot_matches_new_line(regexp.dot_matches_new_line)
+                .dot_matches_new_line(
+                    regexp
+                        .regex_mods()
+                        .any(|m| m.dot_matches_all_token().is_some()),
+                )
                 .unicode(false)
                 .utf8(false)
                 .build();
 
-        let hir = translator.translate(regexp.src, &ast).map_err(|err| {
-            Error::SyntaxError {
+        let hir = translator
+            .translate(regexp.regex_lit_token().unwrap().text(), &ast)
+            .map_err(|err| Error::SyntaxError {
                 msg: err.kind().to_string(),
                 span: *err.span(),
-            }
-        })?;
+            })?;
 
         Ok(Hir { inner: hir, greedy })
     }

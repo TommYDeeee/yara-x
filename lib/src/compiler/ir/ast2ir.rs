@@ -3,10 +3,10 @@
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 use std::borrow::{Borrow, Cow};
 use std::collections::BTreeMap;
-use std::iter;
 use std::ops::RangeInclusive;
 use std::process::exit;
 use std::rc::Rc;
+use std::{iter, string};
 
 use crate::report::{ReportBuilder, SourceId};
 use crate::span::{HasSpan, Span};
@@ -212,7 +212,7 @@ where
 //        .collect::<Result<Vec<PatternInRule<'src>>, CompileError>>()
 //}
 //
-pub(in crate::compiler) fn pattern_from_ast<'src>(
+pub(in crate::compiler) fn pattern_from_ast(
     parse_context: &mut Context,
     warnings: &mut Vec<Warning>,
     report_builder: &ReportBuilder,
@@ -263,11 +263,11 @@ pub(in crate::compiler) fn pattern_from_ast<'src>(
     } else if pattern_token.hex_pattern().is_some() {
         hex_pattern_from_ast(warnings, report_builder, pattern)
     } else {
-        todo!("regexp pattern")
+        regex_pattern_from_ast(report_builder, pattern)
     }
 }
 
-fn text_pattern_from_ast<'src>(
+fn text_pattern_from_ast(
     report_builder: &ReportBuilder,
     pattern: yara_parser::VariableStmt,
 ) -> Result<PatternInRule, Box<CompileError>> {
@@ -283,6 +283,12 @@ fn text_pattern_from_ast<'src>(
     let mut base64_alphabet = None;
     let mut base64wide_alphabet = None;
     let mut xor_range = None;
+
+    // Set default ascii flag for empty modifiers
+    if string_pattern.pattern_mods().next().is_none() {
+        flags.set(PatternFlags::Ascii);
+    }
+
     for modifier in string_pattern.pattern_mods() {
         // Check if there are no duplicates in modifiers
         if modifiers
@@ -425,7 +431,7 @@ fn text_pattern_from_ast<'src>(
     })
 }
 
-fn hex_pattern_from_ast<'src>(
+fn hex_pattern_from_ast(
     warnings: &mut Vec<warnings::Warning>,
     report_builder: &ReportBuilder,
     pattern: yara_parser::VariableStmt,
@@ -465,6 +471,112 @@ fn hex_pattern_from_ast<'src>(
                 hex_pattern,
                 identifier,
             )?),
+            anchored_at: None,
+        }),
+    })
+}
+
+fn regex_pattern_from_ast(
+    report_builder: &ReportBuilder,
+    pattern: yara_parser::VariableStmt,
+) -> Result<PatternInRule, Box<CompileError>> {
+    let mut flags = PatternFlagSet::none();
+
+    let identifier = pattern.variable_token().unwrap().text().to_string();
+    let regex_pattern = pattern.pattern().unwrap();
+
+    //Pattern modifiers
+    let mut modifiers = BTreeMap::new();
+
+    // Set default ascii flag for empty modifiers
+    if regex_pattern.pattern_mods().next().is_none() {
+        flags.set(PatternFlags::Ascii);
+    }
+    for modifier in regex_pattern.pattern_mods() {
+        // Check if there are no duplicates in modifiers
+        if modifiers
+            .insert(
+                modifier
+                    .syntax()
+                    .first_child_or_token()
+                    .unwrap()
+                    .into_token()
+                    .unwrap()
+                    .text()
+                    .to_string(),
+                modifier.clone(),
+            )
+            .is_some()
+        {
+            return Err(Box::new(CompileError::duplicate_modifier(
+                report_builder,
+                Span::new(
+                    SourceId(0),
+                    modifier.syntax().text_range().start().into(),
+                    modifier.syntax().text_range().end().into(),
+                ),
+            )));
+        }
+
+        if modifier.ascii_token().is_some() || modifier.wide_token().is_none()
+        {
+            flags.set(PatternFlags::Ascii);
+        }
+
+        if modifier.wide_token().is_some() {
+            flags.set(PatternFlags::Wide);
+        }
+
+        if modifier.fullword_token().is_some() {
+            flags.set(PatternFlags::Fullword);
+        }
+
+        if modifier.nocase_token().is_some()
+            || regex_pattern
+                .regex_pattern()
+                .unwrap()
+                .regex_mods()
+                .any(|m| m.case_insensitive_token().is_some())
+        {
+            flags.set(PatternFlags::Nocase);
+        }
+
+        if modifier.base64_token().is_some()
+            || modifier.base64wide_token().is_some()
+            || modifier.xor_token().is_some()
+        {
+            return Err(Box::new(CompileError::invalid_regexp_modifier(
+                report_builder,
+                "this modifier can't be applied to a regex pattern"
+                    .to_string(),
+                Span::new(
+                    SourceId(0),
+                    modifier.syntax().text_range().start().into(),
+                    modifier.syntax().text_range().end().into(),
+                ),
+            )));
+        }
+    }
+
+    validate_pattern_modifiers(&modifiers, report_builder)?;
+
+    let hir = re::parser::Parser::new()
+        .force_case_insensitive(flags.contains(PatternFlags::Nocase))
+        .allow_mixed_greediness(false)
+        .parse(pattern.pattern().unwrap().regex_pattern().unwrap())
+        .map_err(|err| {
+            re_error_to_compile_error(
+                report_builder,
+                pattern.pattern().unwrap().regex_pattern().unwrap(),
+                err,
+            )
+        })?;
+
+    Ok(PatternInRule {
+        identifier,
+        pattern: Pattern::Regexp(RegexpPattern {
+            flags,
+            hir,
             anchored_at: None,
         }),
     })
@@ -1858,37 +1970,62 @@ fn check_type2(
 //
 //    Ok(())
 //}
-//
-//fn re_error_to_compile_error(
-//    report_builder: &ReportBuilder,
-//    regexp: &ast::Regexp,
-//    err: re::parser::Error,
-//) -> CompileError {
-//    match err {
-//        Error::SyntaxError { msg, span } => {
-//            CompileError::from(CompileErrorInfo::invalid_regexp(
-//                report_builder,
-//                msg,
-//                // the error span is relative to the start of the regexp, not to
-//                // the start of the source file, here we make it relative to the
-//                // source file.
-//                regexp.span.subspan(span.start.offset, span.end.offset),
-//            ))
-//        }
-//        Error::MixedGreediness {
-//            is_greedy_1,
-//            is_greedy_2,
-//            span_1,
-//            span_2,
-//        } => CompileError::from(CompileErrorInfo::mixed_greediness(
-//            report_builder,
-//            if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
-//            if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
-//            regexp.span.subspan(span_1.start.offset, span_1.end.offset),
-//            regexp.span.subspan(span_2.start.offset, span_2.end.offset),
-//        )),
-//    }
-//}
+
+fn re_error_to_compile_error(
+    report_builder: &ReportBuilder,
+    regexp: yara_parser::RegexPattern,
+    err: re::parser::Error,
+) -> CompileError {
+    match err {
+        Error::SyntaxError { msg, span } => {
+            CompileError::invalid_regexp(
+                report_builder,
+                msg,
+                // the error span is relative to the start of the regexp, not to
+                // the start of the source file, here we make it relative to the
+                // source file.
+                Span::new(
+                    SourceId(0),
+                    regexp
+                        .regex_lit_token()
+                        .unwrap()
+                        .text_range()
+                        .start()
+                        .into(),
+                    regexp
+                        .regex_lit_token()
+                        .unwrap()
+                        .text_range()
+                        .end()
+                        .into(),
+                )
+                .subspan(span.start.offset, span.end.offset),
+            )
+        }
+        Error::MixedGreediness {
+            is_greedy_1,
+            is_greedy_2,
+            span_1,
+            span_2,
+        } => CompileError::mixed_greediness(
+            report_builder,
+            if is_greedy_1 { "greedy" } else { "non-greedy" }.to_string(),
+            if is_greedy_2 { "greedy" } else { "non-greedy" }.to_string(),
+            Span::new(
+                SourceId(0),
+                regexp.regex_lit_token().unwrap().text_range().start().into(),
+                regexp.regex_lit_token().unwrap().text_range().end().into(),
+            )
+            .subspan(span_1.start.offset, span_1.end.offset),
+            Span::new(
+                SourceId(0),
+                regexp.regex_lit_token().unwrap().text_range().start().into(),
+                regexp.regex_lit_token().unwrap().text_range().end().into(),
+            )
+            .subspan(span_2.start.offset, span_2.end.offset),
+        ),
+    }
+}
 
 /// Produce a warning if the expression is not boolean.
 pub(in crate::compiler) fn warn_if_not_bool(
