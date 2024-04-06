@@ -173,14 +173,14 @@ fn process_hex_jumps(
     // lhs is mandatory
     let start = Some(integer_lit_from_cst::<u8>(
         report_builder,
-        first_jump.lhs().clone().unwrap().token().text(),
+        first_jump.lhs().text(),
     )?);
 
     // rhs is present only if there is a hyphen
     let end = if let Some(_) = first_jump.hyphen_token() {
         Some(integer_lit_from_cst::<u8>(
             report_builder,
-            first_jump.rhs().clone().unwrap().token().text(),
+            first_jump.rhs().text(),
         )?)
     } else {
         start
@@ -200,14 +200,14 @@ fn process_hex_jumps(
         // lhs is mandatory
         let start = Some(integer_lit_from_cst::<u8>(
             report_builder,
-            next_jump.lhs().clone().unwrap().token().text(),
+            next_jump.lhs().text(),
         )?);
 
         // rhs is present only if there is a hyphen
         let end = if let Some(_) = next_jump.hyphen_token() {
             Some(integer_lit_from_cst::<u8>(
                 report_builder,
-                next_jump.rhs().clone().unwrap().token().text(),
+                next_jump.rhs().text(),
             )?)
         } else {
             start

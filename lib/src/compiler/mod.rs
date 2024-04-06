@@ -852,18 +852,21 @@ impl<'a> Compiler<'a> {
             .body()
             .unwrap()
             .strings()
-            .unwrap()
-            .variable_stmts()
-            .into_iter()
-            .map(|p| {
-                pattern_from_ast(
-                    &mut self.parse_context,
-                    &mut self.warnings,
-                    &self.report_builder,
-                    p,
-                )
+            .map(|strings| {
+                strings
+                    .variable_stmts()
+                    .into_iter()
+                    .map(|p| {
+                        pattern_from_ast(
+                            &mut self.parse_context,
+                            &mut self.warnings,
+                            &self.report_builder,
+                            p,
+                        )
+                    })
+                    .collect::<Result<Vec<PatternInRule>, Box<CompileError>>>()
             })
-            .collect::<Result<Vec<PatternInRule>, Box<CompileError>>>()?;
+            .unwrap_or_else(|| Ok(Vec::new()))?;
 
         // The RuleId for the new rule is current length of `self.rules`. The
         // first rule has RuleId = 0.
@@ -940,7 +943,7 @@ impl<'a> Compiler<'a> {
                 .unwrap()
                 .expression_stmt()
                 .unwrap()
-                .expr()
+                .expression()
                 .unwrap(),
             &mut self.parse_context,
         );
@@ -1030,6 +1033,34 @@ impl<'a> Compiler<'a> {
             pattern_ids.push(pattern_id);
         }
 
+        let spans = rule
+            .body()
+            .unwrap()
+            .strings()
+            .map(|strings| {
+                strings
+                    .variable_stmts()
+                    .map(|p| {
+                        Span::new(
+                            SourceId(0),
+                            p.pattern()
+                                .unwrap()
+                                .syntax()
+                                .text_range()
+                                .start()
+                                .into(),
+                            p.pattern()
+                                .unwrap()
+                                .syntax()
+                                .text_range()
+                                .end()
+                                .into(),
+                        )
+                    })
+                    .collect::<Vec<Span>>()
+            })
+            .unwrap_or_else(Vec::new);
+
         // Process the patterns in the rule. This extract the best atoms
         // from each pattern, adding them to the `self.atoms` vector, it
         // also creates one or more sub-patterns per pattern and add them
@@ -1037,13 +1068,7 @@ impl<'a> Compiler<'a> {
         for (pattern_id, pattern, span) in izip!(
             pattern_ids.iter(),
             patterns_in_rule.into_iter(),
-            rule.body().unwrap().strings().unwrap().variable_stmts().map(
-                |p| Span::new(
-                    SourceId(0),
-                    p.pattern().unwrap().syntax().text_range().start().into(),
-                    p.pattern().unwrap().syntax().text_range().end().into(),
-                )
-            ),
+            spans.into_iter(),
         ) {
             if pending_patterns.contains(pattern_id) {
                 self.current_pattern_id = *pattern_id;

@@ -4,7 +4,6 @@ use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
 use std::borrow::{Borrow, Cow};
 use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
-use std::process::exit;
 use std::rc::Rc;
 use std::{iter, string};
 
@@ -15,7 +14,6 @@ use bstr::{BStr, BString, ByteSlice, ByteVec};
 use itertools::Itertools;
 use serde_json::value;
 use yara_parser::AstToken;
-use yara_parser::LiteralKind;
 use yara_parser::{AstNode, XorRange};
 use yara_x_parser::{ast, ErrorInfo};
 
@@ -650,20 +648,13 @@ fn validate_xor(
         let lhs = modifier.xor_range().unwrap().lhs();
         let rhs = modifier.xor_range().unwrap().rhs();
 
-        lower_bound = integer_lit_from_cst::<u8>(
-            report_builder,
-            lhs.clone().unwrap().token().text(),
-        )?;
-        if rhs.is_some() {
-            upper_bound = integer_lit_from_cst::<u8>(
-                report_builder,
-                rhs.clone().unwrap().token().text(),
-            )?;
+        lower_bound = integer_lit_from_cst::<u8>(report_builder, lhs.text())?;
+        if modifier.xor_range().unwrap().hyphen_token().is_some() {
+            upper_bound =
+                integer_lit_from_cst::<u8>(report_builder, rhs.text())?;
         } else {
-            upper_bound = integer_lit_from_cst::<u8>(
-                report_builder,
-                lhs.clone().unwrap().token().text(),
-            )?;
+            upper_bound =
+                integer_lit_from_cst::<u8>(report_builder, lhs.text())?;
         }
 
         if lower_bound > upper_bound {
@@ -671,8 +662,8 @@ fn validate_xor(
                 report_builder,
                 Span::new(
                     SourceId(0),
-                    rhs.clone().unwrap().token().text_range().start().into(),
-                    rhs.unwrap().token().text_range().end().into(),
+                    rhs.text_range().start().into(),
+                    rhs.text_range().end().into(),
                 ),
             )));
         }
@@ -803,80 +794,99 @@ fn validate_base64_alphabet(
 //}
 
 /// Given the AST for some expression, creates its IR.
-pub(in crate::compiler) fn expr_from_ast(
+pub(in crate::compiler) fn boolean_expr_from_ast(
     ctx: &mut CompileContext,
-    expr: yara_parser::Expr,
+    expr: yara_parser::Expression,
     parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
     match &expr {
-        yara_parser::Expr::Literal(lit) => match lit.kind() {
-            LiteralKind::Bool(value) => Ok(Expr::Const {
-                type_value: TypeValue::const_bool_from(
-                    value.text().parse::<bool>().unwrap(),
-                ),
-            }),
-            LiteralKind::Int(value) => Ok(Expr::Const {
-                type_value: TypeValue::const_integer_from(
-                    value.text().parse::<i64>().unwrap(),
-                ),
-            }),
-            LiteralKind::Float(value) => Ok(Expr::Const {
-                type_value: TypeValue::const_float_from(
-                    value.text().parse::<f64>().unwrap(),
-                ),
-            }),
-            LiteralKind::String(value) => Ok(Expr::Const {
-                type_value: TypeValue::const_string_from(
-                    value.text().as_bytes(),
-                ),
-            }),
-            LiteralKind::Variable(value) => {
-                if value.text() != "$" {
+        yara_parser::Expression::BooleanTerm(term) => {
+            if let Some(variable) = term.variable_token() {
+                let anchor = anchor_from_ast(ctx, term.variable_anchor())?;
+
+                if variable.text() != "$" {
                     if parse_context
                         .declared_patterns
-                        .get(&value.text()[1..])
+                        .get(&variable.text()[1..])
                         .is_none()
                     {
                         return Err(Box::new(CompileError::unknown_pattern(
                             ctx.report_builder,
-                            value.text().to_string(),
+                            variable.text().to_string(),
                             Span::new(
                                 SourceId(0),
-                                value.syntax().text_range().start().into(),
-                                value.syntax().text_range().end().into(),
+                                variable.text_range().start().into(),
+                                variable.text_range().end().into(),
                             ),
                         )));
                     }
-                    parse_context.unused_patterns.remove(&value.text()[1..]);
+                    parse_context
+                        .unused_patterns
+                        .remove(&variable.text()[1..]);
+                } else {
+                    return Ok(Expr::PatternMatchVar {
+                        symbol: ctx.symbol_table.lookup("$").unwrap(),
+                        anchor,
+                    });
                 }
 
-                let pattern = ctx.get_pattern_mut(value.text());
-                pattern.make_non_anchorable();
-                Ok(Expr::PatternMatch {
-                    pattern: ctx.get_pattern_index(value.text()),
-                    anchor: MatchAnchor::None,
-                })
+                let pattern = ctx.get_pattern_mut(variable.text());
+                if let Some(offset) = anchor.at() {
+                    pattern.anchor_at(offset as usize);
+                } else {
+                    pattern.make_non_anchorable();
+                }
+                return Ok(Expr::PatternMatch {
+                    pattern: ctx.get_pattern_index(variable.text()),
+                    anchor: anchor,
+                });
             }
-        },
-        yara_parser::Expr::PrefixExpr(prefix) => {
-            match prefix.op_kind().unwrap() {
-                yara_parser::UnaryOp::Not => not_expr_from_ast(
+
+            if let Some(bool) = term.bool_lit_token() {
+                return Ok(Expr::Const {
+                    type_value: TypeValue::const_bool_from(
+                        bool.text() == "true",
+                    ),
+                });
+            }
+
+            if let Some(_) = term.not_token() {
+                return not_expr_from_ast(
                     ctx,
-                    prefix.expr().unwrap(),
+                    term.boolean_term().unwrap(),
                     parse_context,
-                ),
+                );
+            }
+
+            if let Some(_) = term.defined_token() {
+                defined_expr_from_ast(
+                    ctx,
+                    term.boolean_term().unwrap(),
+                    parse_context,
+                )
+            } else {
+                todo!("Other types of BoolTerm: {:?}", term);
             }
         }
-        yara_parser::Expr::Expression(expresion) => {
-            match expresion.op_kind().unwrap() {
-                yara_parser::BinaryOp::LogicOp(op) => match op {
-                    yara_parser::LogicOp::And => {
-                        and_expr_from_ast(ctx, expresion, parse_context)
-                    }
-                    yara_parser::LogicOp::Or => {
-                        or_expr_from_ast(ctx, expresion, parse_context)
-                    }
-                },
+        yara_parser::Expression::BooleanExpr(expr) => {
+            if let Some(op_kind) = expr.op_kind() {
+                match op_kind {
+                    yara_parser::BinaryOp::LogicOp(op) => match op {
+                        yara_parser::LogicOp::And => {
+                            return and_expr_from_ast(ctx, expr, parse_context)
+                        }
+                        yara_parser::LogicOp::Or => {
+                            return or_expr_from_ast(ctx, expr, parse_context)
+                        }
+                    },
+                    _ => unreachable!("BooleanExpr without LogicOp"),
+                }
+            } else {
+                return bool_expr_from_ast(
+                    ctx,
+                    expr.lhs().unwrap(),
+                    parse_context,
+                );
             }
         } //ast::Expr::Entrypoint { span } => {
           //    Err(CompileError::from(CompileErrorInfo::entrypoint_unsupported(
@@ -1287,12 +1297,85 @@ pub(in crate::compiler) fn expr_from_ast(
     }
 }
 
+pub(in crate::compiler) fn expr_from_ast(
+    ctx: &mut CompileContext,
+    expr: yara_parser::Expr,
+) -> Result<Expr, Box<CompileError>> {
+    match &expr {
+        yara_parser::Expr::PrimaryExpr(expr) => {
+            if let Some(int) = expr.int_lit_token() {
+                return Ok(Expr::Const {
+                    type_value: TypeValue::const_integer_from(
+                        integer_lit_from_cst::<i64>(
+                            ctx.report_builder,
+                            int.text(),
+                        )?,
+                    ),
+                });
+            }
+            if let Some(_) = expr.tilde_token() {
+                return bitwise_not_expr_from_ast(ctx, expr.expr().unwrap());
+            }
+            todo!("PrimaryExpr: {:?}", expr)
+        }
+        yara_parser::Expr::FunctionCallExpr(expr) => {
+            todo!()
+        }
+        yara_parser::Expr::IndexingExpr(expr) => {
+            todo!()
+        }
+        yara_parser::Expr::ExprBody(expr) => {
+            if let Some(op) = expr.op_kind() {
+                match op {
+                    yara_parser::BinaryOp::ExprOp(op) => match op {
+                        yara_parser::ExprOp::Add => {
+                            return add_expr_from_ast(ctx, expr)
+                        }
+                        yara_parser::ExprOp::Sub => {
+                            return sub_expr_from_ast(ctx, expr)
+                        }
+                        yara_parser::ExprOp::Mul => {
+                            return mul_expr_from_ast(ctx, expr)
+                        }
+                        yara_parser::ExprOp::Div => {
+                            return div_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::Mod => {
+                            return mod_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::Shl => {
+                            return shl_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::Shr => {
+                            return shr_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::BitAnd => {
+                            return bitwise_and_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::BitOr => {
+                            return bitwise_or_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::BitXor => {
+                            return bitwise_xor_expr_from_ast(ctx, expr);
+                        }
+                        yara_parser::ExprOp::Dot => {
+                            todo!()
+                        }
+                    },
+                    _ => unreachable!("Expression without ExprOp"),
+                }
+            }
+            todo!()
+        }
+    }
+}
+
 pub(in crate::compiler) fn bool_expr_from_ast(
     ctx: &mut CompileContext,
-    ast: yara_parser::Expr,
+    ast: yara_parser::Expression,
     parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
-    let expr = expr_from_ast(ctx, ast.clone(), parse_context)?;
+    let expr = boolean_expr_from_ast(ctx, ast.clone(), parse_context)?;
     warn_if_not_bool(
         ctx,
         expr.ty(),
@@ -1596,74 +1679,58 @@ pub(in crate::compiler) fn bool_expr_from_ast(
 //    }
 //}
 
-//fn anchor_from_ast(
-//    ctx: &mut CompileContext,
-//    anchor: &Option<ast::MatchAnchor>,
-//) -> Result<MatchAnchor, CompileError> {
-//    match anchor {
-//        Some(ast::MatchAnchor::At(at_)) => Ok(MatchAnchor::At(Box::new(
-//            non_negative_integer_from_ast(ctx, &at_.expr)?,
-//        ))),
-//        Some(ast::MatchAnchor::In(in_)) => {
-//            Ok(MatchAnchor::In(range_from_ast(ctx, &in_.range)?))
-//        }
-//        None => Ok(MatchAnchor::None),
-//    }
-//}
-//
-//fn range_from_ast(
-//    ctx: &mut CompileContext,
-//    range: &ast::Range,
-//) -> Result<Range, CompileError> {
-//    let lower_bound =
-//        Box::new(non_negative_integer_from_ast(ctx, &range.lower_bound)?);
-//
-//    let upper_bound =
-//        Box::new(non_negative_integer_from_ast(ctx, &range.upper_bound)?);
-//
-//    // If both the lower and upper bounds are known at compile time, make sure
-//    // that lower_bound <= upper_bound. If they are not know (because they are
-//    // variables, for example) we can't raise an error at compile time but it
-//    // will be handled at scan time.
-//    if let (
-//        TypeValue::Integer(Value::Const(lower_bound)),
-//        TypeValue::Integer(Value::Const(upper_bound)),
-//    ) = (lower_bound.type_value(), upper_bound.type_value())
-//    {
-//        if lower_bound > upper_bound {
-//            return Err(CompileError::from(CompileErrorInfo::invalid_range(
-//                ctx.report_builder,
-//                range.span,
-//            )));
-//        }
-//    }
-//
-//    Ok(Range { lower_bound, upper_bound })
-//}
-//
-//fn non_negative_integer_from_ast(
-//    ctx: &mut CompileContext,
-//    expr: &ast::Expr,
-//) -> Result<Expr, CompileError> {
-//    let span = expr.span();
-//    let expr = expr_from_ast(ctx, expr)?;
-//    let type_value = expr.type_value();
-//
-//    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
-//
-//    if let TypeValue::Integer(Value::Const(value)) = type_value {
-//        if value < 0 {
-//            return Err(CompileError::from(
-//                CompileErrorInfo::unexpected_negative_number(
-//                    ctx.report_builder,
-//                    span,
-//                ),
-//            ));
-//        }
-//    }
-//
-//    Ok(expr)
-//}
+fn anchor_from_ast(
+    ctx: &mut CompileContext,
+    anchor: Option<yara_parser::VariableAnchor>,
+) -> Result<MatchAnchor, Box<CompileError>> {
+    if let Some(anchor) = anchor {
+        if let Some(_) = anchor.at_token() {
+            return Ok(MatchAnchor::At(Box::new(
+                non_negative_integer_from_ast(ctx, anchor.expr().unwrap())?,
+            )));
+        }
+        if let Some(_) = anchor.in_token() {
+            return Ok(MatchAnchor::In(range_from_ast(
+                ctx,
+                anchor.range().unwrap(),
+            )?));
+        }
+    }
+    return Ok(MatchAnchor::None);
+}
+
+fn range_from_ast(
+    ctx: &mut CompileContext,
+    range: yara_parser::Range,
+) -> Result<Range, CompileError> {
+    todo!("range_from_ast: {:?}", range);
+}
+
+fn non_negative_integer_from_ast(
+    ctx: &mut CompileContext,
+    expr: yara_parser::Expr,
+) -> Result<Expr, Box<CompileError>> {
+    let span = Span::new(
+        SourceId(0),
+        expr.syntax().text_range().start().into(),
+        expr.syntax().text_range().end().into(),
+    );
+    let expr = expr_from_ast(ctx, expr)?;
+    let type_value = expr.type_value();
+
+    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
+
+    if let TypeValue::Integer(Value::Const(value)) = type_value {
+        if value < 0 {
+            return Err(Box::new(CompileError::unexpected_negative_number(
+                ctx.report_builder,
+                span,
+            )));
+        }
+    }
+
+    Ok(expr)
+}
 //
 //fn integer_in_range_from_ast(
 //    ctx: &mut CompileContext,
@@ -1911,6 +1978,28 @@ fn check_type(
 
 fn check_type2(
     ctx: &CompileContext,
+    expr: yara_parser::Expression,
+    ty: Type,
+    accepted_types: &[Type],
+) -> Result<(), Box<CompileError>> {
+    if accepted_types.contains(&ty) {
+        Ok(())
+    } else {
+        Err(Box::new(CompileError::wrong_type(
+            ctx.report_builder,
+            ErrorInfo::join_with_or(accepted_types, true),
+            ty.to_string(),
+            Span::new(
+                SourceId(0),
+                expr.syntax().text_range().start().into(),
+                expr.syntax().text_range().end().into(),
+            ),
+        )))
+    }
+}
+
+fn check_type2_term(
+    ctx: &CompileContext,
     expr: yara_parser::Expr,
     ty: Type,
     accepted_types: &[Type],
@@ -1931,45 +2020,45 @@ fn check_type2(
     }
 }
 
-//fn check_operands(
-//    ctx: &CompileContext,
-//    lhs_ty: Type,
-//    rhs_ty: Type,
-//    lhs_span: Span,
-//    rhs_span: Span,
-//    accepted_types: &[Type],
-//    compatible_types: &[Type],
-//) -> Result<(), CompileError> {
-//    // Both types must be known.
-//    assert!(!matches!(lhs_ty, Type::Unknown));
-//    assert!(!matches!(rhs_ty, Type::Unknown));
-//
-//    check_type(ctx, lhs_ty, lhs_span, accepted_types)?;
-//    check_type(ctx, rhs_ty, rhs_span, accepted_types)?;
-//
-//    let types_are_compatible = {
-//        // If the types are the same, they are compatible.
-//        (lhs_ty == rhs_ty)
-//            // If both types are in the list of compatible types,
-//            // they are compatible too.
-//            || (
-//            compatible_types.contains(&lhs_ty)
-//                && compatible_types.contains(&rhs_ty)
-//        )
-//    };
-//
-//    if !types_are_compatible {
-//        return Err(CompileError::from(CompileErrorInfo::mismatching_types(
-//            ctx.report_builder,
-//            lhs_ty.to_string(),
-//            rhs_ty.to_string(),
-//            lhs_span,
-//            rhs_span,
-//        )));
-//    }
-//
-//    Ok(())
-//}
+fn check_operands(
+    ctx: &CompileContext,
+    lhs_ty: Type,
+    rhs_ty: Type,
+    lhs_span: Span,
+    rhs_span: Span,
+    accepted_types: &[Type],
+    compatible_types: &[Type],
+) -> Result<(), Box<CompileError>> {
+    // Both types must be known.
+    assert!(!matches!(lhs_ty, Type::Unknown));
+    assert!(!matches!(rhs_ty, Type::Unknown));
+
+    check_type(ctx, lhs_ty, lhs_span, accepted_types)?;
+    check_type(ctx, rhs_ty, rhs_span, accepted_types)?;
+
+    let types_are_compatible = {
+        // If the types are the same, they are compatible.
+        (lhs_ty == rhs_ty)
+            // If both types are in the list of compatible types,
+            // they are compatible too.
+            || (
+            compatible_types.contains(&lhs_ty)
+                && compatible_types.contains(&rhs_ty)
+        )
+    };
+
+    if !types_are_compatible {
+        return Err(Box::new(CompileError::mismatching_types(
+            ctx.report_builder,
+            lhs_ty.to_string(),
+            rhs_ty.to_string(),
+            lhs_span,
+            rhs_span,
+        )));
+    }
+
+    Ok(())
+}
 
 fn re_error_to_compile_error(
     report_builder: &ReportBuilder,
@@ -2063,10 +2152,10 @@ macro_rules! gen_unary_op {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $check_fn:expr) => {
         fn $name(
             ctx: &mut CompileContext,
-            expr: yara_parser::Expr,
+            expr: yara_parser::BooleanTerm,
             parse_context: &mut Context,
         ) -> Result<Expr, Box<CompileError>> {
-            let operand = Box::new(expr_from_ast(ctx, expr.clone(), parse_context)?);
+            let operand = Box::new(boolean_expr_from_ast(ctx, yara_parser::Expression::BooleanTerm(expr.clone()), parse_context)?);
             let operand_span = Span::new(SourceId(0), expr.syntax().text_range().start().into(), expr.syntax().text_range().end().into());
 
             // The `not` operator accepts integers, floats and strings because
@@ -2097,46 +2186,99 @@ macro_rules! gen_unary_op {
     };
 }
 
-//macro_rules! gen_binary_op {
-//    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
-//        fn $name(
-//            ctx: &mut CompileContext,
-//            expr: &ast::BinaryExpr,
-//        ) -> Result<Expr, CompileError> {
-//            let lhs_span = expr.lhs.span();
-//            let rhs_span = expr.rhs.span();
-//
-//            let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
-//            let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
-//
-//            check_operands(
-//                ctx,
-//                lhs.ty(),
-//                rhs.ty(),
-//                lhs_span,
-//                rhs_span,
-//                &[$( $accepted_types ),+],
-//                &[$( $compatible_types ),+],
-//            )?;
-//
-//            let check_fn:
-//                Option<fn(&mut CompileContext, &Expr, &Expr, Span, Span) -> Result<(), CompileError>>
-//                = $check_fn;
-//
-//            if let Some(check_fn) = check_fn {
-//                check_fn(ctx, &lhs, &rhs, lhs_span, rhs_span)?;
-//            }
-//
-//            let expr = Expr::$variant { lhs, rhs };
-//
-//            if cfg!(feature = "constant-folding") {
-//                Ok(expr.fold())
-//            } else {
-//                Ok(expr)
-//            }
-//        }
-//    };
-//}
+macro_rules! gen_unary_expr {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $check_fn:expr) => {
+        fn $name(
+            ctx: &mut CompileContext,
+            expr: yara_parser::Expr,
+        ) -> Result<Expr, Box<CompileError>> {
+            let operand = Box::new(expr_from_ast(ctx, expr.clone())?);
+            let operand_span = Span::new(SourceId(0), expr.syntax().text_range().start().into(), expr.syntax().text_range().end().into());
+
+            check_type(
+                ctx,
+                operand.ty(),
+                operand_span,
+                &[$( $accepted_types ),+],
+            )?;
+
+            let check_fn:
+                Option<fn(&mut CompileContext, &Expr, Span) -> Result<(), Box<CompileError>>>
+                = $check_fn;
+
+            if let Some(check_fn) = check_fn {
+                check_fn(ctx, &operand, operand_span)?;
+            }
+
+            let expr = Expr::$variant { operand };
+
+            if cfg!(feature = "constant-folding") {
+                Ok(expr.fold())
+            } else {
+                Ok(expr)
+            }
+        }
+    };
+}
+
+macro_rules! gen_binary_op {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+        fn $name(
+            ctx: &mut CompileContext,
+            expr: &yara_parser::ExprBody,
+        ) -> Result<Expr, Box<CompileError>> {
+            println!("binary op: {:?}", expr);
+
+            let lhs_span = Span::new(
+                SourceId(0),
+                expr.lhs().unwrap().syntax().text_range().start().into(),
+                expr.lhs().unwrap().syntax().text_range().end().into(),
+            );
+
+            let rhs_span = Span::new(
+                SourceId(0),
+                expr.rhs().unwrap().syntax().text_range().start().into(),
+                expr.rhs().unwrap().syntax().text_range().end().into(),
+            );
+
+            let lhs = Box::new(expr_from_ast(
+                ctx,
+                expr.lhs().unwrap(),
+            )?);
+            let rhs = Box::new(expr_from_ast(
+                ctx,
+                expr.rhs().unwrap(),
+            )?);
+
+            check_operands(
+                ctx,
+                lhs.ty(),
+                rhs.ty(),
+                lhs_span,
+                rhs_span,
+                &[$( $accepted_types ),+],
+                &[$( $compatible_types ),+],
+            )?;
+
+
+            let check_fn:
+                Option<fn(&mut CompileContext, &Expr, &Expr, Span, Span) -> Result<(), Box<CompileError>>>
+                = $check_fn;
+
+            if let Some(check_fn) = check_fn {
+                check_fn(ctx, &lhs, &rhs, lhs_span, rhs_span)?;
+            }
+
+            let expr = Expr::$variant { lhs, rhs };
+
+            if cfg!(feature = "constant-folding") {
+                Ok(expr.fold())
+            } else {
+                Ok(expr)
+            }
+        }
+    };
+}
 //
 //macro_rules! gen_string_op {
 //    ($name:ident, $variant:ident) => {
@@ -2171,11 +2313,12 @@ macro_rules! gen_unary_op {
 //    };
 //}
 //
+
 macro_rules! gen_n_ary_operation {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
         fn $name(
             ctx: &mut CompileContext,
-            expr: &yara_parser::Expression,
+            expr: &yara_parser::BooleanExpr,
             parse_context: &mut Context,
         ) -> Result<Expr, Box<CompileError>> {
             let accepted_types = &[$( $accepted_types ),+];
@@ -2184,7 +2327,7 @@ macro_rules! gen_n_ary_operation {
             let operands = vec![expr.lhs().unwrap(), expr.rhs().unwrap()];
             let operands_hir: Vec<Expr> = operands
                 .iter()
-                .map(|expr| expr_from_ast(ctx, expr.clone(), parse_context))
+                .map(|expr| boolean_expr_from_ast(ctx, expr.clone(), parse_context))
                 .collect::<Result<Vec<Expr>, Box<CompileError>>>()?;
 
             let check_fn:
@@ -2257,6 +2400,92 @@ macro_rules! gen_n_ary_operation {
     };
 }
 
+macro_rules! gen_n_ary_expr {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+        fn $name(
+            ctx: &mut CompileContext,
+            expr: &yara_parser::ExprBody,
+        ) -> Result<Expr, Box<CompileError>> {
+            let accepted_types = &[$( $accepted_types ),+];
+            let compatible_types = &[$( $compatible_types ),+];
+
+            let operands = vec![expr.lhs().unwrap(), expr.rhs().unwrap()];
+            let operands_hir: Vec<Expr> = operands
+                .iter()
+                .map(|expr| expr_from_ast(ctx, expr.clone()))
+                .collect::<Result<Vec<Expr>, Box<CompileError>>>()?;
+
+            let check_fn:
+                Option<fn(&mut CompileContext, &Expr, Span) -> Result<(), Box<CompileError>>>
+                = $check_fn;
+
+            // Make sure that all operands have one of the accepted types.
+            for (hir, ast) in iter::zip(operands_hir.iter(), operands.clone()) {
+                check_type2_term(ctx, ast.clone(), hir.ty(), accepted_types)?;
+                if let Some(check_fn) = check_fn {
+                    check_fn(
+                        ctx,
+                        hir,
+                        Span::new(
+                            SourceId(0),
+                            ast.syntax().text_range().start().into(),
+                            ast.syntax().text_range().end().into(),
+                        ),
+                    )?;
+                }
+            }
+
+            // Iterate the operands in pairs (first, second), (second, third),
+            // (third, fourth), etc.
+            for ((lhs_hir, rhs_ast), (rhs_hir, lhs_ast)) in
+                iter::zip(operands_hir.iter(), operands).tuple_windows()
+            {
+                let lhs_ty = lhs_hir.ty();
+                let rhs_ty = rhs_hir.ty();
+
+                let types_are_compatible = {
+                    // If the types are the same, they are compatible.
+                    (lhs_ty == rhs_ty)
+                        // If both types are in the list of compatible types,
+                        // they are compatible too.
+                        || (
+                        compatible_types.contains(&lhs_ty)
+                            && compatible_types.contains(&rhs_ty)
+                    )
+                };
+
+                if !types_are_compatible {
+                    return Err(Box::new(CompileError::mismatching_types(
+                            ctx.report_builder,
+                            lhs_ty.to_string(),
+                            rhs_ty.to_string(),
+                            Span::new(
+                                SourceId(0),
+                                lhs_ast.syntax().text_range().start().into(),
+                                lhs_ast.syntax().text_range().end().into(),
+                            ),
+                            Span::new(
+                                SourceId(0),
+                                rhs_ast.syntax().text_range().start().into(),
+                                rhs_ast.syntax().text_range().end().into(),
+                            ),
+                        ),
+                    ));
+                }
+            }
+
+            let expr = Expr::$variant { operands: operands_hir };
+
+            if cfg!(feature = "constant-folding") {
+                Ok(expr.fold())
+            } else {
+                Ok(expr)
+            }
+        }
+    };
+}
+
+//
 gen_unary_op!(
     defined_expr_from_ast,
     Defined,
@@ -2307,9 +2536,9 @@ gen_n_ary_operation!(
     })
 );
 
-gen_unary_op!(minus_expr_from_ast, Minus, Type::Integer | Type::Float, None);
-
-gen_n_ary_operation!(
+//gen_unary_op!(minus_expr_from_ast, Minus, Type::Integer | Type::Float, None);
+//
+gen_n_ary_expr!(
     add_expr_from_ast,
     Add,
     Type::Integer | Type::Float,
@@ -2317,7 +2546,7 @@ gen_n_ary_operation!(
     None
 );
 
-gen_n_ary_operation!(
+gen_n_ary_expr!(
     sub_expr_from_ast,
     Sub,
     Type::Integer | Type::Float,
@@ -2325,7 +2554,7 @@ gen_n_ary_operation!(
     None
 );
 
-gen_n_ary_operation!(
+gen_n_ary_expr!(
     mul_expr_from_ast,
     Mul,
     Type::Integer | Type::Float,
@@ -2333,7 +2562,7 @@ gen_n_ary_operation!(
     None
 );
 
-gen_n_ary_operation!(
+gen_n_ary_expr!(
     div_expr_from_ast,
     Div,
     Type::Integer | Type::Float,
@@ -2341,80 +2570,74 @@ gen_n_ary_operation!(
     None
 );
 
-gen_n_ary_operation!(
-    mod_expr_from_ast,
-    Mod,
+gen_n_ary_expr!(mod_expr_from_ast, Mod, Type::Integer, Type::Integer, None);
+
+gen_binary_op!(
+    shl_expr_from_ast,
+    Shl,
+    Type::Integer,
+    Type::Integer,
+    Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
+        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
+            if value < 0 {
+                return Err(Box::new(
+                    CompileError::unexpected_negative_number(
+                        ctx.report_builder,
+                        rhs_span,
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    })
+);
+
+gen_binary_op!(
+    shr_expr_from_ast,
+    Shr,
+    Type::Integer,
+    Type::Integer,
+    Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
+        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
+            if value < 0 {
+                return Err(Box::new(
+                    CompileError::unexpected_negative_number(
+                        ctx.report_builder,
+                        rhs_span,
+                    ),
+                ));
+            }
+        }
+        Ok(())
+    })
+);
+
+gen_unary_expr!(bitwise_not_expr_from_ast, BitwiseNot, Type::Integer, None);
+
+gen_binary_op!(
+    bitwise_and_expr_from_ast,
+    BitwiseAnd,
     Type::Integer,
     Type::Integer,
     None
 );
 
-//gen_binary_op!(
-//    shl_expr_from_ast,
-//    Shl,
-//    Type::Integer,
-//    Type::Integer,
-//    Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-//        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
-//            if value < 0 {
-//                return Err(CompileError::from(
-//                    CompileErrorInfo::unexpected_negative_number(
-//                        ctx.report_builder,
-//                        rhs_span,
-//                    ),
-//                ));
-//            }
-//        }
-//        Ok(())
-//    })
-//);
-//
-//gen_binary_op!(
-//    shr_expr_from_ast,
-//    Shr,
-//    Type::Integer,
-//    Type::Integer,
-//    Some(|ctx, _lhs, rhs, _lhs_span, rhs_span| {
-//        if let TypeValue::Integer(Value::Const(value)) = rhs.type_value() {
-//            if value < 0 {
-//                return Err(CompileError::from(
-//                    CompileErrorInfo::unexpected_negative_number(
-//                        ctx.report_builder,
-//                        rhs_span,
-//                    ),
-//                ));
-//            }
-//        }
-//        Ok(())
-//    })
-//);
-//
-gen_unary_op!(bitwise_not_expr_from_ast, BitwiseNot, Type::Integer, None);
-//
-//gen_binary_op!(
-//    bitwise_and_expr_from_ast,
-//    BitwiseAnd,
-//    Type::Integer,
-//    Type::Integer,
-//    None
-//);
-//
-//gen_binary_op!(
-//    bitwise_or_expr_from_ast,
-//    BitwiseOr,
-//    Type::Integer,
-//    Type::Integer,
-//    None
-//);
-//
-//gen_binary_op!(
-//    bitwise_xor_expr_from_ast,
-//    BitwiseXor,
-//    Type::Integer,
-//    Type::Integer,
-//    None
-//);
-//
+gen_binary_op!(
+    bitwise_or_expr_from_ast,
+    BitwiseOr,
+    Type::Integer,
+    Type::Integer,
+    None
+);
+
+gen_binary_op!(
+    bitwise_xor_expr_from_ast,
+    BitwiseXor,
+    Type::Integer,
+    Type::Integer,
+    None
+);
+
 //gen_binary_op!(
 //    eq_expr_from_ast,
 //    Eq,
