@@ -1,6 +1,7 @@
 /*! Functions for converting an AST into an IR. */
 
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
+use regex_syntax::ast::print;
 use std::borrow::{Borrow, Cow};
 use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
@@ -859,14 +860,43 @@ pub(in crate::compiler) fn boolean_expr_from_ast(
             }
 
             if let Some(_) = term.defined_token() {
-                defined_expr_from_ast(
+                return defined_expr_from_ast(
                     ctx,
                     term.boolean_term().unwrap(),
                     parse_context,
-                )
-            } else {
-                todo!("Other types of BoolTerm: {:?}", term);
+                );
             }
+
+            if let Some(expr) = term.expr() {
+                println!("{:#?}", expr);
+                return expr_from_ast(ctx, expr);
+            }
+            if let Some(bool_expr) = &term.boolean_term_expr() {
+                match bool_expr.op_kind().unwrap() {
+                    yara_parser::BinaryOp::BoolTermExprOp(op) => match op {
+                        yara_parser::BoolTermExprOp::Eq => {
+                            return eq_expr_from_ast(ctx, bool_expr)
+                        }
+                        yara_parser::BoolTermExprOp::Ne => {
+                            return ne_expr_from_ast(ctx, bool_expr)
+                        }
+                        yara_parser::BoolTermExprOp::Gt => {
+                            return gt_expr_from_ast(ctx, bool_expr)
+                        }
+                        yara_parser::BoolTermExprOp::Ge => {
+                            return ge_expr_from_ast(ctx, bool_expr)
+                        }
+                        yara_parser::BoolTermExprOp::Lt => {
+                            return lt_expr_from_ast(ctx, bool_expr)
+                        }
+                        yara_parser::BoolTermExprOp::Le => {
+                            return le_expr_from_ast(ctx, bool_expr)
+                        }
+                    },
+                    _ => unreachable!(),
+                }
+            }
+            todo!()
         }
         yara_parser::Expression::BooleanExpr(expr) => {
             if let Some(op_kind) = expr.op_kind() {
@@ -1702,8 +1732,35 @@ fn anchor_from_ast(
 fn range_from_ast(
     ctx: &mut CompileContext,
     range: yara_parser::Range,
-) -> Result<Range, CompileError> {
-    todo!("range_from_ast: {:?}", range);
+) -> Result<Range, Box<CompileError>> {
+    let lower_bound =
+        Box::new(non_negative_integer_from_ast(ctx, range.lhs().unwrap())?);
+
+    let upper_bound =
+        Box::new(non_negative_integer_from_ast(ctx, range.rhs().unwrap())?);
+
+    // If both the lower and upper bounds are known at compile time, make sure
+    // that lower_bound <= upper_bound. If they are not know (because they are
+    // variables, for example) we can't raise an error at compile time but it
+    // will be handled at scan time.
+    if let (
+        TypeValue::Integer(Value::Const(lower_bound)),
+        TypeValue::Integer(Value::Const(upper_bound)),
+    ) = (lower_bound.type_value(), upper_bound.type_value())
+    {
+        if lower_bound > upper_bound {
+            return Err(Box::new(CompileError::invalid_range(
+                ctx.report_builder,
+                Span::new(
+                    SourceId(0),
+                    range.syntax().text_range().start().into(),
+                    range.syntax().text_range().end().into(),
+                ),
+            )));
+        }
+    }
+
+    Ok(Range { lower_bound, upper_bound })
 }
 
 fn non_negative_integer_from_ast(
@@ -2279,6 +2336,66 @@ macro_rules! gen_binary_op {
         }
     };
 }
+
+macro_rules! gen_binary_expr {
+    ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
+        fn $name(
+            ctx: &mut CompileContext,
+            expr: &yara_parser::BooleanTermExpr,
+        ) -> Result<Expr, Box<CompileError>> {
+            println!("binary op: {:?}", expr);
+
+            let lhs_span = Span::new(
+                SourceId(0),
+                expr.lhs().unwrap().syntax().text_range().start().into(),
+                expr.lhs().unwrap().syntax().text_range().end().into(),
+            );
+
+            let rhs_span = Span::new(
+                SourceId(0),
+                expr.rhs().unwrap().syntax().text_range().start().into(),
+                expr.rhs().unwrap().syntax().text_range().end().into(),
+            );
+
+            let lhs = Box::new(expr_from_ast(
+                ctx,
+                expr.lhs().unwrap(),
+            )?);
+            let rhs = Box::new(expr_from_ast(
+                ctx,
+                expr.rhs().unwrap(),
+            )?);
+
+            check_operands(
+                ctx,
+                lhs.ty(),
+                rhs.ty(),
+                lhs_span,
+                rhs_span,
+                &[$( $accepted_types ),+],
+                &[$( $compatible_types ),+],
+            )?;
+
+
+            let check_fn:
+                Option<fn(&mut CompileContext, &Expr, &Expr, Span, Span) -> Result<(), Box<CompileError>>>
+                = $check_fn;
+
+            if let Some(check_fn) = check_fn {
+                check_fn(ctx, &lhs, &rhs, lhs_span, rhs_span)?;
+            }
+
+            let expr = Expr::$variant { lhs, rhs };
+
+            if cfg!(feature = "constant-folding") {
+                Ok(expr.fold())
+            } else {
+                Ok(expr)
+            }
+        }
+    };
+}
+
 //
 //macro_rules! gen_string_op {
 //    ($name:ident, $variant:ident) => {
@@ -2638,72 +2755,72 @@ gen_binary_op!(
     None
 );
 
-//gen_binary_op!(
-//    eq_expr_from_ast,
-//    Eq,
-//    // Integers, floats and strings can be compared.
-//    Type::Integer | Type::Float | Type::String,
-//    // Integers can be compared with floats, but strings can be
-//    // compared only with another string.
-//    Type::Integer | Type::Float,
-//    None
-//);
-//
-//gen_binary_op!(
-//    ne_expr_from_ast,
-//    Ne,
-//    // Integers, floats and strings can be compared.
-//    Type::Integer | Type::Float | Type::String,
-//    // Integers can be compared with floats, but strings can be
-//    // compared only with another string.
-//    Type::Integer | Type::Float,
-//    None
-//);
-//
-//gen_binary_op!(
-//    gt_expr_from_ast,
-//    Gt,
-//    // Integers, floats and strings can be compared.
-//    Type::Integer | Type::Float | Type::String,
-//    // Integers can be compared with floats, but strings can be
-//    // compared only with another string.
-//    Type::Integer | Type::Float,
-//    None
-//);
-//
-//gen_binary_op!(
-//    ge_expr_from_ast,
-//    Ge,
-//    // Integers, floats and strings can be compared.
-//    Type::Integer | Type::Float | Type::String,
-//    // Integers can be compared with floats, but strings can be
-//    // compared only with another string.
-//    Type::Integer | Type::Float,
-//    None
-//);
-//
-//gen_binary_op!(
-//    lt_expr_from_ast,
-//    Lt,
-//    // Integers, floats and strings can be compared.
-//    Type::Integer | Type::Float | Type::String,
-//    // Integers can be compared with floats, but strings can be
-//    // compared only with another string.
-//    Type::Integer | Type::Float,
-//    None
-//);
-//
-//gen_binary_op!(
-//    le_expr_from_ast,
-//    Le,
-//    // Integers, floats and strings can be compared.
-//    Type::Integer | Type::Float | Type::String,
-//    // Integers can be compared with floats, but strings can be
-//    // compared only with another string.
-//    Type::Integer | Type::Float,
-//    None
-//);
-//
+gen_binary_expr!(
+    eq_expr_from_ast,
+    Eq,
+    // Integers, floats and strings can be compared.
+    Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats, but strings can be
+    // compared only with another string.
+    Type::Integer | Type::Float,
+    None
+);
+
+gen_binary_expr!(
+    ne_expr_from_ast,
+    Ne,
+    // Integers, floats and strings can be compared.
+    Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats, but strings can be
+    // compared only with another string.
+    Type::Integer | Type::Float,
+    None
+);
+
+gen_binary_expr!(
+    gt_expr_from_ast,
+    Gt,
+    // Integers, floats and strings can be compared.
+    Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats, but strings can be
+    // compared only with another string.
+    Type::Integer | Type::Float,
+    None
+);
+
+gen_binary_expr!(
+    ge_expr_from_ast,
+    Ge,
+    // Integers, floats and strings can be compared.
+    Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats, but strings can be
+    // compared only with another string.
+    Type::Integer | Type::Float,
+    None
+);
+
+gen_binary_expr!(
+    lt_expr_from_ast,
+    Lt,
+    // Integers, floats and strings can be compared.
+    Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats, but strings can be
+    // compared only with another string.
+    Type::Integer | Type::Float,
+    None
+);
+
+gen_binary_expr!(
+    le_expr_from_ast,
+    Le,
+    // Integers, floats and strings can be compared.
+    Type::Integer | Type::Float | Type::String,
+    // Integers can be compared with floats, but strings can be
+    // compared only with another string.
+    Type::Integer | Type::Float,
+    None
+);
+
 //gen_string_op!(contains_expr_from_ast, Contains);
 //gen_string_op!(icontains_expr_from_ast, IContains);
 //gen_string_op!(startswith_expr_from_ast, StartsWith);
