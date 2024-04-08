@@ -1,7 +1,6 @@
 /*! Functions for converting an AST into an IR. */
 
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
-use regex_syntax::ast::print;
 use std::borrow::{Borrow, Cow};
 use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
@@ -867,8 +866,35 @@ pub(in crate::compiler) fn boolean_expr_from_ast(
                 );
             }
 
+            if let Some(_) = term.l_paren_token() {
+                if let Some(_) = term.boolean_expr() {
+                    return boolean_expr_from_ast(
+                        ctx,
+                        yara_parser::Expression::BooleanExpr(
+                            term.boolean_expr().unwrap(),
+                        ),
+                        parse_context,
+                    );
+                } else {
+                    return boolean_expr_from_ast(
+                        ctx,
+                        yara_parser::Expression::BooleanTerm(
+                            term.boolean_term().unwrap(),
+                        ),
+                        parse_context,
+                    );
+                }
+            }
+
+            if let Some(expr) = term.of_expr() {
+                return of_expr_from_ast(ctx, expr, parse_context);
+            }
+
+            if let Some(expr) = term.for_expr() {
+                return for_expr_from_ast(ctx, expr, parse_context);
+            }
+
             if let Some(expr) = term.expr() {
-                println!("{:#?}", expr);
                 return expr_from_ast(ctx, expr);
             }
             if let Some(bool_expr) = &term.boolean_term_expr() {
@@ -896,6 +922,7 @@ pub(in crate::compiler) fn boolean_expr_from_ast(
                     _ => unreachable!(),
                 }
             }
+            println!("{:#?}", term);
             todo!()
         }
         yara_parser::Expression::BooleanExpr(expr) => {
@@ -1418,296 +1445,432 @@ pub(in crate::compiler) fn bool_expr_from_ast(
     Ok(expr)
 }
 
-//fn of_expr_from_ast(
-//    ctx: &mut CompileContext,
-//    of: &ast::Of,
-//) -> Result<Expr, CompileError> {
-//    let quantifier = quantifier_from_ast(ctx, &of.quantifier)?;
-//    // Create new stack frame with 5 slots:
-//    //   1 slot for the loop variable, a bool in this case.
-//    //   4 up to slots used for loop control variables (see: emit::emit_for)
-//    let stack_frame = ctx.vars.new_frame(5);
-//
-//    let (items, num_items) = match &of.items {
-//        // `x of (<boolean expr>, <boolean expr>, ...)`
-//        ast::OfItems::BoolExprTuple(tuple) => {
-//            let tuple = tuple
-//                .iter()
-//                .map(|e| {
-//                    let expr = expr_from_ast(ctx, e)?;
-//                    check_type(ctx, expr.ty(), e.span(), &[Type::Bool])?;
-//                    Ok(expr)
-//                })
-//                .collect::<Result<Vec<Expr>, CompileError>>()?;
-//
-//            let num_items = tuple.len();
-//            (OfItems::BoolExprTuple(tuple), num_items)
-//        }
-//        // `x of them`, `x of ($a*, $b)`
-//        ast::OfItems::PatternSet(pattern_set) => {
-//            let pattern_indexes = pattern_set_from_ast(ctx, pattern_set)?;
-//            let num_patterns = pattern_indexes.len();
-//            (OfItems::PatternSet(pattern_indexes), num_patterns)
-//        }
-//    };
+fn of_expr_from_ast(
+    ctx: &mut CompileContext,
+    of: yara_parser::OfExpr,
+    parse_context: &mut Context,
+) -> Result<Expr, Box<CompileError>> {
+    let quantifier = quantifier_from_ast(ctx, of.quantifier().unwrap())?;
 
-// If the quantifier expression is greater than the number of items,
-// the `of` expression is always false.
-//    if let Quantifier::Expr(expr) = &quantifier {
-//        if let TypeValue::Integer(Value::Const(value)) = expr.type_value() {
-//            if value > num_items.try_into().unwrap() {
-//                ctx.warnings.push(Warning::invariant_boolean_expression(
-//                    ctx.report_builder,
-//                    false,
-//                    of.span(),
-//                    Some(format!(
-//                        "the expression requires {} matching patterns out of {}",
-//                        value, num_items
-//                    )),
-//                ));
-//            }
-//        }
-//    }
-//
-//    // The anchor `at <expr>` is being used with a quantifier that is not `any`
-//    // or `none`, but this usually doesn't make sense. For example consider the
-//    // expression...
-//    //
-//    //   all of ($a, $b) at 0
-//    //
-//    // This means that both $a and $b must match at offset 0, which won't happen
-//    // unless $a and $b are overlapping patterns. In the other hand, these
-//    // expressions make perfect sense...
-//    //
-//    //  none of ($a, $b) at 0
-//    //  any of ($a, $b) at 0
-//    //
-//    // Raise a warning in those cases that are probably wrong.
-//    //
-//    if matches!(of.anchor, Some(ast::MatchAnchor::At(_))) {
-//        let raise_warning = match &quantifier {
-//            // `all of <items> at <expr>`: the warning is raised only if there
-//            // are more than one item. `all of ($a) at 0` doesn't raise a
-//            // warning.
-//            Quantifier::All { .. } => num_items > 1,
-//            // `<expr> of <items> at <expr>: the warning is raised if <expr> is
-//            // 2 or more.
-//            Quantifier::Expr(expr) => match expr.type_value() {
-//                TypeValue::Integer(Value::Const(value)) => value >= 2,
-//                _ => false,
-//            },
-//            // `<expr>% of <items> at <expr>: the warning is raised if the
-//            // <expr> percent of the items is 2 or more.
-//            Quantifier::Percentage(expr) => match expr.type_value() {
-//                TypeValue::Integer(Value::Const(percentage)) => {
-//                    num_items as f64 * percentage as f64 / 100.0 >= 2.0
-//                }
-//                _ => false,
-//            },
-//            Quantifier::None { .. } | Quantifier::Any { .. } => false,
-//        };
-//
-//        if raise_warning {
-//            ctx.warnings.push(Warning::potentially_wrong_expression(
-//                ctx.report_builder,
-//                of.quantifier.span(),
-//                of.anchor.as_ref().unwrap().span(),
-//            ));
-//        }
-//    }
-//
-//    let anchor = anchor_from_ast(ctx, &of.anchor)?;
-//
-//    ctx.vars.unwind(&stack_frame);
-//
-//    Ok(Expr::Of(Box::new(Of { quantifier, items, anchor, stack_frame })))
-//}
+    // Create new stack frame with 5 slots:
+    //   1 slot for the loop variable, a bool in this case.
+    //   4 up to slots used for loop control variables (see: emit::emit_for)
+    let stack_frame = ctx.vars.new_frame(5);
 
-//fn for_of_expr_from_ast(
-//    ctx: &mut CompileContext,
-//    for_of: &ast::ForOf,
-//) -> Result<Expr, CompileError> {
-//    let quantifier = quantifier_from_ast(ctx, &for_of.quantifier)?;
-//    let pattern_set = pattern_set_from_ast(ctx, &for_of.pattern_set)?;
-//    // Create new stack frame with 5 slots:
-//    //   1 slot for the loop variable, a pattern ID in this case
-//    //   4 up to slots used for loop control variables (see: emit::emit_for)
-//    let mut stack_frame = ctx.vars.new_frame(5);
-//    let next_pattern_id = stack_frame.new_var(Type::Integer);
-//    let mut loop_vars = SymbolTable::new();
-//
-//    loop_vars.insert(
-//        "$",
-//        Symbol::new(
-//            TypeValue::Integer(Value::Unknown),
-//            SymbolKind::Var(next_pattern_id),
-//        ),
-//    );
-//
-//    ctx.symbol_table.push(Rc::new(loop_vars));
-//
-//    let condition = bool_expr_from_ast(ctx, &for_of.condition)?;
-//
-//    ctx.symbol_table.pop();
-//    ctx.vars.unwind(&stack_frame);
-//
-//    Ok(Expr::ForOf(Box::new(ForOf {
-//        quantifier,
-//        pattern_set,
-//        condition,
-//        stack_frame,
-//        variable: next_pattern_id,
-//    })))
-//}
+    let (items, num_items) = if let Some(expr) = of.boolean_expr_tuple() {
+        let mut tuple = Vec::new();
 
-//fn for_in_expr_from_ast(
-//    ctx: &mut CompileContext,
-//    for_in: &ast::ForIn,
-//) -> Result<Expr, CompileError> {
-//    let quantifier = quantifier_from_ast(ctx, &for_in.quantifier)?;
-//    let iterable = iterable_from_ast(ctx, &for_in.iterable)?;
-//
-//    let expected_vars = match &iterable {
-//        Iterable::Range(_) => vec![TypeValue::Integer(Value::Unknown)],
-//        Iterable::ExprTuple(expressions) => {
-//            // All expressions in the tuple have the same type, we can use
-//            // the type of the first item in the tuple as the type of the
-//            // loop variable. Notice that we are using `clone_without_value`
-//            // instead of `clone`, because we want a TypeValue with the same
-//            // type than the first item in the tuple, but we don't want to
-//            // clone its actual value if known. The actual value for the
-//            // loop variable is not known until the loop is executed.
-//            vec![expressions
-//                .first()
-//                .unwrap()
-//                .type_value()
-//                .clone_without_value()]
-//        }
-//        Iterable::Expr(expr) => match expr.type_value() {
-//            TypeValue::Array(array) => vec![array.deputy()],
-//            TypeValue::Map(map) => match map.as_ref() {
-//                Map::IntegerKeys { .. } => {
-//                    vec![TypeValue::Integer(Value::Unknown), map.deputy()]
-//                }
-//                Map::StringKeys { .. } => {
-//                    vec![TypeValue::String(Value::Unknown), map.deputy()]
-//                }
-//            },
-//            _ => unreachable!(),
-//        },
-//    };
-//
-//    let loop_vars = &for_in.variables;
-//
-//    // Make sure that the number of variables in the `for .. in` statement
-//    // corresponds to the number of values returned by the iterator. For
-//    // example, while most iterators return a single value, maps return two
-//    // of them: key and value.
-//    if loop_vars.len() != expected_vars.len() {
-//        let span = loop_vars.first().unwrap().span();
-//        let span = span.combine(&loop_vars.last().unwrap().span());
-//        return Err(CompileError::from(
-//            CompileErrorInfo::assignment_mismatch(
-//                ctx.report_builder,
-//                loop_vars.len() as u8,
-//                expected_vars.len() as u8,
-//                for_in.iterable.span(),
-//                span,
-//            ),
-//        ));
-//    }
-//
-//    // Create stack frame with capacity for the loop variables, plus 4
-//    // temporary variables used for controlling the loop (see emit_for),
-//    // plus one additional variable used in loops over arrays and maps
-//    // (see emit_for_in_array and emit_for_in_map).
-//    let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
-//    let mut symbols = SymbolTable::new();
-//    let mut variables = Vec::new();
-//
-//    // TODO: raise warning when the loop identifier (e.g: "i") hides
-//    // an existing identifier with the same name.
-//    for (loop_var, type_value) in iter::zip(loop_vars, expected_vars) {
-//        let var = stack_frame.new_var(type_value.ty());
-//        variables.push(var);
-//        symbols.insert(
-//            loop_var.name,
-//            Symbol::new(type_value, SymbolKind::Var(var)),
-//        );
-//    }
-//
-//    // Put the loop variables into scope.
-//    ctx.symbol_table.push(Rc::new(symbols));
-//
-//    let condition = bool_expr_from_ast(ctx, &for_in.condition)?;
-//
-//    // Leaving the condition's scope. Remove loop variables.
-//    ctx.symbol_table.pop();
-//
-//    ctx.vars.unwind(&stack_frame);
-//
-//    Ok(Expr::ForIn(Box::new(ForIn {
-//        quantifier,
-//        variables,
-//        iterable,
-//        condition,
-//        stack_frame,
-//    })))
-//}
+        for e in expr.boolean_exprs() {
+            let expr = bool_expr_from_ast(
+                ctx,
+                yara_parser::Expression::BooleanExpr(e.clone()),
+                parse_context,
+            )?;
+            check_type(
+                ctx,
+                expr.ty(),
+                Span::new(
+                    SourceId(0),
+                    e.syntax().text_range().start().into(),
+                    e.syntax().text_range().end().into(),
+                ),
+                &[Type::Bool],
+            )?;
+            tuple.push(expr);
+        }
 
-//fn iterable_from_ast(
-//    ctx: &mut CompileContext,
-//    iter: &ast::Iterable,
-//) -> Result<Iterable, CompileError> {
-//    match iter {
-//        ast::Iterable::Range(range) => {
-//            Ok(Iterable::Range(range_from_ast(ctx, range)?))
-//        }
-//        ast::Iterable::Expr(expr) => {
-//            let span = expr.span();
-//            let expr = expr_from_ast(ctx, expr)?;
-//            // Make sure that the expression has a type that is iterable.
-//            check_type(ctx, expr.ty(), span, &[Type::Array, Type::Map])?;
-//            Ok(Iterable::Expr(expr))
-//        }
-//        ast::Iterable::ExprTuple(expr_tuple) => {
-//            let mut e = Vec::with_capacity(expr_tuple.len());
-//            let mut prev: Option<(Type, Span)> = None;
-//            for expr in expr_tuple {
-//                let span = expr.span();
-//                let expr = expr_from_ast(ctx, expr)?;
-//                let ty = expr.ty();
-//                // Items in the tuple must be either integer, float, string
-//                // or bool.
-//                check_type(
-//                    ctx,
-//                    ty,
-//                    span,
-//                    &[Type::Integer, Type::Float, Type::String, Type::Bool],
-//                )?;
-//                // All items in the item must have the same type. Compare
-//                // with the previous item and return as soon as we find a
-//                // type mismatch.
-//                if let Some((prev_ty, prev_span)) = prev {
-//                    if prev_ty != ty {
-//                        return Err(CompileError::from(
-//                            CompileErrorInfo::mismatching_types(
-//                                ctx.report_builder,
-//                                prev_ty.to_string(),
-//                                ty.to_string(),
-//                                prev_span,
-//                                span,
-//                            ),
-//                        ));
-//                    }
-//                }
-//                prev = Some((ty, span));
-//                e.push(expr);
-//            }
-//            Ok(Iterable::ExprTuple(e))
-//        }
-//    }
-//}
+        let num_items = tuple.len();
+        (OfItems::BoolExprTuple(tuple), num_items)
+    } else if let Some(pattern_tuple) = of.pattern_ident_tuple() {
+        let pattern_indexes =
+            pattern_set_from_ast(ctx, pattern_tuple, parse_context)?;
+        let num_patterns = pattern_indexes.len();
+        (OfItems::PatternSet(pattern_indexes), num_patterns)
+    } else if let Some(them) = of.them_token() {
+        let pattern_indexes: Vec<PatternIdx> =
+            (0..ctx.current_rule_patterns.len()).map(|i| i.into()).collect();
+
+        if pattern_indexes.is_empty() {
+            return Err(Box::new(CompileError::empty_pattern_set(
+                ctx.report_builder,
+                Span::new(
+                    SourceId(0),
+                    them.text_range().start().into(),
+                    them.text_range().end().into(),
+                ),
+                Some("this rule doesn't define any patterns".to_string()),
+            )));
+        }
+
+        // Make all the patterns in the set non-anchorable.
+        for pattern in ctx.current_rule_patterns.iter_mut() {
+            pattern.make_non_anchorable();
+        }
+        let len = pattern_indexes.len();
+
+        parse_context.unused_patterns.clear();
+        (OfItems::PatternSet(pattern_indexes), len)
+    } else {
+        unreachable!();
+    };
+
+    //If the quantifier expression is greater than the number of items,
+    //the `of` expression is always false.
+    if let Quantifier::Expr(expr) = &quantifier {
+        if let TypeValue::Integer(Value::Const(value)) = expr.type_value() {
+            if value > num_items.try_into().unwrap() {
+                ctx.warnings.push(Warning::invariant_boolean_expression(
+                    ctx.report_builder,
+                    false,
+                    Span::new(
+                        SourceId(0),
+                        of.syntax().text_range().start().into(),
+                        of.syntax().text_range().end().into(),
+                    ),
+                    Some(format!(
+                        "the expression requires {} matching patterns out of {}",
+                        value, num_items
+                    )),
+                ));
+            }
+        }
+    }
+
+    // The anchor `at <expr>` is being used with a quantifier that is not `any`
+    // or `none`, but this usually doesn't make sense. For example consider the
+    // expression...
+    //
+    //   all of ($a, $b) at 0
+    //
+    // This means that both $a and $b must match at offset 0, which won't happen
+    // unless $a and $b are overlapping patterns. In the other hand, these
+    // expressions make perfect sense...
+    //
+    //  none of ($a, $b) at 0
+    //  any of ($a, $b) at 0
+    //
+    // Raise a warning in those cases that are probably wrong.
+    //
+    if let Some(_) = of.variable_anchor() {
+        let raise_warning = match &quantifier {
+            // `all of <items> at <expr>`: the warning is raised only if there
+            // are more than one item. `all of ($a) at 0` doesn't raise a
+            // warning.
+            Quantifier::All { .. } => num_items > 1,
+            // `<expr> of <items> at <expr>: the warning is raised if <expr> is
+            // 2 or more.
+            Quantifier::Expr(expr) => match expr.type_value() {
+                TypeValue::Integer(Value::Const(value)) => value >= 2,
+                _ => false,
+            },
+            // `<expr>% of <items> at <expr>: the warning is raised if the
+            // <expr> percent of the items is 2 or more.
+            Quantifier::Percentage(expr) => match expr.type_value() {
+                TypeValue::Integer(Value::Const(percentage)) => {
+                    num_items as f64 * percentage as f64 / 100.0 >= 2.0
+                }
+                _ => false,
+            },
+            Quantifier::None { .. } | Quantifier::Any { .. } => false,
+        };
+
+        if raise_warning {
+            ctx.warnings.push(Warning::potentially_wrong_expression(
+                ctx.report_builder,
+                Span::new(
+                    SourceId(0),
+                    of.quantifier()
+                        .unwrap()
+                        .syntax()
+                        .text_range()
+                        .start()
+                        .into(),
+                    of.variable_anchor()
+                        .unwrap()
+                        .syntax()
+                        .text_range()
+                        .end()
+                        .into(),
+                ),
+                Span::new(
+                    SourceId(0),
+                    of.variable_anchor()
+                        .unwrap()
+                        .syntax()
+                        .text_range()
+                        .start()
+                        .into(),
+                    of.variable_anchor()
+                        .unwrap()
+                        .syntax()
+                        .text_range()
+                        .end()
+                        .into(),
+                ),
+            ));
+        }
+    }
+
+    let anchor = anchor_from_ast(ctx, of.variable_anchor())?;
+
+    ctx.vars.unwind(&stack_frame);
+
+    Ok(Expr::Of(Box::new(Of { quantifier, items, anchor, stack_frame })))
+}
+
+fn for_expr_from_ast(
+    ctx: &mut CompileContext,
+    for_expr: yara_parser::ForExpr,
+    parse_context: &mut Context,
+) -> Result<Expr, Box<CompileError>> {
+    let quantifier = quantifier_from_ast(ctx, for_expr.quantifier().unwrap())?;
+    if let Some(_) = for_expr.of_token() {
+        let pattern_set = if let Some(them) = for_expr.them_token() {
+            let pattern_indexes: Vec<PatternIdx> =
+                (0..ctx.current_rule_patterns.len())
+                    .map(|i| i.into())
+                    .collect();
+
+            if pattern_indexes.is_empty() {
+                return Err(Box::new(CompileError::empty_pattern_set(
+                    ctx.report_builder,
+                    Span::new(
+                        SourceId(0),
+                        them.text_range().start().into(),
+                        them.text_range().end().into(),
+                    ),
+                    Some("this rule doesn't define any patterns".to_string()),
+                )));
+            }
+
+            // Make all the patterns in the set non-anchorable.
+            for pattern in ctx.current_rule_patterns.iter_mut() {
+                pattern.make_non_anchorable();
+            }
+
+            parse_context.unused_patterns.clear();
+            pattern_indexes
+        } else {
+            pattern_set_from_ast(
+                ctx,
+                for_expr.pattern_ident_tuple().unwrap(),
+                parse_context,
+            )?
+        };
+
+        let mut stack_frame = ctx.vars.new_frame(5);
+        let next_pattern_id = stack_frame.new_var(Type::Integer);
+        let mut loop_vars = SymbolTable::new();
+
+        loop_vars.insert(
+            "$",
+            Symbol::new(
+                TypeValue::Integer(Value::Unknown),
+                SymbolKind::Var(next_pattern_id),
+            ),
+        );
+
+        ctx.symbol_table.push(Rc::new(loop_vars));
+
+        let condition = bool_expr_from_ast(
+            ctx,
+            for_expr.expression().unwrap(),
+            parse_context,
+        )?;
+
+        ctx.symbol_table.pop();
+        ctx.vars.unwind(&stack_frame);
+
+        return Ok(Expr::ForOf(Box::new(ForOf {
+            quantifier,
+            pattern_set,
+            condition,
+            stack_frame,
+            variable: next_pattern_id,
+        })));
+    } else {
+        let iterable = iterable_from_ast(ctx, for_expr.iterable().unwrap())?;
+        let expected_vars = match &iterable {
+            Iterable::Range(_) => vec![TypeValue::Integer(Value::Unknown)],
+            Iterable::ExprTuple(expressions) => {
+                // All expressions in the tuple have the same type, we can use
+                // the type of the first item in the tuple as the type of the
+                // loop variable. Notice that we are using `clone_without_value`
+                // instead of `clone`, because we want a TypeValue with the same
+                // type than the first item in the tuple, but we don't want to
+                // clone its actual value if known. The actual value for the
+                // loop variable is not known until the loop is executed.
+                vec![expressions
+                    .first()
+                    .unwrap()
+                    .type_value()
+                    .clone_without_value()]
+            }
+            Iterable::Expr(expr) => match expr.type_value() {
+                TypeValue::Array(array) => vec![array.deputy()],
+                TypeValue::Map(map) => match map.as_ref() {
+                    Map::IntegerKeys { .. } => {
+                        vec![TypeValue::Integer(Value::Unknown), map.deputy()]
+                    }
+                    Map::StringKeys { .. } => {
+                        vec![TypeValue::String(Value::Unknown), map.deputy()]
+                    }
+                },
+                _ => unreachable!(),
+            },
+        };
+        let loop_vars: Vec<_> = for_expr.identifier_nodes().collect();
+
+        // Make sure that the number of variables in the `for .. in` statement
+        // corresponds to the number of values returned by the iterator. For
+        // example, while most iterators return a single value, maps return two
+        // of them: key and value.
+        if loop_vars.len() != expected_vars.len() {
+            let span = Span::new(
+                SourceId(0),
+                loop_vars
+                    .first()
+                    .unwrap()
+                    .syntax()
+                    .text_range()
+                    .start()
+                    .into(),
+                loop_vars.first().unwrap().syntax().text_range().end().into(),
+            );
+            let span = span.combine(&Span::new(
+                SourceId(0),
+                loop_vars.last().unwrap().syntax().text_range().start().into(),
+                loop_vars.last().unwrap().syntax().text_range().end().into(),
+            ));
+            return Err(Box::new(CompileError::assignment_mismatch(
+                ctx.report_builder,
+                loop_vars.len() as u8,
+                expected_vars.len() as u8,
+                Span::new(
+                    SourceId(0),
+                    for_expr
+                        .iterable()
+                        .unwrap()
+                        .syntax()
+                        .text_range()
+                        .start()
+                        .into(),
+                    for_expr
+                        .iterable()
+                        .unwrap()
+                        .syntax()
+                        .text_range()
+                        .end()
+                        .into(),
+                ),
+                span,
+            )));
+        }
+
+        // Create stack frame with capacity for the loop variables, plus 4
+        // temporary variables used for controlling the loop (see emit_for),
+        // plus one additional variable used in loops over arrays and maps
+        // (see emit_for_in_array and emit_for_in_map).
+        let mut stack_frame = ctx.vars.new_frame(loop_vars.len() as i32 + 5);
+        let mut symbols = SymbolTable::new();
+        let mut variables = Vec::new();
+
+        // TODO: raise warning when the loop identifier (e.g: "i") hides
+        // an existing identifier with the same name.
+        for (loop_var, type_value) in iter::zip(loop_vars, expected_vars) {
+            let var = stack_frame.new_var(type_value.ty());
+            variables.push(var);
+            symbols.insert(
+                loop_var.syntax().text(),
+                Symbol::new(type_value, SymbolKind::Var(var)),
+            );
+        }
+
+        // Put the loop variables into scope.
+        ctx.symbol_table.push(Rc::new(symbols));
+
+        let condition = bool_expr_from_ast(
+            ctx,
+            for_expr.expression().unwrap(),
+            parse_context,
+        )?;
+
+        // Leaving the condition's scope. Remove loop variables.
+        ctx.symbol_table.pop();
+
+        ctx.vars.unwind(&stack_frame);
+
+        Ok(Expr::ForIn(Box::new(ForIn {
+            quantifier,
+            variables,
+            iterable,
+            condition,
+            stack_frame,
+        })))
+    }
+}
+
+fn iterable_from_ast(
+    ctx: &mut CompileContext,
+    iter: yara_parser::Iterable,
+) -> Result<Iterable, Box<CompileError>> {
+    match iter {
+        yara_parser::Iterable::Range(range) => {
+            Ok(Iterable::Range(range_from_ast(ctx, range)?))
+        }
+        yara_parser::Iterable::NestedExpr(expr) => {
+            let span = Span::new(
+                SourceId(0),
+                expr.syntax().text_range().start().into(),
+                expr.syntax().text_range().end().into(),
+            );
+            let expr = expr_from_ast(ctx, expr.expr().unwrap())?;
+            // Make sure that the expression has a type that is iterable.
+            check_type(ctx, expr.ty(), span, &[Type::Array, Type::Map])?;
+            Ok(Iterable::Expr(expr))
+        }
+        yara_parser::Iterable::ExprTuple(expr_tuple) => {
+            let mut e = Vec::new();
+            let mut prev: Option<(Type, Span)> = None;
+            for expr in expr_tuple.exprs() {
+                let span = Span::new(
+                    SourceId(0),
+                    expr.syntax().text_range().start().into(),
+                    expr.syntax().text_range().end().into(),
+                );
+                let expr = expr_from_ast(ctx, expr)?;
+                let ty = expr.ty();
+                // Items in the tuple must be either integer, float, string
+                // or bool.
+                check_type(
+                    ctx,
+                    ty,
+                    span,
+                    &[Type::Integer, Type::Float, Type::String, Type::Bool],
+                )?;
+                // All items in the item must have the same type. Compare
+                // with the previous item and return as soon as we find a
+                // type mismatch.
+                if let Some((prev_ty, prev_span)) = prev {
+                    if prev_ty != ty {
+                        return Err(Box::new(
+                            CompileError::mismatching_types(
+                                ctx.report_builder,
+                                prev_ty.to_string(),
+                                ty.to_string(),
+                                prev_span,
+                                span,
+                            ),
+                        ));
+                    }
+                }
+                prev = Some((ty, span));
+                e.push(expr);
+            }
+            Ok(Iterable::ExprTuple(e))
+        }
+    }
+}
 
 fn anchor_from_ast(
     ctx: &mut CompileContext,
@@ -1788,128 +1951,117 @@ fn non_negative_integer_from_ast(
 
     Ok(expr)
 }
-//
-//fn integer_in_range_from_ast(
-//    ctx: &mut CompileContext,
-//    expr: &ast::Expr,
-//    range: RangeInclusive<i64>,
-//) -> Result<Expr, CompileError> {
-//    let span = expr.span();
-//    let expr = expr_from_ast(ctx, expr)?;
-//    let type_value = expr.type_value();
-//
-//    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
-//
-//    // If the value is known at compile time make sure that it is within
-//    // the given range.
-//    if let TypeValue::Integer(Value::Const(value)) = type_value {
-//        if !range.contains(&value) {
-//            return Err(CompileError::from(
-//                CompileErrorInfo::number_out_of_range(
-//                    ctx.report_builder,
-//                    *range.start(),
-//                    *range.end(),
-//                    span,
-//                ),
-//            ));
-//        }
-//    }
-//
-//    Ok(expr)
-//}
 
-//fn quantifier_from_ast(
-//    ctx: &mut CompileContext,
-//    quantifier: &ast::Quantifier,
-//) -> Result<Quantifier, CompileError> {
-//    match quantifier {
-//        ast::Quantifier::None { .. } => Ok(Quantifier::None),
-//        ast::Quantifier::All { .. } => Ok(Quantifier::All),
-//        ast::Quantifier::Any { .. } => Ok(Quantifier::Any),
-//        ast::Quantifier::Percentage(expr) => {
-//            // The percentage must be between 0 and 100, both inclusive.
-//            Ok(Quantifier::Percentage(integer_in_range_from_ast(
-//                ctx,
-//                expr,
-//                0..=100,
-//            )?))
-//        }
-//        ast::Quantifier::Expr(expr) => {
-//            Ok(Quantifier::Expr(non_negative_integer_from_ast(ctx, expr)?))
-//        }
-//    }
-//}
+fn integer_in_range_from_ast(
+    ctx: &mut CompileContext,
+    expr: yara_parser::Expr,
+    range: RangeInclusive<i64>,
+) -> Result<Expr, Box<CompileError>> {
+    let span = Span::new(
+        SourceId(0),
+        expr.syntax().text_range().start().into(),
+        expr.syntax().text_range().end().into(),
+    );
+
+    let expr = expr_from_ast(ctx, expr)?;
+    let type_value = expr.type_value();
+
+    check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
+
+    // If the value is known at compile time make sure that it is within
+    // the given range.
+    if let TypeValue::Integer(Value::Const(value)) = type_value {
+        if !range.contains(&value) {
+            return Err(Box::new(CompileError::number_out_of_range(
+                ctx.report_builder,
+                *range.start(),
+                *range.end(),
+                span,
+            )));
+        }
+    }
+
+    Ok(expr)
+}
+
+fn quantifier_from_ast(
+    ctx: &mut CompileContext,
+    quantifier: yara_parser::Quantifier,
+) -> Result<Quantifier, Box<CompileError>> {
+    if let Some(_) = quantifier.all_token() {
+        return Ok(Quantifier::All);
+    }
+    if let Some(_) = quantifier.any_token() {
+        return Ok(Quantifier::Any);
+    }
+    if let Some(_) = quantifier.none_token() {
+        return Ok(Quantifier::None);
+    }
+    if let Some(_) = quantifier.percentage_token() {
+        return Ok(Quantifier::Percentage(integer_in_range_from_ast(
+            ctx,
+            yara_parser::Expr::PrimaryExpr(quantifier.primary_expr().unwrap()),
+            0..=100,
+        )?));
+    } else {
+        return Ok(Quantifier::Expr(non_negative_integer_from_ast(
+            ctx,
+            yara_parser::Expr::PrimaryExpr(quantifier.primary_expr().unwrap()),
+        )?));
+    }
+}
 //
-//fn pattern_set_from_ast(
-//    ctx: &mut CompileContext,
-//    pattern_set: &ast::PatternSet,
-//) -> Result<Vec<PatternIdx>, CompileError> {
-//    let pattern_indexes = match pattern_set {
-//        // `x of them`
-//        ast::PatternSet::Them { span } => {
-//            let pattern_indexes: Vec<PatternIdx> =
-//                (0..ctx.current_rule_patterns.len())
-//                    .map(|i| i.into())
-//                    .collect();
-//
-//            if pattern_indexes.is_empty() {
-//                return Err(CompileError::from(
-//                    CompileErrorInfo::empty_pattern_set(
-//                        ctx.report_builder,
-//                        *span,
-//                        Some(
-//                            "this rule doesn't define any patterns"
-//                                .to_string(),
-//                        ),
-//                    ),
-//                ));
-//            }
-//
-//            // Make all the patterns in the set non-anchorable.
-//            for pattern in ctx.current_rule_patterns.iter_mut() {
-//                pattern.make_non_anchorable();
-//            }
-//
-//            pattern_indexes
-//        }
-//        // `x of ($a*, $b)`
-//        ast::PatternSet::Set(ref set) => {
-//            for item in set {
-//                if !ctx
-//                    .current_rule_patterns
-//                    .iter()
-//                    .any(|pattern| item.matches(pattern.identifier()))
-//                {
-//                    return Err(CompileError::from(
-//                        CompileErrorInfo::empty_pattern_set(
-//                            ctx.report_builder,
-//                            item.span(),
-//                            Some(format!(
-//                                "`{}` doesn't match any pattern identifier",
-//                                item.identifier,
-//                            )),
-//                        ),
-//                    ));
-//                }
-//            }
-//            let mut pattern_indexes = Vec::new();
-//            for (i, pattern) in
-//                ctx.current_rule_patterns.iter_mut().enumerate()
-//            {
-//                // Iterate over the patterns in the set (e.g: $foo, $foo*) and
-//                // check if some of them matches the identifier.
-//                if set.iter().any(|p| p.matches(pattern.identifier())) {
-//                    pattern_indexes.push(i.into());
-//                    // All the patterns in the set are made non-anchorable.
-//                    pattern.make_non_anchorable();
-//                }
-//            }
-//            pattern_indexes
-//        }
-//    };
-//
-//    Ok(pattern_indexes)
-//}
+fn pattern_set_from_ast(
+    ctx: &mut CompileContext,
+    pattern_set: yara_parser::PatternIdentTuple,
+    parse_context: &mut Context,
+) -> Result<Vec<PatternIdx>, Box<CompileError>> {
+    let mut pattern_indexes = Vec::new();
+    for item in pattern_set.variable_wildcards() {
+        if item.star_token().is_some() {
+            parse_context.unused_patterns.retain(|ident| {
+                !ident.starts_with(&item.variable_token().unwrap().text()[1..])
+            });
+        } else {
+            parse_context
+                .unused_patterns
+                .remove(&item.variable_token().unwrap().text()[1..]);
+        }
+
+        if !ctx
+            .current_rule_patterns
+            .iter()
+            .any(|pattern| item.matches(pattern.identifier()))
+        {
+            return Err(Box::new(CompileError::empty_pattern_set(
+                ctx.report_builder,
+                Span::new(
+                    SourceId(0),
+                    item.syntax().text_range().start().into(),
+                    item.syntax().text_range().end().into(),
+                ),
+                Some(format!(
+                    "`{}` doesn't match any pattern identifier",
+                    item.variable_token().unwrap().text(),
+                )),
+            )));
+        }
+    }
+
+    for (i, pattern) in ctx.current_rule_patterns.iter_mut().enumerate() {
+        // Iterate over the patterns in the set (e.g: $foo, $foo*) and
+        // check if some of them matches the identifier.
+        for p in pattern_set.variable_wildcards() {
+            if p.matches(pattern.identifier()) {
+                pattern_indexes.push(i.into());
+                // All the patterns in the set are made non-anchorable.
+                pattern.make_non_anchorable();
+            }
+        }
+    }
+
+    Ok(pattern_indexes)
+}
 //
 //fn func_call_from_ast(
 //    ctx: &mut CompileContext,
@@ -2284,7 +2436,6 @@ macro_rules! gen_binary_op {
             ctx: &mut CompileContext,
             expr: &yara_parser::ExprBody,
         ) -> Result<Expr, Box<CompileError>> {
-            println!("binary op: {:?}", expr);
 
             let lhs_span = Span::new(
                 SourceId(0),
@@ -2343,7 +2494,6 @@ macro_rules! gen_binary_expr {
             ctx: &mut CompileContext,
             expr: &yara_parser::BooleanTermExpr,
         ) -> Result<Expr, Box<CompileError>> {
-            println!("binary op: {:?}", expr);
 
             let lhs_span = Span::new(
                 SourceId(0),
