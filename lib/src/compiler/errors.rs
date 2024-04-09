@@ -103,6 +103,14 @@ pub enum CompileError {
         error_span: Span,
     },
 
+    #[error("invalid float")]
+    #[label("{error_msg}", error_span)]
+    InvalidFloat {
+        detailed_report: String,
+        error_msg: String,
+        error_span: Span,
+    },
+
     #[error("duplicate pattern modifier")]
     #[label("duplicate modifier", modifier_span)]
     DuplicateModifier { detailed_report: String, modifier_span: Span },
@@ -127,6 +135,10 @@ pub enum CompileError {
         modifier2_span: Span,
         note: Option<String>,
     },
+
+    #[error("unknown field or method `{identifier}`")]
+    #[label("this field or method doesn't exist", span)]
+    UnknownField { detailed_report: String, identifier: String, span: Span },
 
     #[error("unknown pattern `{pattern_ident}`")]
     #[label(

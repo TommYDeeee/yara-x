@@ -49,7 +49,7 @@ pub struct SourceCode<'src> {
     pub(crate) raw: &'src BStr,
     /// A reference to the source code after validating that it is valid
     /// UTF-8.
-    pub(crate) valid: Option<&'src str>,
+    pub valid: Option<&'src str>,
     /// An optional string that tells which is the origin of the code. Usually
     /// a file path.
     pub(crate) origin: Option<String>,
@@ -71,7 +71,7 @@ impl<'src> SourceCode<'src> {
 
     /// Make sure that the source code is valid UTF-8. If that's the case
     /// sets the `valid` field, if not, returns an error.
-    fn validate_utf8(&mut self) -> Result<(), bstr::Utf8Error> {
+    pub fn validate_utf8(&mut self) -> Result<(), bstr::Utf8Error> {
         if self.valid.is_none() {
             self.valid = Some(self.raw.to_str()?);
         }

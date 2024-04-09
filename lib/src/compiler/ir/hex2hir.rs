@@ -171,17 +171,12 @@ fn process_hex_jumps(
     );
 
     // lhs is mandatory
-    let start = Some(integer_lit_from_cst::<u8>(
-        report_builder,
-        first_jump.lhs().text(),
-    )?);
+    let start =
+        Some(integer_lit_from_cst::<u8>(report_builder, first_jump.lhs())?);
 
     // rhs is present only if there is a hyphen
     let end = if let Some(_) = first_jump.hyphen_token() {
-        Some(integer_lit_from_cst::<u8>(
-            report_builder,
-            first_jump.rhs().text(),
-        )?)
+        Some(integer_lit_from_cst::<u8>(report_builder, first_jump.rhs())?)
     } else {
         start
     };
@@ -198,17 +193,12 @@ fn process_hex_jumps(
         );
 
         // lhs is mandatory
-        let start = Some(integer_lit_from_cst::<u8>(
-            report_builder,
-            next_jump.lhs().text(),
-        )?);
+        let start =
+            Some(integer_lit_from_cst::<u8>(report_builder, next_jump.lhs())?);
 
         // rhs is present only if there is a hyphen
         let end = if let Some(_) = next_jump.hyphen_token() {
-            Some(integer_lit_from_cst::<u8>(
-                report_builder,
-                next_jump.rhs().text(),
-            )?)
+            Some(integer_lit_from_cst::<u8>(report_builder, next_jump.rhs())?)
         } else {
             start
         };
@@ -344,51 +334,6 @@ fn hex_tokens_hir_from_ast(
             )?);
         }
     }
-
-    //for token in tokens.he {
-    //    match token {
-    //        ast::HexToken::Byte(byte) => {
-    //            hir_tokens.push(hex_byte_hir_from_ast(byte));
-    //        }
-    //        ast::HexToken::NotByte(byte) => {
-    //            let class = match hex_byte_hir_from_ast(byte).into_kind() {
-    //                hir::HirKind::Class(mut class) => {
-    //                    class.negate();
-    //                    class
-    //                }
-    //                hir::HirKind::Literal(literal) => {
-    //                    let mut class = hir::ClassBytes::empty();
-    //                    for b in literal.0.iter() {
-    //                        class.push(hir::ClassBytesRange::new(*b, *b));
-    //                    }
-    //                    class.negate();
-    //                    hir::Class::Bytes(class)
-    //                }
-    //                _ => unreachable!(),
-    //            };
-    //            hir_tokens.push(hir::Hir::class(class));
-    //        }
-    //        ast::HexToken::Alternative(alt) => {
-    //            let mut alternatives =
-    //                Vec::with_capacity(alt.alternatives.len());
-    //
-    //            for alt in &alt.as_ref().alternatives {
-    //                alternatives.push(hex_tokens_hir_from_ast(alt));
-    //            }
-    //
-    //            hir_tokens.push(hir::Hir::alternation(alternatives))
-    //        }
-    //        ast::HexToken::Jump(jump) => {
-    //            hir_tokens.push(hir::Hir::repetition(hir::Repetition {
-    //                min: jump.start.map(|start| start as u32).unwrap_or(0),
-    //                max: jump.end.map(|end| end as u32),
-    //                greedy: false,
-    //                sub: Box::new(hir::Hir::dot(hir::Dot::AnyByte)),
-    //            }))
-    //        }
-    //    }
-    //}
-    //
 
     Ok(hir::Hir::concat(hir_tokens))
 }

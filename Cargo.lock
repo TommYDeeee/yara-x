@@ -4561,6 +4561,7 @@ dependencies = [
  "superconsole",
  "wild",
  "yansi 0.5.1",
+ "yara-parser",
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",

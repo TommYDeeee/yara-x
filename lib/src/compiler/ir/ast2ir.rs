@@ -14,7 +14,7 @@ use bstr::{BStr, BString, ByteSlice, ByteVec};
 use itertools::Itertools;
 use serde_json::value;
 use yara_parser::AstToken;
-use yara_parser::{AstNode, XorRange};
+use yara_parser::{AstNode, SyntaxToken, XorRange};
 use yara_x_parser::{ast, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
@@ -32,9 +32,10 @@ use crate::types::{Map, Regexp, Type, TypeValue, Value};
 
 pub fn string_lit_from_cst(
     report_builder: &ReportBuilder,
-    literal: &str,
+    token: SyntaxToken,
     allow_escape_char: bool,
 ) -> Result<BString, Box<CompileError>> {
+    let literal = token.text();
     // The string literal must be enclosed in double quotes.
     debug_assert!(literal.starts_with('\"'));
     debug_assert!(literal.ends_with('\"'));
@@ -47,7 +48,11 @@ pub fn string_lit_from_cst(
         if !allow_escape_char {
             return Err(Box::new(CompileError::unexpected_escape_sequence(
                 report_builder,
-                Span::new(SourceId(0), 0, 0),
+                Span::new(
+                    SourceId(0),
+                    token.text_range().start().into(),
+                    token.text_range().end().into(),
+                ),
             )));
         }
         backslash_pos
@@ -97,7 +102,11 @@ pub fn string_lit_from_cst(
                                             r"invalid hex value `{}` after `\x`",
                                             &literal[start..=end]
                                         ),
-                                        Span::new(SourceId(0), 0, 0),
+                                        Span::new(
+                                            SourceId(0),
+                                            token.text_range().start().into(),
+                                            token.text_range().end().into(),
+                                        ),
                                     ),
                                 ));
                             }
@@ -108,7 +117,11 @@ pub fn string_lit_from_cst(
                                     report_builder,
                                     r"expecting two hex digits after `\x`"
                                         .to_string(),
-                                    Span::new(SourceId(0), 0, 0),
+                                    Span::new(
+                                        SourceId(0),
+                                        token.text_range().start().into(),
+                                        token.text_range().end().into(),
+                                    ),
                                 ),
                             ));
                         }
@@ -127,7 +140,11 @@ pub fn string_lit_from_cst(
                                     &literal
                                         [backslash_pos..escaped_char_end_pos]
                                 ),
-                                Span::new(SourceId(0), 0, 0),
+                                Span::new(
+                                    SourceId(0),
+                                    token.text_range().start().into(),
+                                    token.text_range().end().into(),
+                                ),
                             ),
                         ));
                     }
@@ -143,11 +160,12 @@ pub fn string_lit_from_cst(
 
 pub fn integer_lit_from_cst<T>(
     report_builder: &ReportBuilder,
-    mut literal: &str,
+    token: SyntaxToken,
 ) -> Result<T, Box<CompileError>>
 where
     T: Num + Bounded + CheckedMul + FromPrimitive + std::fmt::Display,
 {
+    let mut literal = token.text();
     let mut multiplier = 1;
 
     if let Some(without_suffix) = literal.strip_suffix("KB") {
@@ -181,7 +199,11 @@ where
                 T::min_value(),
                 T::max_value()
             ),
-            Span::new(SourceId(0), 0, 0),
+            Span::new(
+                SourceId(0),
+                token.text_range().start().into(),
+                token.text_range().end().into(),
+            ),
         ))
     };
 
@@ -199,17 +221,24 @@ where
     Ok(value)
 }
 
-//pub(in crate::compiler) fn patterns_from_ast<'src>(
-//    report_builder: &ReportBuilder,
-//    patterns: Option<&Vec<ast::Pattern<'src>>>,
-//) -> Result<Vec<PatternInRule<'src>>, CompileError> {
-//    patterns
-//        .into_iter()
-//        .flatten()
-//        .map(|p| pattern_from_ast(report_builder, p))
-//        .collect::<Result<Vec<PatternInRule<'src>>, CompileError>>()
-//}
-//
+fn float_lit_from_cst<'src>(
+    report_builder: &ReportBuilder,
+    token: SyntaxToken,
+) -> Result<f64, Box<CompileError>> {
+    let literal = token.text();
+    literal.parse::<f64>().map_err(|err| {
+        Box::new(CompileError::invalid_float(
+            report_builder,
+            err.to_string(),
+            Span::new(
+                SourceId(0),
+                token.text_range().start().into(),
+                token.text_range().end().into(),
+            ),
+        ))
+    })
+}
+
 pub(in crate::compiler) fn pattern_from_ast(
     parse_context: &mut Context,
     warnings: &mut Vec<Warning>,
@@ -274,7 +303,6 @@ fn text_pattern_from_ast(
     let identifier = pattern.variable_token().unwrap().text().to_string();
     let string_pattern = pattern.pattern().unwrap();
     let binding = string_pattern.string_lit_token().unwrap();
-    let string_token = binding.text();
 
     //Pattern modifiers
     let mut modifiers = BTreeMap::new();
@@ -388,7 +416,7 @@ fn text_pattern_from_ast(
 
     let text = bstr::BString::from(string_lit_from_cst(
         report_builder,
-        string_token,
+        binding,
         true,
     )?); //use better string validation
     if text.len() < min_len {
@@ -648,13 +676,12 @@ fn validate_xor(
         let lhs = modifier.xor_range().unwrap().lhs();
         let rhs = modifier.xor_range().unwrap().rhs();
 
-        lower_bound = integer_lit_from_cst::<u8>(report_builder, lhs.text())?;
+        lower_bound = integer_lit_from_cst::<u8>(report_builder, lhs.clone())?;
         if modifier.xor_range().unwrap().hyphen_token().is_some() {
             upper_bound =
-                integer_lit_from_cst::<u8>(report_builder, rhs.text())?;
+                integer_lit_from_cst::<u8>(report_builder, rhs.clone())?;
         } else {
-            upper_bound =
-                integer_lit_from_cst::<u8>(report_builder, lhs.text())?;
+            upper_bound = integer_lit_from_cst::<u8>(report_builder, lhs)?;
         }
 
         if lower_bound > upper_bound {
@@ -677,8 +704,7 @@ fn validate_base64_alphabet(
 ) -> Result<String, Box<CompileError>> {
     let alphabet_token = base64alphabet.string_lit_token().unwrap();
     let temp =
-        string_lit_from_cst(report_builder, alphabet_token.text(), false)
-            .unwrap();
+        string_lit_from_cst(report_builder, alphabet_token, false).unwrap();
     let alphabet_str = unsafe { temp.to_str_unchecked() };
 
     match base64::alphabet::Alphabet::new(alphabet_str) {
@@ -705,94 +731,6 @@ fn validate_base64_alphabet(
     }
 }
 
-//pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
-//    _report_builder: &ReportBuilder,
-//    pattern: &ast::HexPattern<'src>,
-//) -> Result<PatternInRule<'src>, CompileError> {
-//    Ok(PatternInRule {
-//        identifier: pattern.identifier.name,
-//        pattern: Pattern::Regexp(RegexpPattern {
-//            flags: PatternFlagSet::from(PatternFlags::Ascii),
-//            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
-//            anchored_at: None,
-//        }),
-//    })
-//}
-
-//pub(in crate::compiler) fn regexp_pattern_from_ast<'src>(
-//    report_builder: &ReportBuilder,
-//    pattern: &ast::RegexpPattern<'src>,
-//) -> Result<PatternInRule<'src>, CompileError> {
-//    let mut flags = PatternFlagSet::none();
-//
-//    if pattern.modifiers.ascii().is_some()
-//        || pattern.modifiers.wide().is_none()
-//    {
-//        flags.set(PatternFlags::Ascii);
-//    }
-//
-//    if pattern.modifiers.wide().is_some() {
-//        flags.set(PatternFlags::Wide);
-//    }
-//
-//    if pattern.modifiers.fullword().is_some() {
-//        flags.set(PatternFlags::Fullword);
-//    }
-//
-//    // A regexp pattern can use either the `nocase` modifier or the `/i`
-//    // modifier (e.g: /foobar/i). In both cases it means the same thing.
-//    if pattern.modifiers.nocase().is_some() || pattern.regexp.case_insensitive
-//    {
-//        flags.set(PatternFlags::Nocase);
-//    }
-//
-//    // Notice that regexp patterns can't mix greedy and non-greedy repetitions,
-//    // like in `/ab.*cd.*?ef/`. All repetitions must have the same greediness.
-//    // In order to explain why this restriction is necessary consider the
-//    // regexp /a.*?bbbb/. The atom extracted from this regexp is "bbbb", and
-//    // once it is found, the rest of the regexp is matched backwards. Now
-//    // consider the string "abbbbbbbb", there are multiple occurrences of the
-//    // "bbbb" atom in this string, and every time the atom is found we need to
-//    // verify if the regexp actually matches. In all cases the regexp matches,
-//    // but the length of the match is different each time, the first time it
-//    // finds the match "abbbb", the second time it finds "abbbbb", the third
-//    // time "abbbbbb", and so on. All these matches occur at the same offset
-//    // within the string (offset 0), but they have different lengths, which
-//    // length should we report to the user? Should we report a match at offset
-//    // 0 with length 6 ("abbbbb")? Or should we report a match at offset 0 with
-//    // length 9 "abbbbbbbb"? Well, that depends on the greediness of the
-//    // regexp. In this case the regexp contains a non-greedy repetition
-//    // (i.e: .*?), therefore the match should be "abbbbb", not "abbbbbbbb". If
-//    // we replace .*? with .*, then the match should be the longest one,
-//    // "abbbbbbbb".
-//    //
-//    // As long as repetitions in the regexp are all greedy or all non-greedy,
-//    // we can know the overall greediness of the regexp, and decide whether we
-//    // should aim for the longest, or the shortest possible match when multiple
-//    // matches that start at the same offset are found while scanning backwards
-//    // (right-to-left). However, if the regexp contains a mix of greedy an
-//    // non-greedy repetitions the decision becomes impossible.
-//    let hir = re::parser::Parser::new()
-//        .force_case_insensitive(flags.contains(PatternFlags::Nocase))
-//        .allow_mixed_greediness(false)
-//        .parse(&pattern.regexp)
-//        .map_err(|err| {
-//            re_error_to_compile_error(report_builder, &pattern.regexp, err)
-//        })?;
-//
-//    // TODO: raise warning when .* used, propose using the non-greedy
-//    // variant .*?
-//
-//    Ok(PatternInRule {
-//        identifier: pattern.identifier.name,
-//        pattern: Pattern::Regexp(RegexpPattern {
-//            flags,
-//            hir,
-//            anchored_at: None,
-//        }),
-//    })
-//}
-
 /// Given the AST for some expression, creates its IR.
 pub(in crate::compiler) fn boolean_expr_from_ast(
     ctx: &mut CompileContext,
@@ -802,7 +740,11 @@ pub(in crate::compiler) fn boolean_expr_from_ast(
     match &expr {
         yara_parser::Expression::BooleanTerm(term) => {
             if let Some(variable) = term.variable_token() {
-                let anchor = anchor_from_ast(ctx, term.variable_anchor())?;
+                let anchor = anchor_from_ast(
+                    ctx,
+                    term.variable_anchor(),
+                    parse_context,
+                )?;
 
                 if variable.text() != "$" {
                     if parse_context
@@ -895,35 +837,115 @@ pub(in crate::compiler) fn boolean_expr_from_ast(
             }
 
             if let Some(expr) = term.expr() {
-                return expr_from_ast(ctx, expr);
+                return expr_from_ast(ctx, expr, parse_context);
             }
             if let Some(bool_expr) = &term.boolean_term_expr() {
                 match bool_expr.op_kind().unwrap() {
                     yara_parser::BinaryOp::BoolTermExprOp(op) => match op {
                         yara_parser::BoolTermExprOp::Eq => {
-                            return eq_expr_from_ast(ctx, bool_expr)
+                            return eq_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::BoolTermExprOp::Ne => {
-                            return ne_expr_from_ast(ctx, bool_expr)
+                            return ne_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::BoolTermExprOp::Gt => {
-                            return gt_expr_from_ast(ctx, bool_expr)
+                            return gt_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::BoolTermExprOp::Ge => {
-                            return ge_expr_from_ast(ctx, bool_expr)
+                            return ge_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::BoolTermExprOp::Lt => {
-                            return lt_expr_from_ast(ctx, bool_expr)
+                            return lt_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::BoolTermExprOp::Le => {
-                            return le_expr_from_ast(ctx, bool_expr)
+                            return le_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::Contains => {
+                            return contains_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::IContains => {
+                            return icontains_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::StartsWith => {
+                            return startswith_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::IStartsWith => {
+                            return istartswith_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::EndsWith => {
+                            return endswith_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::IEndsWith => {
+                            return iendswith_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::IEquals => {
+                            return iequals_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
+                        }
+                        yara_parser::BoolTermExprOp::Matches => {
+                            return matches_expr_from_ast(
+                                ctx,
+                                bool_expr,
+                                parse_context,
+                            )
                         }
                     },
                     _ => unreachable!(),
                 }
+            } else {
+                unreachable!("Unsupported boolean term")
             }
-            println!("{:#?}", term);
-            todo!()
         }
         yara_parser::Expression::BooleanExpr(expr) => {
             if let Some(op_kind) = expr.op_kind() {
@@ -945,478 +967,451 @@ pub(in crate::compiler) fn boolean_expr_from_ast(
                     parse_context,
                 );
             }
-        } //ast::Expr::Entrypoint { span } => {
-          //    Err(CompileError::from(CompileErrorInfo::entrypoint_unsupported(
-          //        ctx.report_builder,
-          //        *span,
-          //        Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
-          //    )))
-          //}
-          //ast::Expr::Filesize { .. } => Ok(Expr::Filesize),
-          //
-          //ast::Expr::True { .. } => {
-          //    Ok(Expr::Const { type_value: TypeValue::const_bool_from(true) })
-          //}
-          //
-          //ast::Expr::False { .. } => {
-          //    Ok(Expr::Const { type_value: TypeValue::const_bool_from(false) })
-          //}
-          //
-          //ast::Expr::LiteralInteger(literal) => Ok(Expr::Const {
-          //    type_value: TypeValue::const_integer_from(literal.value),
-          //}),
-          //
-          //ast::Expr::LiteralFloat(literal) => Ok(Expr::Const {
-          //    type_value: TypeValue::const_float_from(literal.value),
-          //}),
-          //
-          //ast::Expr::LiteralString(literal) => Ok(Expr::Const {
-          //    type_value: TypeValue::const_string_from(literal.value.as_bytes()),
-          //}),
-          //
-          //ast::Expr::Regexp(regexp) => {
-          //    re::parser::Parser::new().parse(regexp).map_err(|err| {
-          //        re_error_to_compile_error(ctx.report_builder, regexp, err)
-          //    })?;
-          //
-          //    Ok(Expr::Const {
-          //        type_value: TypeValue::Regexp(Some(Regexp::new(
-          //            regexp.literal,
-          //        ))),
-          //    })
-          //}
-          //
-          //ast::Expr::Defined(expr) => defined_expr_from_ast(ctx, expr),
-          //
-          //// Boolean operations
-          //ast::Expr::Not(expr) => not_expr_from_ast(ctx, expr),
-          //ast::Expr::And(operands) => and_expr_from_ast(ctx, operands),
-          //ast::Expr::Or(operands) => or_expr_from_ast(ctx, operands),
-          //
-          //// Arithmetic operations
-          //ast::Expr::Minus(expr) => minus_expr_from_ast(ctx, expr),
-          //ast::Expr::Add(expr) => add_expr_from_ast(ctx, expr),
-          //ast::Expr::Sub(expr) => sub_expr_from_ast(ctx, expr),
-          //ast::Expr::Mul(expr) => mul_expr_from_ast(ctx, expr),
-          //ast::Expr::Div(expr) => div_expr_from_ast(ctx, expr),
-          //ast::Expr::Mod(expr) => mod_expr_from_ast(ctx, expr),
-          //
-          //// Shift operations
-          //ast::Expr::Shl(expr) => shl_expr_from_ast(ctx, expr),
-          //ast::Expr::Shr(expr) => shr_expr_from_ast(ctx, expr),
-          //
-          //// Bitwise operations
-          //ast::Expr::BitwiseNot(expr) => bitwise_not_expr_from_ast(ctx, expr),
-          //ast::Expr::BitwiseAnd(expr) => bitwise_and_expr_from_ast(ctx, expr),
-          //ast::Expr::BitwiseOr(expr) => bitwise_or_expr_from_ast(ctx, expr),
-          //ast::Expr::BitwiseXor(expr) => bitwise_xor_expr_from_ast(ctx, expr),
-          //
-          //// Comparison operations
-          //ast::Expr::Eq(expr) => eq_expr_from_ast(ctx, expr),
-          //ast::Expr::Ne(expr) => ne_expr_from_ast(ctx, expr),
-          //ast::Expr::Gt(expr) => gt_expr_from_ast(ctx, expr),
-          //ast::Expr::Ge(expr) => ge_expr_from_ast(ctx, expr),
-          //ast::Expr::Lt(expr) => lt_expr_from_ast(ctx, expr),
-          //ast::Expr::Le(expr) => le_expr_from_ast(ctx, expr),
-          //
-          //// String operations
-          //ast::Expr::Contains(expr) => contains_expr_from_ast(ctx, expr),
-          //ast::Expr::IContains(expr) => icontains_expr_from_ast(ctx, expr),
-          //ast::Expr::StartsWith(expr) => startswith_expr_from_ast(ctx, expr),
-          //ast::Expr::IStartsWith(expr) => istartswith_expr_from_ast(ctx, expr),
-          //ast::Expr::EndsWith(expr) => endswith_expr_from_ast(ctx, expr),
-          //ast::Expr::IEndsWith(expr) => iendswith_expr_from_ast(ctx, expr),
-          //ast::Expr::IEquals(expr) => iequals_expr_from_ast(ctx, expr),
-          //ast::Expr::Matches(expr) => matches_expr_from_ast(ctx, expr),
-          //ast::Expr::Of(of) => of_expr_from_ast(ctx, of),
-          //ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of),
-          //ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in),
-          //ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
-          //
-          //ast::Expr::FieldAccess(expr) => {
-          //    let mut operands = Vec::with_capacity(expr.operands.len());
-          //    // Iterate over all operands except the last one. These operands
-          //    // must be structures. For instance, in `foo.bar.baz`, `foo` and
-          //    // `bar` must be structures, while `baz` can be of any type. This
-          //    // will change in the future when other types can have methods.
-          //    for operand in expr.operands.iter().dropping_back(1) {
-          //        let expr = expr_from_ast(ctx, operand)?;
-          //        check_type(ctx, expr.ty(), operand.span(), &[Type::Struct])?;
-          //        // Set `current_symbol_table` to the symbol table for the type
-          //        // of the expression at the left the field access operator (.).
-          //        // In the expression `foo.bar`, the `current_symbol_table` is
-          //        // set to the symbol table for foo's type, which should have
-          //        // a field or method named `bar`.
-          //        ctx.current_symbol_table =
-          //            Some(expr.type_value().symbol_table());
-          //
-          //        operands.push(expr);
-          //    }
-          //
-          //    // Now process the last operand.
-          //    let last_operand =
-          //        expr_from_ast(ctx, expr.operands.last().unwrap())?;
-          //
-          //    // If the last operand is constant, the whole expression is
-          //    // constant.
-          //    #[cfg(feature = "constant-folding")]
-          //    if let Expr::Const { type_value, .. } = last_operand {
-          //        // A constant always have a defined value.
-          //        assert!(type_value.is_const());
-          //        return Ok(Expr::Const { type_value });
-          //    }
-          //
-          //    operands.push(last_operand);
-          //
-          //    Ok(Expr::FieldAccess { operands })
-          //}
-          //
-          //ast::Expr::Ident(ident) => {
-          //    let current_symbol_table = ctx.current_symbol_table.take();
-          //
-          //    let symbol = if let Some(symbol_table) = &current_symbol_table {
-          //        symbol_table.lookup(ident.name)
-          //    } else {
-          //        ctx.symbol_table.lookup(ident.name)
-          //    };
-          //
-          //    if symbol.is_none() {
-          //        return Err(CompileError::from(
-          //            CompileErrorInfo::unknown_identifier(
-          //                ctx.report_builder,
-          //                ident.name.to_string(),
-          //                ident.span(),
-          //                // Add a note about the missing import statement if
-          //                // the unknown identifier is a module name.
-          //                if current_symbol_table.is_none()
-          //                    && BUILTIN_MODULES.contains_key(ident.name)
-          //                {
-          //                    Some(format!(
-          //                        "there is a module named `{}`, but the `import \"{}\"` statement is missing",
-          //                        ident.name,
-          //                        ident.name
-          //                    ))
-          //                } else {
-          //                    None
-          //                },
-          //            ),
-          //        ));
-          //    }
-          //
-          //    let symbol = symbol.unwrap();
-          //
-          //    // Return error if a global rule depends on a non-global rule. This
-          //    // is an error because global rules are evaluated before non-global
-          //    // rules, even if the global rule appears after the non-global one
-          //    // in the source code. This means that by the time the global rule
-          //    // is being evaluated we can't know if the non-global rule matched
-          //    // or not.
-          //    // A global rule can depend on another global rule. And non-global
-          //    // rules can depend both on global rules and non-global ones.
-          //    if let SymbolKind::Rule(rule_id) = symbol.kind() {
-          //        let current_rule = ctx.get_current_rule();
-          //        let used_rule = ctx.get_rule(*rule_id);
-          //        if current_rule.is_global && !used_rule.is_global {
-          //            return Err(CompileError::from(
-          //                CompileErrorInfo::wrong_rule_dependency(
-          //                    ctx.report_builder,
-          //                    ctx.ident_pool
-          //                        .get(current_rule.ident_id)
-          //                        .unwrap()
-          //                        .to_string(),
-          //                    ident.name.to_string(),
-          //                    current_rule.ident_span,
-          //                    used_rule.ident_span,
-          //                    ident.span,
-          //                ),
-          //            ));
-          //        }
-          //    }
-          //
-          //    #[cfg(feature = "constant-folding")]
-          //    {
-          //        let type_value = symbol.type_value();
-          //        if type_value.is_const() {
-          //            return Ok(Expr::Const { type_value: type_value.clone() });
-          //        }
-          //    }
-          //
-          //    Ok(Expr::Ident { symbol })
-          //}
-          //
-          //ast::Expr::PatternMatch(p) => {
-          //    let anchor = anchor_from_ast(ctx, &p.anchor)?;
-          //
-          //    // If the identifier is just `$` we are inside a loop and we don't
-          //    // know which is the PatternId because `$` refers to a different
-          //    // pattern on each iteration. In those cases the symbol table must
-          //    // contain an entry for `$`, corresponding to the variable that
-          //    // holds the current PatternId for the loop.
-          //    match p.identifier.name {
-          //        "$" => Ok(Expr::PatternMatchVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            anchor,
-          //        }),
-          //        _ => {
-          //            let pattern = ctx.get_pattern_mut(p.identifier.name);
-          //
-          //            if let Some(offset) = anchor.at() {
-          //                pattern.anchor_at(offset as usize);
-          //            } else {
-          //                pattern.make_non_anchorable();
-          //            }
-          //
-          //            Ok(Expr::PatternMatch {
-          //                pattern: ctx.get_pattern_index(p.identifier.name),
-          //                anchor,
-          //            })
-          //        }
-          //    }
-          //}
-          //
-          //ast::Expr::PatternCount(p) => {
-          //    // If the identifier is just `#` we are inside a loop and we don't
-          //    // know which is the PatternId because `#` refers to a different
-          //    // pattern on each iteration. In those cases the symbol table must
-          //    // contain an entry for `$`, corresponding to the variable that
-          //    // holds the current PatternId for the loop.
-          //    match (p.name, &p.range) {
-          //        // Cases where the identifier is `#`.
-          //        ("#", Some(range)) => Ok(Expr::PatternCountVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            range: Some(range_from_ast(ctx, range)?),
-          //        }),
-          //        ("#", None) => Ok(Expr::PatternCountVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            range: None,
-          //        }),
-          //        // Cases where the identifier is not `#`.
-          //        (_, Some(range)) => {
-          //            ctx.get_pattern_mut(p.name).make_non_anchorable();
-          //            Ok(Expr::PatternCount {
-          //                pattern: ctx.get_pattern_index(p.name),
-          //                range: Some(range_from_ast(ctx, range)?),
-          //            })
-          //        }
-          //        (_, None) => {
-          //            ctx.get_pattern_mut(p.name).make_non_anchorable();
-          //            Ok(Expr::PatternCount {
-          //                pattern: ctx.get_pattern_index(p.name),
-          //                range: None,
-          //            })
-          //        }
-          //    }
-          //}
-          //
-          //ast::Expr::PatternOffset(p) => {
-          //    // If the identifier is just `@` we are inside a loop and we don't
-          //    // know which is the PatternId because `@` refers to a different
-          //    // pattern on each iteration. In those cases the symbol table must
-          //    // contain an entry for `$`, corresponding to the variable that
-          //    // holds the current PatternId for the loop.
-          //    match (p.name, &p.index) {
-          //        // Cases where the identifier is `@`.
-          //        ("@", Some(index)) => Ok(Expr::PatternOffsetVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            index: Some(Box::new(integer_in_range_from_ast(
-          //                ctx,
-          //                index,
-          //                1..=i64::MAX,
-          //            )?)),
-          //        }),
-          //        ("@", None) => Ok(Expr::PatternOffsetVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            index: None,
-          //        }),
-          //        // Cases where the identifier is not `@`.
-          //        (_, Some(index)) => {
-          //            ctx.get_pattern_mut(p.name).make_non_anchorable();
-          //            Ok(Expr::PatternOffset {
-          //                pattern: ctx.get_pattern_index(p.name),
-          //                index: Some(Box::new(integer_in_range_from_ast(
-          //                    ctx,
-          //                    index,
-          //                    1..=i64::MAX,
-          //                )?)),
-          //            })
-          //        }
-          //        (_, None) => {
-          //            ctx.get_pattern_mut(p.name).make_non_anchorable();
-          //            Ok(Expr::PatternOffset {
-          //                pattern: ctx.get_pattern_index(p.name),
-          //                index: None,
-          //            })
-          //        }
-          //    }
-          //}
-          //
-          //ast::Expr::PatternLength(p) => {
-          //    // If the identifier is just `!` we are inside a loop and we don't
-          //    // know which is the PatternId because `!` refers to a different
-          //    // pattern on each iteration. In those cases the symbol table must
-          //    // contain an entry for `$`, corresponding to the variable that
-          //    // holds the current PatternId for the loop.
-          //    match (p.name, &p.index) {
-          //        // Cases where the identifier is `!`.
-          //        ("!", Some(index)) => Ok(Expr::PatternLengthVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            index: Some(Box::new(integer_in_range_from_ast(
-          //                ctx,
-          //                index,
-          //                1..=i64::MAX,
-          //            )?)),
-          //        }),
-          //        ("!", None) => Ok(Expr::PatternLengthVar {
-          //            symbol: ctx.symbol_table.lookup("$").unwrap(),
-          //            index: None,
-          //        }),
-          //        // Cases where the identifier is not `!`.
-          //        (_, Some(index)) => {
-          //            ctx.get_pattern_mut(p.name).make_non_anchorable();
-          //            Ok(Expr::PatternLength {
-          //                pattern: ctx.get_pattern_index(p.name),
-          //                index: Some(Box::new(integer_in_range_from_ast(
-          //                    ctx,
-          //                    index,
-          //                    1..=i64::MAX,
-          //                )?)),
-          //            })
-          //        }
-          //        (_, None) => {
-          //            ctx.get_pattern_mut(p.name).make_non_anchorable();
-          //            Ok(Expr::PatternLength {
-          //                pattern: ctx.get_pattern_index(p.name),
-          //                index: None,
-          //            })
-          //        }
-          //    }
-          //}
-          //
-          //ast::Expr::Lookup(expr) => {
-          //    let primary = Box::new(expr_from_ast(ctx, &expr.primary)?);
-          //
-          //    match primary.type_value() {
-          //        TypeValue::Array(array) => {
-          //            let index = Box::new(non_negative_integer_from_ast(
-          //                ctx,
-          //                &expr.index,
-          //            )?);
-          //
-          //            Ok(Expr::Lookup(Box::new(Lookup {
-          //                type_value: array.deputy(),
-          //                primary,
-          //                index,
-          //            })))
-          //        }
-          //        TypeValue::Map(map) => {
-          //            let (key_ty, deputy_value) = match map.borrow() {
-          //                Map::IntegerKeys { deputy: Some(value), .. } => {
-          //                    (Type::Integer, value)
-          //                }
-          //                Map::StringKeys { deputy: Some(value), .. } => {
-          //                    (Type::String, value)
-          //                }
-          //                _ => unreachable!(),
-          //            };
-          //
-          //            let index = Box::new(expr_from_ast(ctx, &expr.index)?);
-          //            let ty = index.ty();
-          //
-          //            // The type of the key/index expression should correspond
-          //            // with the type of the map's keys.
-          //            if key_ty != ty {
-          //                return Err(CompileError::from(
-          //                    CompileErrorInfo::wrong_type(
-          //                        ctx.report_builder,
-          //                        format!("`{}`", key_ty),
-          //                        ty.to_string(),
-          //                        expr.index.span(),
-          //                    ),
-          //                ));
-          //            }
-          //
-          //            Ok(Expr::Lookup(Box::new(Lookup {
-          //                type_value: deputy_value.clone(),
-          //                primary,
-          //                index,
-          //            })))
-          //        }
-          //        type_value => {
-          //            Err(CompileError::from(CompileErrorInfo::wrong_type(
-          //                ctx.report_builder,
-          //                format!("`{}` or `{}`", Type::Array, Type::Map),
-          //                type_value.ty().to_string(),
-          //                expr.primary.span(),
-          //            )))
-          //        }
-          //    }
-          //}
+        }
     }
 }
 
 pub(in crate::compiler) fn expr_from_ast(
     ctx: &mut CompileContext,
     expr: yara_parser::Expr,
+    parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
     match &expr {
         yara_parser::Expr::PrimaryExpr(expr) => {
             if let Some(int) = expr.int_lit_token() {
                 return Ok(Expr::Const {
                     type_value: TypeValue::const_integer_from(
-                        integer_lit_from_cst::<i64>(
-                            ctx.report_builder,
-                            int.text(),
-                        )?,
+                        integer_lit_from_cst::<i64>(ctx.report_builder, int)?,
+                    ),
+                });
+            }
+            if let Some(float) = expr.float_lit_token() {
+                return Ok(Expr::Const {
+                    type_value: TypeValue::const_float_from(
+                        float_lit_from_cst(ctx.report_builder, float)?,
+                    ),
+                });
+            }
+            if let Some(string) = expr.string_lit_token() {
+                return Ok(Expr::Const {
+                    type_value: TypeValue::const_string_from(
+                        string_lit_from_cst(ctx.report_builder, string, true)?,
                     ),
                 });
             }
             if let Some(_) = expr.tilde_token() {
-                return bitwise_not_expr_from_ast(ctx, expr.expr().unwrap());
+                return bitwise_not_expr_from_ast(
+                    ctx,
+                    expr.expr().unwrap(),
+                    parse_context,
+                );
             }
-            todo!("PrimaryExpr: {:?}", expr)
+            if let Some(_) = expr.hyphen_token() {
+                return minus_expr_from_ast(
+                    ctx,
+                    expr.expr().unwrap(),
+                    parse_context,
+                );
+            }
+            if let Some(_) = expr.filesize_token() {
+                return Ok(Expr::Filesize);
+            }
+            if let Some(entrypoint) = expr.entrypoint_token() {
+                return Err(Box::new(CompileError::entrypoint_unsupported(
+                    ctx.report_builder,
+                    Span::new(SourceId(0), entrypoint.text_range().start().into(), entrypoint.text_range().end().into()),
+                    Some("use `pe.entry_point`, `elf.entry_point` or `macho.entry_point`".to_string()),
+                )));
+            }
+            if let Some(regexp) = expr.regex_pattern() {
+                let regex_lit = regexp.clone().syntax().text().to_string();
+                re::parser::Parser::new().parse(regexp.clone()).map_err(
+                    |err| {
+                        re_error_to_compile_error(
+                            ctx.report_builder,
+                            regexp,
+                            err,
+                        )
+                    },
+                )?;
+
+                return Ok(Expr::Const {
+                    type_value: TypeValue::Regexp(Some(Regexp::new(
+                        regex_lit,
+                    ))),
+                });
+            }
+            if let Some(_) = expr.l_paren_token() {
+                return expr_from_ast(
+                    ctx,
+                    expr.expr().unwrap(),
+                    parse_context,
+                );
+            }
+            if let Some(expr) = expr.variable_count() {
+                let var_token = expr.variable_count_token().unwrap();
+                let ident = var_token.text();
+
+                if ident != "#"
+                    && parse_context
+                        .declared_patterns
+                        .get(&ident[1..])
+                        .is_none()
+                {
+                    return Err(Box::new(CompileError::unknown_pattern(
+                        ctx.report_builder,
+                        ident.to_string(),
+                        Span::new(
+                            SourceId(0),
+                            var_token.text_range().start().into(),
+                            var_token.text_range().end().into(),
+                        ),
+                    )));
+                }
+
+                // Remove from ctx.unused_patterns, indicating that the
+                // identifier has been used.
+                parse_context.unused_patterns.remove(&ident[1..]);
+
+                match (ident, expr.in_range()) {
+                    ("#", Some(range)) => {
+                        return Ok(Expr::PatternCountVar {
+                            symbol: ctx.symbol_table.lookup("$").unwrap(),
+                            range: Some(range_from_ast(
+                                ctx,
+                                range.range().unwrap(),
+                                parse_context,
+                            )?),
+                        })
+                    }
+                    ("#", None) => {
+                        return Ok(Expr::PatternCountVar {
+                            symbol: ctx.symbol_table.lookup("$").unwrap(),
+                            range: None,
+                        })
+                    }
+                    // Cases where the identifier is not `#`.
+                    (_, Some(range)) => {
+                        ctx.get_pattern_mut(ident).make_non_anchorable();
+                        return Ok(Expr::PatternCount {
+                            pattern: ctx.get_pattern_index(ident),
+                            range: Some(range_from_ast(
+                                ctx,
+                                range.range().unwrap(),
+                                parse_context,
+                            )?),
+                        });
+                    }
+                    (_, None) => {
+                        ctx.get_pattern_mut(ident).make_non_anchorable();
+                        return Ok(Expr::PatternCount {
+                            pattern: ctx.get_pattern_index(ident),
+                            range: None,
+                        });
+                    }
+                }
+            }
+            if let Some(expr) = expr.variable_length() {
+                let var_token = expr.variable_length_token().unwrap();
+                let ident = var_token.text();
+
+                if ident.len() > 1
+                    && parse_context
+                        .declared_patterns
+                        .get(&ident[1..])
+                        .is_none()
+                {
+                    return Err(Box::new(CompileError::unknown_pattern(
+                        ctx.report_builder,
+                        ident.to_string(),
+                        Span::new(
+                            SourceId(0),
+                            var_token.text_range().start().into(),
+                            var_token.text_range().end().into(),
+                        ),
+                    )));
+                }
+
+                // Remove from ctx.unused_patterns, indicating that the
+                // identifier has been used.
+                parse_context.unused_patterns.remove(&ident[1..]);
+
+                // If the identifier is just `!` we are inside a loop and we don't
+                // know which is the PatternId because `!` refers to a different
+                // pattern on each iteration. In those cases the symbol table must
+                // contain an entry for `$`, corresponding to the variable that
+                // holds the current PatternId for the loop.
+                match (ident, expr.expr_index()) {
+                    // Cases where the identifier is `!`.
+                    ("!", Some(index)) => {
+                        return Ok(Expr::PatternLengthVar {
+                            symbol: ctx.symbol_table.lookup("$").unwrap(),
+                            index: Some(Box::new(integer_in_range_from_ast(
+                                ctx,
+                                index.expr().unwrap(),
+                                1..=i64::MAX,
+                                parse_context,
+                            )?)),
+                        })
+                    }
+                    ("!", None) => {
+                        return Ok(Expr::PatternLengthVar {
+                            symbol: ctx.symbol_table.lookup("$").unwrap(),
+                            index: None,
+                        })
+                    }
+                    // Cases where the identifier is not `!`.
+                    (_, Some(index)) => {
+                        ctx.get_pattern_mut(ident).make_non_anchorable();
+                        return Ok(Expr::PatternLength {
+                            pattern: ctx.get_pattern_index(ident),
+                            index: Some(Box::new(integer_in_range_from_ast(
+                                ctx,
+                                index.expr().unwrap(),
+                                1..=i64::MAX,
+                                parse_context,
+                            )?)),
+                        });
+                    }
+                    (_, None) => {
+                        ctx.get_pattern_mut(ident).make_non_anchorable();
+                        return Ok(Expr::PatternLength {
+                            pattern: ctx.get_pattern_index(ident),
+                            index: None,
+                        });
+                    }
+                }
+            }
+            if let Some(expr) = expr.variable_offset() {
+                let var_token = expr.variable_offset_token().unwrap();
+                let ident = var_token.text();
+
+                if ident.len() > 1
+                    && parse_context
+                        .declared_patterns
+                        .get(&ident[1..])
+                        .is_none()
+                {
+                    return Err(Box::new(CompileError::unknown_pattern(
+                        ctx.report_builder,
+                        ident.to_string(),
+                        Span::new(
+                            SourceId(0),
+                            var_token.text_range().start().into(),
+                            var_token.text_range().end().into(),
+                        ),
+                    )));
+                }
+
+                // Remove from ctx.unused_patterns, indicating that the
+                // identifier has been used.
+                parse_context.unused_patterns.remove(&ident[1..]);
+
+                // If the identifier is just `!` we are inside a loop and we don't
+                // know which is the PatternId because `!` refers to a different
+                // pattern on each iteration. In those cases the symbol table must
+                // contain an entry for `$`, corresponding to the variable that
+                // holds the current PatternId for the loop.
+                match (ident, expr.expr_index()) {
+                    // Cases where the identifier is `!`.
+                    ("@", Some(index)) => {
+                        return Ok(Expr::PatternOffsetVar {
+                            symbol: ctx.symbol_table.lookup("$").unwrap(),
+                            index: Some(Box::new(integer_in_range_from_ast(
+                                ctx,
+                                index.expr().unwrap(),
+                                1..=i64::MAX,
+                                parse_context,
+                            )?)),
+                        })
+                    }
+                    ("@", None) => {
+                        return Ok(Expr::PatternOffsetVar {
+                            symbol: ctx.symbol_table.lookup("$").unwrap(),
+                            index: None,
+                        })
+                    }
+                    // Cases where the identifier is not `@`.
+                    (_, Some(index)) => {
+                        ctx.get_pattern_mut(ident).make_non_anchorable();
+                        return Ok(Expr::PatternOffset {
+                            pattern: ctx.get_pattern_index(ident),
+                            index: Some(Box::new(integer_in_range_from_ast(
+                                ctx,
+                                index.expr().unwrap(),
+                                1..=i64::MAX,
+                                parse_context,
+                            )?)),
+                        });
+                    }
+                    (_, None) => {
+                        ctx.get_pattern_mut(ident).make_non_anchorable();
+                        return Ok(Expr::PatternOffset {
+                            pattern: ctx.get_pattern_index(ident),
+                            index: None,
+                        });
+                    }
+                }
+            }
+            if let Some(expr) = expr.identifier_node() {
+                return identifier_node_from_ast(ctx, expr, parse_context);
+            }
+            if let Some(expr) = expr.field_acess() {
+                let field_access: Vec<_> = expr.identifier_nodes().collect();
+                if field_access.len() != 0 {
+                    let mut operands = Vec::new();
+                    for operand in field_access.iter().dropping_back(1) {
+                        let expr = identifier_node_from_ast(
+                            ctx,
+                            operand.to_owned(),
+                            parse_context,
+                        )?;
+                        check_type(
+                            ctx,
+                            expr.ty(),
+                            Span::new(
+                                SourceId(0),
+                                operand.syntax().text_range().start().into(),
+                                operand.syntax().text_range().end().into(),
+                            ),
+                            &[Type::Struct],
+                        )?;
+                        ctx.current_symbol_table =
+                            Some(expr.type_value().symbol_table());
+
+                        operands.push(expr);
+                    }
+
+                    let last_operand = identifier_node_from_ast(
+                        ctx,
+                        field_access.last().unwrap().to_owned(),
+                        parse_context,
+                    )?;
+
+                    // If the last operand is constant, the whole expression is
+                    // constant.
+                    #[cfg(feature = "constant-folding")]
+                    if let Expr::Const { type_value, .. } = last_operand {
+                        // A constant always have a defined value.
+                        assert!(type_value.is_const());
+                        return Ok(Expr::Const { type_value });
+                    }
+
+                    operands.push(last_operand);
+
+                    return Ok(Expr::FieldAccess { operands });
+                }
+            }
+            unreachable!("Unsupported primary expression");
         }
         yara_parser::Expr::FunctionCallExpr(expr) => {
-            todo!()
+            return func_call_from_ast(ctx, expr, parse_context);
         }
         yara_parser::Expr::IndexingExpr(expr) => {
-            todo!()
+            return indexing_expr_from_ast(ctx, expr, parse_context);
         }
         yara_parser::Expr::ExprBody(expr) => {
             if let Some(op) = expr.op_kind() {
                 match op {
                     yara_parser::BinaryOp::ExprOp(op) => match op {
                         yara_parser::ExprOp::Add => {
-                            return add_expr_from_ast(ctx, expr)
+                            return add_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::Sub => {
-                            return sub_expr_from_ast(ctx, expr)
+                            return sub_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::Mul => {
-                            return mul_expr_from_ast(ctx, expr)
+                            return mul_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::Div => {
-                            return div_expr_from_ast(ctx, expr);
+                            return div_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::Mod => {
-                            return mod_expr_from_ast(ctx, expr);
+                            return mod_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::Shl => {
-                            return shl_expr_from_ast(ctx, expr);
+                            return shl_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::Shr => {
-                            return shr_expr_from_ast(ctx, expr);
+                            return shr_expr_from_ast(ctx, expr, parse_context)
                         }
                         yara_parser::ExprOp::BitAnd => {
-                            return bitwise_and_expr_from_ast(ctx, expr);
+                            return bitwise_and_expr_from_ast(
+                                ctx,
+                                expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::ExprOp::BitOr => {
-                            return bitwise_or_expr_from_ast(ctx, expr);
+                            return bitwise_or_expr_from_ast(
+                                ctx,
+                                expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::ExprOp::BitXor => {
-                            return bitwise_xor_expr_from_ast(ctx, expr);
+                            return bitwise_xor_expr_from_ast(
+                                ctx,
+                                expr,
+                                parse_context,
+                            )
                         }
                         yara_parser::ExprOp::Dot => {
-                            todo!()
+                            let mut operands = Vec::new();
+                            let span = Span::new(
+                                SourceId(0),
+                                expr.lhs()
+                                    .unwrap()
+                                    .syntax()
+                                    .text_range()
+                                    .start()
+                                    .into(),
+                                expr.lhs()
+                                    .unwrap()
+                                    .syntax()
+                                    .text_range()
+                                    .end()
+                                    .into(),
+                            );
+
+                            let expr_l = expr_from_ast(
+                                ctx,
+                                expr.lhs().unwrap(),
+                                parse_context,
+                            )?;
+
+                            check_type(
+                                ctx,
+                                expr_l.ty(),
+                                span,
+                                &[Type::Struct],
+                            )?;
+
+                            ctx.current_symbol_table =
+                                Some(expr_l.type_value().symbol_table());
+
+                            operands.push(expr_l);
+
+                            let last_operand = expr_from_ast(
+                                ctx,
+                                expr.rhs().unwrap(),
+                                parse_context,
+                            )?;
+
+                            // If the last operand is constant, the whole expression is
+                            // constant.
+                            #[cfg(feature = "constant-folding")]
+                            if let Expr::Const { type_value, .. } =
+                                last_operand
+                            {
+                                // A constant always have a defined value.
+                                assert!(type_value.is_const());
+                                return Ok(Expr::Const { type_value });
+                            }
+
+                            operands.push(last_operand);
+
+                            return Ok(Expr::FieldAccess { operands });
                         }
                     },
                     _ => unreachable!("Expression without ExprOp"),
@@ -1450,7 +1445,8 @@ fn of_expr_from_ast(
     of: yara_parser::OfExpr,
     parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
-    let quantifier = quantifier_from_ast(ctx, of.quantifier().unwrap())?;
+    let quantifier =
+        quantifier_from_ast(ctx, of.quantifier().unwrap(), parse_context)?;
 
     // Create new stack frame with 5 slots:
     //   1 slot for the loop variable, a bool in this case.
@@ -1611,11 +1607,102 @@ fn of_expr_from_ast(
         }
     }
 
-    let anchor = anchor_from_ast(ctx, of.variable_anchor())?;
+    let anchor = anchor_from_ast(ctx, of.variable_anchor(), parse_context)?;
 
     ctx.vars.unwind(&stack_frame);
 
     Ok(Expr::Of(Box::new(Of { quantifier, items, anchor, stack_frame })))
+}
+
+fn identifier_node_from_ast(
+    ctx: &mut CompileContext,
+    ident_node: yara_parser::IdentifierNode,
+    parse_context: &mut Context,
+) -> Result<Expr, Box<CompileError>> {
+    let current_symbol_table = ctx.current_symbol_table.take();
+    let ident = ident_node.identifier_token().unwrap();
+    let ident_name = ident.text();
+
+    let symbol = if let Some(symbol_table) = &current_symbol_table {
+        symbol_table.lookup(ident_name)
+    } else {
+        ctx.symbol_table.lookup(ident_name)
+    };
+
+    if symbol.is_none() {
+        // If the current symbol table is `None` it means that the
+        // identifier is not a field or method of some structure.
+        return if current_symbol_table.is_none() {
+            Err(Box::new(CompileError::unknown_identifier(
+                ctx.report_builder,
+                ident_name.to_string(),
+                Span::new(
+                    SourceId(0),
+                    ident.text_range().start().into(),
+                    ident.text_range().end().into(),
+                ),
+                // Add a note about the missing import statement if
+                // the unknown identifier is a module name.
+                if BUILTIN_MODULES.contains_key(ident_name) {
+                    Some(format!(
+                                    "there is a module named `{}`, but the `import \"{}\"` statement is missing",
+                                    ident_name,
+                                    ident_name
+                                ))
+                } else {
+                    None
+                },
+            )))
+        } else {
+            Err(Box::new(CompileError::unknown_field(
+                ctx.report_builder,
+                ident_name.to_string(),
+                Span::new(
+                    SourceId(0),
+                    ident.text_range().start().into(),
+                    ident.text_range().end().into(),
+                ),
+            )))
+        };
+    }
+
+    let symbol = symbol.unwrap();
+
+    // Return error if a global rule depends on a non-global rule. This
+    // is an error because global rules are evaluated before non-global
+    // rules, even if the global rule appears after the non-global one
+    // in the source code. This means that by the time the global rule
+    // is being evaluated we can't know if the non-global rule matched
+    // or not.
+    // A global rule can depend on another global rule. And non-global
+    // rules can depend both on global rules and non-global ones.
+    if let SymbolKind::Rule(rule_id) = symbol.kind() {
+        let current_rule = ctx.get_current_rule();
+        let used_rule = ctx.get_rule(*rule_id);
+        if current_rule.is_global && !used_rule.is_global {
+            return Err(Box::new(CompileError::wrong_rule_dependency(
+                ctx.report_builder,
+                ctx.ident_pool.get(current_rule.ident_id).unwrap().to_string(),
+                ident_name.to_string(),
+                current_rule.ident_span,
+                used_rule.ident_span,
+                Span::new(
+                    SourceId(0),
+                    ident.text_range().start().into(),
+                    ident.text_range().end().into(),
+                ),
+            )));
+        }
+    }
+    #[cfg(feature = "constant-folding")]
+    {
+        let type_value = symbol.type_value();
+        if type_value.is_const() {
+            return Ok(Expr::Const { type_value: type_value.clone() });
+        }
+    }
+
+    return Ok(Expr::Ident { symbol });
 }
 
 fn for_expr_from_ast(
@@ -1623,7 +1710,11 @@ fn for_expr_from_ast(
     for_expr: yara_parser::ForExpr,
     parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
-    let quantifier = quantifier_from_ast(ctx, for_expr.quantifier().unwrap())?;
+    let quantifier = quantifier_from_ast(
+        ctx,
+        for_expr.quantifier().unwrap(),
+        parse_context,
+    )?;
     if let Some(_) = for_expr.of_token() {
         let pattern_set = if let Some(them) = for_expr.them_token() {
             let pattern_indexes: Vec<PatternIdx> =
@@ -1689,7 +1780,11 @@ fn for_expr_from_ast(
             variable: next_pattern_id,
         })));
     } else {
-        let iterable = iterable_from_ast(ctx, for_expr.iterable().unwrap())?;
+        let iterable = iterable_from_ast(
+            ctx,
+            for_expr.iterable().unwrap(),
+            parse_context,
+        )?;
         let expected_vars = match &iterable {
             Iterable::Range(_) => vec![TypeValue::Integer(Value::Unknown)],
             Iterable::ExprTuple(expressions) => {
@@ -1813,10 +1908,11 @@ fn for_expr_from_ast(
 fn iterable_from_ast(
     ctx: &mut CompileContext,
     iter: yara_parser::Iterable,
+    parse_context: &mut Context,
 ) -> Result<Iterable, Box<CompileError>> {
     match iter {
         yara_parser::Iterable::Range(range) => {
-            Ok(Iterable::Range(range_from_ast(ctx, range)?))
+            Ok(Iterable::Range(range_from_ast(ctx, range, parse_context)?))
         }
         yara_parser::Iterable::NestedExpr(expr) => {
             let span = Span::new(
@@ -1824,7 +1920,8 @@ fn iterable_from_ast(
                 expr.syntax().text_range().start().into(),
                 expr.syntax().text_range().end().into(),
             );
-            let expr = expr_from_ast(ctx, expr.expr().unwrap())?;
+            let expr =
+                expr_from_ast(ctx, expr.expr().unwrap(), parse_context)?;
             // Make sure that the expression has a type that is iterable.
             check_type(ctx, expr.ty(), span, &[Type::Array, Type::Map])?;
             Ok(Iterable::Expr(expr))
@@ -1838,7 +1935,7 @@ fn iterable_from_ast(
                     expr.syntax().text_range().start().into(),
                     expr.syntax().text_range().end().into(),
                 );
-                let expr = expr_from_ast(ctx, expr)?;
+                let expr = expr_from_ast(ctx, expr, parse_context)?;
                 let ty = expr.ty();
                 // Items in the tuple must be either integer, float, string
                 // or bool.
@@ -1875,17 +1972,23 @@ fn iterable_from_ast(
 fn anchor_from_ast(
     ctx: &mut CompileContext,
     anchor: Option<yara_parser::VariableAnchor>,
+    parse_context: &mut Context,
 ) -> Result<MatchAnchor, Box<CompileError>> {
     if let Some(anchor) = anchor {
         if let Some(_) = anchor.at_token() {
             return Ok(MatchAnchor::At(Box::new(
-                non_negative_integer_from_ast(ctx, anchor.expr().unwrap())?,
+                non_negative_integer_from_ast(
+                    ctx,
+                    anchor.expr().unwrap(),
+                    parse_context,
+                )?,
             )));
         }
         if let Some(_) = anchor.in_token() {
             return Ok(MatchAnchor::In(range_from_ast(
                 ctx,
                 anchor.range().unwrap(),
+                parse_context,
             )?));
         }
     }
@@ -1895,12 +1998,19 @@ fn anchor_from_ast(
 fn range_from_ast(
     ctx: &mut CompileContext,
     range: yara_parser::Range,
+    parse_context: &mut Context,
 ) -> Result<Range, Box<CompileError>> {
-    let lower_bound =
-        Box::new(non_negative_integer_from_ast(ctx, range.lhs().unwrap())?);
+    let lower_bound = Box::new(non_negative_integer_from_ast(
+        ctx,
+        range.lhs().unwrap(),
+        parse_context,
+    )?);
 
-    let upper_bound =
-        Box::new(non_negative_integer_from_ast(ctx, range.rhs().unwrap())?);
+    let upper_bound = Box::new(non_negative_integer_from_ast(
+        ctx,
+        range.rhs().unwrap(),
+        parse_context,
+    )?);
 
     // If both the lower and upper bounds are known at compile time, make sure
     // that lower_bound <= upper_bound. If they are not know (because they are
@@ -1929,13 +2039,14 @@ fn range_from_ast(
 fn non_negative_integer_from_ast(
     ctx: &mut CompileContext,
     expr: yara_parser::Expr,
+    parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
     let span = Span::new(
         SourceId(0),
         expr.syntax().text_range().start().into(),
         expr.syntax().text_range().end().into(),
     );
-    let expr = expr_from_ast(ctx, expr)?;
+    let expr = expr_from_ast(ctx, expr, parse_context)?;
     let type_value = expr.type_value();
 
     check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
@@ -1956,6 +2067,7 @@ fn integer_in_range_from_ast(
     ctx: &mut CompileContext,
     expr: yara_parser::Expr,
     range: RangeInclusive<i64>,
+    parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
     let span = Span::new(
         SourceId(0),
@@ -1963,7 +2075,7 @@ fn integer_in_range_from_ast(
         expr.syntax().text_range().end().into(),
     );
 
-    let expr = expr_from_ast(ctx, expr)?;
+    let expr = expr_from_ast(ctx, expr, parse_context)?;
     let type_value = expr.type_value();
 
     check_type(ctx, type_value.ty(), span, &[Type::Integer])?;
@@ -1987,6 +2099,7 @@ fn integer_in_range_from_ast(
 fn quantifier_from_ast(
     ctx: &mut CompileContext,
     quantifier: yara_parser::Quantifier,
+    parse_context: &mut Context,
 ) -> Result<Quantifier, Box<CompileError>> {
     if let Some(_) = quantifier.all_token() {
         return Ok(Quantifier::All);
@@ -2002,11 +2115,13 @@ fn quantifier_from_ast(
             ctx,
             yara_parser::Expr::PrimaryExpr(quantifier.primary_expr().unwrap()),
             0..=100,
+            parse_context,
         )?));
     } else {
         return Ok(Quantifier::Expr(non_negative_integer_from_ast(
             ctx,
             yara_parser::Expr::PrimaryExpr(quantifier.primary_expr().unwrap()),
+            parse_context,
         )?));
     }
 }
@@ -2062,111 +2177,264 @@ fn pattern_set_from_ast(
 
     Ok(pattern_indexes)
 }
-//
-//fn func_call_from_ast(
-//    ctx: &mut CompileContext,
-//    func_call: &ast::FuncCall,
-//) -> Result<Expr, CompileError> {
-//    let callable = expr_from_ast(ctx, &func_call.callable)?;
-//    let type_value = callable.type_value();
-//
-//    check_type(
-//        ctx,
-//        type_value.ty(),
-//        func_call.callable.span(),
-//        &[Type::Func],
-//    )?;
-//
-//    let args = func_call
-//        .args
-//        .iter()
-//        .map(|arg| expr_from_ast(ctx, arg))
-//        .collect::<Result<Vec<Expr>, CompileError>>()?;
-//
-//    let arg_types: Vec<Type> = args.iter().map(|arg| arg.ty()).collect();
-//
-//    let mut expected_args = Vec::new();
-//    let mut matching_signature = None;
-//    let func = type_value.as_func();
-//
-//    // Determine if any of the signatures for the called function matches
-//    // the provided arguments.
-//    for (i, signature) in func.signatures().iter().enumerate() {
-//        // If the function is actually a method, the first argument is always
-//        // the type the method belongs to (i.e: the self pointer). This
-//        // argument appears in the function's signature, but is not expected
-//        // to appear among the arguments in the call statement.
-//        let expected_arg_types: Vec<Type> = if func.method_of().is_some() {
-//            signature.args.iter().skip(1).map(|arg| arg.ty()).collect()
-//        } else {
-//            signature.args.iter().map(|arg| arg.ty()).collect()
-//        };
-//
-//        if arg_types == expected_arg_types {
-//            matching_signature = Some((i, signature.result.clone()));
-//            break;
-//        }
-//
-//        expected_args.push(expected_arg_types);
-//    }
-//
-//    // No matching signature was found, that means that the arguments
-//    // provided were incorrect.
-//    if matching_signature.is_none() {
-//        return Err(CompileError::from(CompileErrorInfo::wrong_arguments(
-//            ctx.report_builder,
-//            func_call.args_span,
-//            Some(format!(
-//                "accepted argument combinations:\n   │\n   │       {}",
-//                expected_args
-//                    .iter()
-//                    .map(|v| {
-//                        format!(
-//                            "({})",
-//                            v.iter()
-//                                .map(|i| i.to_string())
-//                                .collect::<Vec<String>>()
-//                                .join(", ")
-//                        )
-//                    })
-//                    .collect::<Vec<String>>()
-//                    .join("\n   │       ")
-//            )),
-//        )));
-//    }
-//
-//    let (signature_index, type_value) = matching_signature.unwrap();
-//
-//    Ok(Expr::FuncCall(Box::new(FuncCall {
-//        callable,
-//        type_value,
-//        signature_index,
-//        args,
-//    })))
-//}
-//
-//fn matches_expr_from_ast(
-//    ctx: &mut CompileContext,
-//    expr: &ast::BinaryExpr,
-//) -> Result<Expr, CompileError> {
-//    let lhs_span = expr.lhs.span();
-//    let rhs_span = expr.rhs.span();
-//
-//    let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
-//    let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
-//
-//    check_type(ctx, lhs.ty(), lhs_span, &[Type::String])?;
-//    check_type(ctx, rhs.ty(), rhs_span, &[Type::Regexp])?;
-//
-//    let expr = Expr::Matches { lhs, rhs };
-//
-//    if cfg!(feature = "constant-folding") {
-//        Ok(expr.fold())
-//    } else {
-//        Ok(expr)
-//    }
-//}
-//
+
+fn indexing_expr_from_ast(
+    ctx: &mut CompileContext,
+    indexing_expr: &yara_parser::IndexingExpr,
+    parse_context: &mut Context,
+) -> Result<Expr, Box<CompileError>> {
+    let primary = Box::new(expr_from_ast(
+        ctx,
+        yara_parser::Expr::PrimaryExpr(indexing_expr.primary_expr().unwrap()),
+        parse_context,
+    )?);
+
+    match primary.type_value() {
+        TypeValue::Array(array) => {
+            let index = Box::new(non_negative_integer_from_ast(
+                ctx,
+                indexing_expr.expr_index().unwrap().expr().unwrap(),
+                parse_context,
+            )?);
+
+            Ok(Expr::Lookup(Box::new(Lookup {
+                type_value: array.deputy(),
+                primary,
+                index,
+            })))
+        }
+        TypeValue::Map(map) => {
+            let (key_ty, deputy_value) = match map.borrow() {
+                Map::IntegerKeys { deputy: Some(value), .. } => {
+                    (Type::Integer, value)
+                }
+                Map::StringKeys { deputy: Some(value), .. } => {
+                    (Type::String, value)
+                }
+                _ => unreachable!(),
+            };
+
+            let index = Box::new(expr_from_ast(
+                ctx,
+                indexing_expr.expr_index().unwrap().expr().unwrap(),
+                parse_context,
+            )?);
+            let ty = index.ty();
+
+            // The type of the key/index expression should correspond
+            // with the type of the map's keys.
+            if key_ty != ty {
+                return Err(Box::new(CompileError::wrong_type(
+                    ctx.report_builder,
+                    format!("`{}`", key_ty),
+                    ty.to_string(),
+                    Span::new(
+                        SourceId(0),
+                        indexing_expr
+                            .expr_index()
+                            .unwrap()
+                            .syntax()
+                            .text_range()
+                            .start()
+                            .into(),
+                        indexing_expr
+                            .expr_index()
+                            .unwrap()
+                            .syntax()
+                            .text_range()
+                            .end()
+                            .into(),
+                    ),
+                )));
+            }
+
+            Ok(Expr::Lookup(Box::new(Lookup {
+                type_value: deputy_value.clone(),
+                primary,
+                index,
+            })))
+        }
+        type_value => Err(Box::new(CompileError::wrong_type(
+            ctx.report_builder,
+            format!("`{}` or `{}`", Type::Array, Type::Map),
+            type_value.ty().to_string(),
+            Span::new(
+                SourceId(0),
+                indexing_expr
+                    .primary_expr()
+                    .unwrap()
+                    .syntax()
+                    .text_range()
+                    .start()
+                    .into(),
+                indexing_expr
+                    .primary_expr()
+                    .unwrap()
+                    .syntax()
+                    .text_range()
+                    .end()
+                    .into(),
+            ),
+        ))),
+    }
+}
+
+fn func_call_from_ast(
+    ctx: &mut CompileContext,
+    func_call: &yara_parser::FunctionCallExpr,
+    parse_context: &mut Context,
+) -> Result<Expr, Box<CompileError>> {
+    let callable = expr_from_ast(
+        ctx,
+        yara_parser::Expr::PrimaryExpr(func_call.primary_expr().unwrap()),
+        parse_context,
+    )?;
+
+    let type_value = callable.type_value();
+
+    check_type(
+        ctx,
+        type_value.ty(),
+        Span::new(
+            SourceId(0),
+            func_call
+                .primary_expr()
+                .unwrap()
+                .syntax()
+                .text_range()
+                .start()
+                .into(),
+            func_call
+                .primary_expr()
+                .unwrap()
+                .syntax()
+                .text_range()
+                .end()
+                .into(),
+        ),
+        &[Type::Func],
+    )?;
+
+    let args = func_call.expr_tuple().unwrap();
+
+    let args_vec: Vec<_> = args.exprs().collect();
+
+    let args_expr = args_vec
+        .iter()
+        .map(|arg| expr_from_ast(ctx, arg.to_owned(), parse_context))
+        .collect::<Result<Vec<Expr>, Box<CompileError>>>()?;
+
+    let arg_types: Vec<Type> = args_expr.iter().map(|arg| arg.ty()).collect();
+
+    let mut expected_args = Vec::new();
+    let mut matching_signature = None;
+    let func = type_value.as_func();
+
+    // Determine if any of the signatures for the called function matches
+    // the provided arguments.
+    for (i, signature) in func.signatures().iter().enumerate() {
+        // If the function is actually a method, the first argument is always
+        // the type the method belongs to (i.e: the self pointer). This
+        // argument appears in the function's signature, but is not expected
+        // to appear among the arguments in the call statement.
+        let expected_arg_types: Vec<Type> = if func.method_of().is_some() {
+            signature.args.iter().skip(1).map(|arg| arg.ty()).collect()
+        } else {
+            signature.args.iter().map(|arg| arg.ty()).collect()
+        };
+
+        if arg_types == expected_arg_types {
+            matching_signature = Some((i, signature.result.clone()));
+            break;
+        }
+
+        expected_args.push(expected_arg_types);
+    }
+
+    // No matching signature was found, that means that the arguments
+    // provided were incorrect.
+    if matching_signature.is_none() {
+        return Err(Box::new(CompileError::wrong_arguments(
+            ctx.report_builder,
+            Span::new(
+                SourceId(0),
+                func_call
+                    .expr_tuple()
+                    .unwrap()
+                    .syntax()
+                    .text_range()
+                    .start()
+                    .into(),
+                func_call
+                    .expr_tuple()
+                    .unwrap()
+                    .syntax()
+                    .text_range()
+                    .end()
+                    .into(),
+            ),
+            Some(format!(
+                "accepted argument combinations:\n\n{}",
+                expected_args
+                    .iter()
+                    .map(|v| {
+                        format!(
+                            "({})",
+                            v.iter()
+                                .map(|i| i.to_string())
+                                .collect::<Vec<String>>()
+                                .join(", ")
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            )),
+        )));
+    }
+    let (signature_index, type_value) = matching_signature.unwrap();
+
+    return Ok(Expr::FuncCall(Box::new(FuncCall {
+        callable,
+        type_value,
+        signature_index,
+        args: args_expr,
+    })));
+}
+
+fn matches_expr_from_ast(
+    ctx: &mut CompileContext,
+    expr: &yara_parser::BooleanTermExpr,
+    parse_context: &mut Context,
+) -> Result<Expr, Box<CompileError>> {
+    let lhs_span = Span::new(
+        SourceId(0),
+        expr.lhs().unwrap().syntax().text_range().start().into(),
+        expr.lhs().unwrap().syntax().text_range().end().into(),
+    );
+
+    let rhs_span = Span::new(
+        SourceId(0),
+        expr.rhs().unwrap().syntax().text_range().start().into(),
+        expr.rhs().unwrap().syntax().text_range().end().into(),
+    );
+
+    let lhs =
+        Box::new(expr_from_ast(ctx, expr.lhs().unwrap(), parse_context)?);
+    let rhs =
+        Box::new(expr_from_ast(ctx, expr.rhs().unwrap(), parse_context)?);
+
+    check_type(ctx, lhs.ty(), lhs_span, &[Type::String])?;
+    check_type(ctx, rhs.ty(), rhs_span, &[Type::Regexp])?;
+
+    let expr = Expr::Matches { lhs, rhs };
+
+    if cfg!(feature = "constant-folding") {
+        Ok(expr.fold())
+    } else {
+        Ok(expr)
+    }
+}
+
 fn check_type(
     ctx: &CompileContext,
     ty: Type,
@@ -2400,8 +2668,9 @@ macro_rules! gen_unary_expr {
         fn $name(
             ctx: &mut CompileContext,
             expr: yara_parser::Expr,
+            parse_context: &mut Context,
         ) -> Result<Expr, Box<CompileError>> {
-            let operand = Box::new(expr_from_ast(ctx, expr.clone())?);
+            let operand = Box::new(expr_from_ast(ctx, expr.clone(), parse_context)?);
             let operand_span = Span::new(SourceId(0), expr.syntax().text_range().start().into(), expr.syntax().text_range().end().into());
 
             check_type(
@@ -2435,6 +2704,7 @@ macro_rules! gen_binary_op {
         fn $name(
             ctx: &mut CompileContext,
             expr: &yara_parser::ExprBody,
+            parse_context: &mut Context,
         ) -> Result<Expr, Box<CompileError>> {
 
             let lhs_span = Span::new(
@@ -2452,10 +2722,12 @@ macro_rules! gen_binary_op {
             let lhs = Box::new(expr_from_ast(
                 ctx,
                 expr.lhs().unwrap(),
+                parse_context,
             )?);
             let rhs = Box::new(expr_from_ast(
                 ctx,
                 expr.rhs().unwrap(),
+                parse_context,
             )?);
 
             check_operands(
@@ -2493,6 +2765,7 @@ macro_rules! gen_binary_expr {
         fn $name(
             ctx: &mut CompileContext,
             expr: &yara_parser::BooleanTermExpr,
+            parse_context: &mut Context,
         ) -> Result<Expr, Box<CompileError>> {
 
             let lhs_span = Span::new(
@@ -2510,10 +2783,12 @@ macro_rules! gen_binary_expr {
             let lhs = Box::new(expr_from_ast(
                 ctx,
                 expr.lhs().unwrap(),
+                parse_context,
             )?);
             let rhs = Box::new(expr_from_ast(
                 ctx,
                 expr.rhs().unwrap(),
+                parse_context,
             )?);
 
             check_operands(
@@ -2546,40 +2821,56 @@ macro_rules! gen_binary_expr {
     };
 }
 
-//
-//macro_rules! gen_string_op {
-//    ($name:ident, $variant:ident) => {
-//        fn $name(
-//            ctx: &mut CompileContext,
-//            expr: &ast::BinaryExpr,
-//        ) -> Result<Expr, CompileError> {
-//            let lhs_span = expr.lhs.span();
-//            let rhs_span = expr.rhs.span();
-//
-//            let lhs = Box::new(expr_from_ast(ctx, &expr.lhs)?);
-//            let rhs = Box::new(expr_from_ast(ctx, &expr.rhs)?);
-//
-//            check_operands(
-//                ctx,
-//                lhs.ty(),
-//                rhs.ty(),
-//                lhs_span,
-//                rhs_span,
-//                &[Type::String],
-//                &[Type::String],
-//            )?;
-//
-//            let expr = Expr::$variant { lhs, rhs };
-//
-//            if cfg!(feature = "constant-folding") {
-//                Ok(expr.fold())
-//            } else {
-//                Ok(expr)
-//            }
-//        }
-//    };
-//}
-//
+macro_rules! gen_string_op {
+    ($name:ident, $variant:ident) => {
+        fn $name(
+            ctx: &mut CompileContext,
+            expr: &yara_parser::BooleanTermExpr,
+            parse_context: &mut Context,
+        ) -> Result<Expr, Box<CompileError>> {
+            let lhs_span = Span::new(
+                SourceId(0),
+                expr.lhs().unwrap().syntax().text_range().start().into(),
+                expr.lhs().unwrap().syntax().text_range().end().into(),
+            );
+
+            let rhs_span = Span::new(
+                SourceId(0),
+                expr.rhs().unwrap().syntax().text_range().start().into(),
+                expr.rhs().unwrap().syntax().text_range().end().into(),
+            );
+
+            let lhs = Box::new(expr_from_ast(
+                ctx,
+                expr.lhs().unwrap(),
+                parse_context,
+            )?);
+            let rhs = Box::new(expr_from_ast(
+                ctx,
+                expr.rhs().unwrap(),
+                parse_context,
+            )?);
+
+            check_operands(
+                ctx,
+                lhs.ty(),
+                rhs.ty(),
+                lhs_span,
+                rhs_span,
+                &[Type::String],
+                &[Type::String],
+            )?;
+
+            let expr = Expr::$variant { lhs, rhs };
+
+            if cfg!(feature = "constant-folding") {
+                Ok(expr.fold())
+            } else {
+                Ok(expr)
+            }
+        }
+    };
+}
 
 macro_rules! gen_n_ary_operation {
     ($name:ident, $variant:ident, $( $accepted_types:path )|+, $( $compatible_types:path )|+, $check_fn:expr) => {
@@ -2672,6 +2963,7 @@ macro_rules! gen_n_ary_expr {
         fn $name(
             ctx: &mut CompileContext,
             expr: &yara_parser::ExprBody,
+            parse_context: &mut Context,
         ) -> Result<Expr, Box<CompileError>> {
             let accepted_types = &[$( $accepted_types ),+];
             let compatible_types = &[$( $compatible_types ),+];
@@ -2679,7 +2971,7 @@ macro_rules! gen_n_ary_expr {
             let operands = vec![expr.lhs().unwrap(), expr.rhs().unwrap()];
             let operands_hir: Vec<Expr> = operands
                 .iter()
-                .map(|expr| expr_from_ast(ctx, expr.clone()))
+                .map(|expr| expr_from_ast(ctx, expr.clone(), parse_context))
                 .collect::<Result<Vec<Expr>, Box<CompileError>>>()?;
 
             let check_fn:
@@ -2803,8 +3095,8 @@ gen_n_ary_operation!(
     })
 );
 
-//gen_unary_op!(minus_expr_from_ast, Minus, Type::Integer | Type::Float, None);
-//
+gen_unary_expr!(minus_expr_from_ast, Minus, Type::Integer | Type::Float, None);
+
 gen_n_ary_expr!(
     add_expr_from_ast,
     Add,
@@ -2971,11 +3263,10 @@ gen_binary_expr!(
     None
 );
 
-//gen_string_op!(contains_expr_from_ast, Contains);
-//gen_string_op!(icontains_expr_from_ast, IContains);
-//gen_string_op!(startswith_expr_from_ast, StartsWith);
-//gen_string_op!(istartswith_expr_from_ast, IStartsWith);
-//gen_string_op!(endswith_expr_from_ast, EndsWith);
-//gen_string_op!(iendswith_expr_from_ast, IEndsWith);
-//gen_string_op!(iequals_expr_from_ast, IEquals);
-//
+gen_string_op!(contains_expr_from_ast, Contains);
+gen_string_op!(icontains_expr_from_ast, IContains);
+gen_string_op!(startswith_expr_from_ast, StartsWith);
+gen_string_op!(istartswith_expr_from_ast, IStartsWith);
+gen_string_op!(endswith_expr_from_ast, EndsWith);
+gen_string_op!(iendswith_expr_from_ast, IEndsWith);
+gen_string_op!(iequals_expr_from_ast, IEquals);

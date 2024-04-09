@@ -51,6 +51,7 @@ yara-x = { workspace = true }
 yara-x-parser = { workspace = true, features = ["ascii-tree"] }
 yara-x-proto-yaml = { workspace = true }
 yara-x-fmt = { workspace = true }
+yara-parser = { workspace = true }
 
 colored_json = "4.0.0"
 crossbeam = "0.8.2"

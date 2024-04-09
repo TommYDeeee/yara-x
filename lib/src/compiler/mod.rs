@@ -372,10 +372,6 @@ impl<'a> Compiler<'a> {
             std::process::exit(1);
         }
 
-        for rule in ast2.tree().rules() {
-            self.c_rule(rule)?;
-        }
-
         // Parse the source code and build the Abstract Syntax Tree.
         //let mut ast = Parser::new()
         //    .set_report_builder(&self.report_builder)
@@ -392,7 +388,7 @@ impl<'a> Compiler<'a> {
             //optimize
             let temp = string_lit_from_cst(
                 &self.report_builder,
-                import_token.text(),
+                import_token.clone(),
                 false,
             )
             .unwrap();
@@ -437,6 +433,9 @@ impl<'a> Compiler<'a> {
             }
         }
 
+        for rule in ast2.tree().rules() {
+            self.c_rule(rule)?;
+        }
         // Iterate over the list of declared rules and verify that their
         // conditions are semantically valid. For each rule add a symbol
         // to the current namespace.
@@ -755,7 +754,7 @@ impl<'a> Compiler<'a> {
         //optimize
         let temp = string_lit_from_cst(
             &self.report_builder,
-            import_token.text(),
+            import_token.clone(),
             false,
         )
         .unwrap();
