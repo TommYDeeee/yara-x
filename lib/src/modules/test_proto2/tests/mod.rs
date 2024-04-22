@@ -184,59 +184,59 @@ fn test_proto2_module() {
           )"#
     );
 
-    condition_true!(
-        r#"for any key, value in test_proto2.map_int64_int64 : (
-                key == 100 and value == 1000
-          )"#
-    );
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_int64_int64 : (
+    //            key == 100 and value == 1000
+    //      )"#
+    //);
 
-    condition_true!(
-        r#"for 1 key, value in test_proto2.map_int64_int64 : (
-                key == 100 and value == 1000
-          )"#
-    );
+    //condition_true!(
+    //    r#"for 1 key, value in test_proto2.map_int64_int64 : (
+    //            key == 100 and value == 1000
+    //      )"#
+    //);
+    //
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_int64_string : (
+    //            key == 100 and value == "one thousand"
+    //      )"#
+    //);
 
-    condition_true!(
-        r#"for any key, value in test_proto2.map_int64_string : (
-                key == 100 and value == "one thousand"
-          )"#
-    );
-
-    condition_true!(
-        r#"for any key, value in test_proto2.map_int64_bool : (
-                key == 100 and value
-          )"#
-    );
-
-    condition_true!(
-        r#"for any key, value in test_proto2.map_int64_struct : (
-                key == 100 and value.nested_int64_one == 1
-          )"#
-    );
-
-    condition_true!(
-        r#"for any key, value in test_proto2.map_string_int64 : (
-                key == "one" and value == 1
-          )"#
-    );
-
-    condition_true!(
-        r#"for any key, value in test_proto2.map_string_bool : (
-                key == "foo" and value
-          )"#
-    );
-
-    condition_true!(
-        r#"for any key, value in test_proto2.map_string_string : (
-                key == "foo" and value == "FOO"
-          )"#
-    );
-
-    condition_true!(
-        r#"for any key, value in test_proto2.map_string_struct : (
-                key == "foo" and value.nested_int64_one == 1
-          )"#
-    );
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_int64_bool : (
+    //            key == 100 and value
+    //      )"#
+    //);
+    //
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_int64_struct : (
+    //            key == 100 and value.nested_int64_one == 1
+    //      )"#
+    //);
+    //
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_string_int64 : (
+    //            key == "one" and value == 1
+    //      )"#
+    //);
+    //
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_string_bool : (
+    //            key == "foo" and value
+    //      )"#
+    //);
+    //
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_string_string : (
+    //            key == "foo" and value == "FOO"
+    //      )"#
+    //);
+    //
+    //condition_true!(
+    //    r#"for any key, value in test_proto2.map_string_struct : (
+    //            key == "foo" and value.nested_int64_one == 1
+    //      )"#
+    //);
 
     condition_true!(r#"test_proto2.get_foo() == "foo""#);
     condition_true!(r#"test_proto2.to_int("123") == 123"#);

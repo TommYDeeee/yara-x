@@ -1,62 +1,11 @@
-/*! Serializes a Protocol Buffer (protobuf) message to YAML.
-
-This crates serializes arbitrary protobuf messages to YAML format, producing
-YAML that is user-friendly, customizable and colorful. Some aspects of the
-produced YAML can be customized by using specific options in your `.proto`
-files. Let's use the following protobuf message definition as an example:
-
-```protobuf
-import "yaml.proto";
-
-message MyMessage {
-  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
-}
-```
-
-The first think to note is the `import "yaml.proto"` statement before the
-message definition. The `yaml.proto` file defines the existing YAML formatting
-options, so you must include it in your own `.proto` file in order to be able
-to use the such options.
-
-The `[(yaml.field).fmt = "x"]` modifier, when applied to some field, indicates
-that values of that field must be rendered in hexadecimal form. The list of
-supported format modifiers is:
-
-- `x`: Serializes the value an hexadecimal number. Only valid for integer
-       fields.
-- `t`: Serializes the field as a timestamp. The value itself is rendered as a
-       decimal integer, but a comment is added with the timestamp in a
-       human-friendly format. Only valid for integer fields.
-
-# Examples
-
-Protobuf definition:
-
-```protobuf
-import "yaml.proto";
-
-message MyMessage {
-  optional int32 some_field = 1 [(yaml.field).fmt = "x"];
-  optional int64 some_timestamp = 2 [(yaml.field).fmt = "t"];
-}
-```
-
-YAML output:
-
-```yaml
-some_field: 0x8b1;
-timestamp: 999999999 # 2001-09-09 01:46:39 UTC
-```
- */
-
 use chrono::prelude::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use protobuf::MessageDyn;
 use protobuf_support::text_format::escape_bytes_to;
 use std::cmp::Ordering;
 use std::io::{Error, Write};
+use yansi::Color;
 use yansi::Paint;
-use yansi::{Color, Style};
 
 use protobuf::descriptor::FieldDescriptorProto;
 use protobuf::reflect::ReflectFieldRef::{Map, Optional, Repeated};
@@ -73,15 +22,16 @@ include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 const INDENTATION: u16 = 4;
 
 // A struct that represents colors for output
-#[derive(Default)]
-struct Colors {
-    string: Style,
-    field_name: Style,
-    repeated_name: Style,
-    comment: Style,
+struct ColorsConfig;
+
+impl ColorsConfig {
+    const STRING: Color = Color::Green;
+    const FIELD_NAME: Color = Color::Blue;
+    const REPEATED_NAME: Color = Color::Yellow;
+    const COMMENT: Color = Color::RGB(222, 184, 135); // Brown
 }
 
-/// A struct that represents options for a field values
+// A struct that represents options for a field values
 #[derive(Debug, Default, Clone)]
 struct ValueOptions {
     is_hex: bool,
@@ -96,31 +46,12 @@ struct ValueOptions {
 pub struct Serializer<W: Write> {
     indent: u16,
     output: W,
-    colors: Colors,
 }
 
 impl<W: Write> Serializer<W> {
     /// Creates a new YAML serializer that writes its output to `w`.
     pub fn new(w: W) -> Self {
-        Self { output: w, indent: 0, colors: Colors::default() }
-    }
-
-    /// Specifies whether the serializer should colorize the output.
-    ///
-    /// If true, the output contain ANSI escape sequences that make it
-    /// look nicer on compatible consoles. The default setting is `false`.
-    pub fn with_colors(&mut self, b: bool) -> &mut Self {
-        self.colors = if b {
-            Colors {
-                string: Color::Green.style(),
-                field_name: Color::Yellow.style(),
-                repeated_name: Color::Yellow.style(),
-                comment: Color::RGB(222, 184, 135).style(),
-            }
-        } else {
-            Colors::default()
-        };
-        self
+        Self { output: w, indent: 0 }
     }
 
     /// Serializes the given protobuf message.
@@ -176,15 +107,19 @@ impl<W: Write> Serializer<W> {
     }
 
     fn write_as_a_comment(&mut self, value: String) -> Paint<String> {
-        self.colors.comment.paint(format!("{} {}", "#", value))
+        ColorsConfig::COMMENT.paint(format!("{} {}", "#", value))
     }
 
     fn write_field_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", self.colors.field_name.paint(name))
+        write!(self.output, "{}:", ColorsConfig::FIELD_NAME.paint(name).bold())
     }
 
     fn write_repeated_name(&mut self, name: &str) -> Result<(), Error> {
-        write!(self.output, "{}:", self.colors.repeated_name.paint(name))
+        write!(
+            self.output,
+            "{}:",
+            ColorsConfig::REPEATED_NAME.paint(name).bold()
+        )
     }
 
     fn write_msg(&mut self, msg: &MessageRef) -> Result<(), Error> {
@@ -219,7 +154,7 @@ impl<W: Write> Serializer<W> {
                             self.output,
                             "{}{} ",
                             " ".repeat((INDENTATION - 2) as usize),
-                            self.colors.repeated_name.paint("-")
+                            ColorsConfig::REPEATED_NAME.paint("-").bold()
                         )?;
                         self.indent += INDENTATION;
                         self.write_value(&field, &value)?;
@@ -298,7 +233,7 @@ impl<W: Write> Serializer<W> {
                 write!(
                     self.output,
                     "{}",
-                    self.colors.string.paint(&quoted_string)
+                    ColorsConfig::STRING.paint(&quoted_string)
                 )?;
             }
             ReflectValueRef::Bytes(v) => {
@@ -306,7 +241,7 @@ impl<W: Write> Serializer<W> {
                 write!(
                     self.output,
                     "{}",
-                    self.colors.string.paint(&quoted_string)
+                    ColorsConfig::STRING.paint(&quoted_string)
                 )?;
             }
             ReflectValueRef::Enum(d, v) => match d.value_by_number(*v) {

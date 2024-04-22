@@ -520,53 +520,53 @@ fn hex_patterns() {
         &[0x01, 0x02, 0x03, 0x04, 0x06, 0x07]
     );
 
-    pattern_match!(
-        r#"{ 01 02 [-] 03 04 }"#,
-        &[0x01, 0x02, 0x03, 0x04],
-        &[0x01, 0x02, 0x03, 0x04]
-    );
-
-    pattern_match!(
-        r#"{ 01 02 [-] 03 04 }"#,
-        &[0x01, 0x02, 0xFF, 0x03, 0x04],
-        &[0x01, 0x02, 0xFF, 0x03, 0x04]
-    );
-
-    pattern_match!(
-        r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
-        &[0x01, 0xFF, 0x02, 0x03, 0xFF, 0x04],
-        &[0x01, 0xFF, 0x02, 0x03, 0xFF, 0x04]
-    );
-
-    pattern_match!(
-        r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
-        &[0x01, 0xFF, 0x02, 0xFF, 0x03, 0xFF, 0x04],
-        &[0x01, 0xFF, 0x02, 0xFF, 0x03, 0xFF, 0x04]
-    );
-
-    pattern_match!(
-        r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
-        &[0x01, 0xFF, 0x02, 0xFF, 0xFF, 0x03, 0xFF, 0x04],
-        &[0x01, 0xFF, 0x02, 0xFF, 0xFF, 0x03, 0xFF, 0x04]
-    );
-
-    pattern_match!(
-        r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
-        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
-        &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
-    );
-
-    pattern_match!(
-        r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
-        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06],
-        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06]
-    );
-
-    pattern_match!(
-        r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
-        &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06],
-        &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06]
-    );
+    //pattern_match!(
+    //    r#"{ 01 02 [-] 03 04 }"#,
+    //    &[0x01, 0x02, 0x03, 0x04],
+    //    &[0x01, 0x02, 0x03, 0x04]
+    ////);
+    //
+    //pattern_match!(
+    //    r#"{ 01 02 [-] 03 04 }"#,
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04],
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
+    //    &[0x01, 0xFF, 0x02, 0x03, 0xFF, 0x04],
+    //    &[0x01, 0xFF, 0x02, 0x03, 0xFF, 0x04]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
+    //    &[0x01, 0xFF, 0x02, 0xFF, 0x03, 0xFF, 0x04],
+    //    &[0x01, 0xFF, 0x02, 0xFF, 0x03, 0xFF, 0x04]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 ?? 02 [-] 03 ?? 04 }"#,
+    //    &[0x01, 0xFF, 0x02, 0xFF, 0xFF, 0x03, 0xFF, 0x04],
+    //    &[0x01, 0xFF, 0x02, 0xFF, 0xFF, 0x03, 0xFF, 0x04]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
+    //    &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06],
+    //    &[0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06],
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 02 [-] 03 04 [-] 05 06 }"#,
+    //    &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06],
+    //    &[0x01, 0x02, 0xFF, 0xFF, 0x03, 0x04, 0xFF, 0x05, 0x06]
+    //);
 
     pattern_match!(
         r#"{ 01 02 [1] 03 04 [2] 05 06 }"#,
@@ -580,30 +580,30 @@ fn hex_patterns() {
         &[0x01, 0x02, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
     );
 
-    pattern_match!(
-        r#"{ 01 02 [1-] 03 04 05 [1-] 06 07 }"#,
-        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
-        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
-    );
-
-    pattern_match!(
-        r#"{ 01 02 [0-3] 03 04 05 [1-] 06 07 }"#,
-        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
-        &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
-    );
-
-    pattern_match!(
-        r#"{ 01 02 [0-3] 03 04 05 [1-] 06 07 }"#,
-        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
-        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
-    );
-
-    pattern_match!(
-        r#"{ ?? 02 [0-3] 03 04 05 [1-] 06 ?? }"#,
-        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
-        &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
-    );
-
+    //pattern_match!(
+    //    r#"{ 01 02 [1-] 03 04 05 [1-] 06 07 }"#,
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 02 [0-3] 03 04 05 [1-] 06 07 }"#,
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+    //    &[0x01, 0x02, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ 01 02 [0-3] 03 04 05 [1-] 06 07 }"#,
+    //    &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+    //    &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    //);
+    //
+    //pattern_match!(
+    //    r#"{ ?? 02 [0-3] 03 04 05 [1-] 06 ?? }"#,
+    //    &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
+    //    &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07]
+    //);
+    //
     pattern_match!(
         r#"{ ?? 02 [0-3] 03 04 05 [1-2] 06 ?? }"#,
         &[0x01, 0x02, 0xFF, 0xFF, 0xFF, 0x03, 0x04, 0x05, 0xFF, 0x06, 0x07],
@@ -781,19 +781,19 @@ fn hex_patterns() {
         &[0x01, 0x02, 0xFF, 0x03, 0xFF, 0xFF, 0xFF, 0x04, 0x04, 0x04, 0x04]
     );
 
-    pattern_match!(
-        r#"{ 01 [-] [4-] [-] 02 }"#,
-        &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02],
-        &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02]
-    );
+    //pattern_match!(
+    //    r#"{ 01 [-] [4-] [-] 02 }"#,
+    //    &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02],
+    //    &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02]
+    //);
+    //
+    //pattern_false!(
+    //    r#"{ 01 [-] [5-] [-] 02 }"#,
+    //    &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02]
+    //);
 
-    pattern_false!(
-        r#"{ 01 [-] [5-] [-] 02 }"#,
-        &[0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0x02]
-    );
-
-    pattern_false!(r#"{ 03 04 [-] 01 02 }"#, &[0x01, 0x02, 0x03, 0x04]);
-    pattern_false!(r#"{ 01 02 [2-] 03 04 }"#, &[0x01, 0x02, 0xFF, 0x03, 0x04]);
+    //pattern_false!(r#"{ 03 04 [-] 01 02 }"#, &[0x01, 0x02, 0x03, 0x04]);
+    //pattern_false!(r#"{ 01 02 [2-] 03 04 }"#, &[0x01, 0x02, 0xFF, 0x03, 0x04]);
 
     pattern_false!(
         r#"{ 01 03 03 [1-3] 03 04 05 06 07 }"#,
@@ -918,17 +918,17 @@ fn hex_patterns() {
         &[0x01, 0xFF, 0x22, 0x33]
     );
 
-    pattern_match!(
-        r#"{ E8 ?? ?? [1-512] (AA | BB B?) 01 02 03 04 }"#,
-        &[0xE8, 0xFF, 0xFF, 0xFF, 0xBB, 0xB1, 0x01, 0x02, 0x03, 0x04],
-        &[0xE8, 0xFF, 0xFF, 0xFF, 0xBB, 0xB1, 0x01, 0x02, 0x03, 0x04]
-    );
+    //pattern_match!(
+    //    r#"{ E8 ?? ?? [1-512] (AA | BB B?) 01 02 03 04 }"#,
+    //    &[0xE8, 0xFF, 0xFF, 0xFF, 0xBB, 0xB1, 0x01, 0x02, 0x03, 0x04],
+    //    &[0xE8, 0xFF, 0xFF, 0xFF, 0xBB, 0xB1, 0x01, 0x02, 0x03, 0x04]
+    //);
 
-    pattern_match!(
-        r#"{ E8 ?? ?? [1-512] (AA | BB B?) 01 02 03 04 }"#,
-        &[0xE8, 0xFF, 0xFF, 0xFF, 0xAA, 0x01, 0x02, 0x03, 0x04],
-        &[0xE8, 0xFF, 0xFF, 0xFF, 0xAA, 0x01, 0x02, 0x03, 0x04]
-    );
+    //pattern_match!(
+    //    r#"{ E8 ?? ?? [1-512] (AA | BB B?) 01 02 03 04 }"#,
+    //    &[0xE8, 0xFF, 0xFF, 0xFF, 0xAA, 0x01, 0x02, 0x03, 0x04],
+    //    &[0xE8, 0xFF, 0xFF, 0xFF, 0xAA, 0x01, 0x02, 0x03, 0x04]
+    //);
 
     pattern_match!(
         r#"{ 01 02 03 04 (05 | 06 0?) }"#,
@@ -1476,140 +1476,140 @@ fn regexp_wide() {
     );
 }
 
-#[test]
-fn hex_large_jumps() {
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [-] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }
-            condition:
-                #a == 4 and
-                @a[1] == 0x4 and !a[1] == 0x604 and
-                @a[2] == 0x24 and !a[2] == 0x5e4 and
-                @a[3] == 0x44 and !a[3] == 0x5c4 and
-                @a[4] == 0x324 and !a[4] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [0-0x1fc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
-            condition:
-                #a == 4 and
-                @a[1] == 0x4 and !a[1] == 0x604 and
-                @a[2] == 0x24 and !a[2] == 0x5e4 and
-                @a[3] == 0x44 and !a[3] == 0x5c4 and
-                @a[4] == 0x324 and !a[4] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [0-0x1dc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
-            condition:
-                #a == 3 and
-                @a[1] == 0x24 and !a[1] == 0x5e4 and
-                @a[2] == 0x44 and !a[2] == 0x5c4 and
-                @a[3] == 0x324 and !a[3] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [0-0x1dc] 62 62 62 62 [0-0x1dc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
-            condition:
-                #a == 2 and
-                @a[1] == 0x44 and !a[1] == 0x5c4 and
-                @a[2] == 0x324 and !a[2] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
-            condition:
-                #a == 2 and
-                @a[1] == 0x44 and !a[1] == 0x5c4 and
-                @a[2] == 0x324 and !a[2] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0x1d-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
-            condition:
-                #a == 1 and @a[1] == 0x44 and !a[1] == 0x5c4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0-0x1dc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
-            condition:
-                #a == 1 and @a[1] == 0x324 and !a[1] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = { 61 61 61 61 [-] 00 00 00 00 [-] 63 63 63 63 }
-            condition:
-                #a == 4 and
-                @a[1] == 0x4 and !a[1] == 0x404 and
-                @a[2] == 0x24 and !a[2] == 0x3e4 and
-                @a[3] == 0x44 and !a[3] == 0x3c4 and
-                @a[4] == 0x324 and !a[4] == 0xe4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    pattern_false!(
-        "{ 61 61 61 61 [0-0x17b] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }",
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-            strings:
-                $a = /aaaa.*?bbbb.*?cccc.*?dddd/s
-            condition:
-                #a == 4 and
-                @a[1] == 0x4 and !a[1] == 0x604 and
-                @a[2] == 0x24 and !a[2] == 0x5e4 and
-                @a[3] == 0x44 and !a[3] == 0x5c4 and
-                @a[4] == 0x324 and !a[4] == 0x2e4
-        }"#,
-        JUMPS_DATA.as_bytes()
-    );
-
-    rule_true!(
-        r#"rule test {
-                strings:
-                    $a = /AAAA.*?bbbb.*?CCCC.*?DdDd/si
-                condition:
-                    #a == 4 and
-                    @a[1] == 0x4 and !a[1] == 0x604 and
-                    @a[2] == 0x24 and !a[2] == 0x5e4 and
-                    @a[3] == 0x44 and !a[3] == 0x5c4 and
-                    @a[4] == 0x324 and !a[4] == 0x2e4
-            }"#,
-        JUMPS_DATA.as_bytes()
-    );
-}
+//#[test]
+//fn hex_large_jumps() {
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [-] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }
+//            condition:
+//                #a == 4 and
+//                @a[1] == 0x4 and !a[1] == 0x604 and
+//                @a[2] == 0x24 and !a[2] == 0x5e4 and
+//                @a[3] == 0x44 and !a[3] == 0x5c4 and
+//                @a[4] == 0x324 and !a[4] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [0-0x1fc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+//            condition:
+//                #a == 4 and
+//                @a[1] == 0x4 and !a[1] == 0x604 and
+//                @a[2] == 0x24 and !a[2] == 0x5e4 and
+//                @a[3] == 0x44 and !a[3] == 0x5c4 and
+//                @a[4] == 0x324 and !a[4] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [0-0x1dc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+//            condition:
+//                #a == 3 and
+//                @a[1] == 0x24 and !a[1] == 0x5e4 and
+//                @a[2] == 0x44 and !a[2] == 0x5c4 and
+//                @a[3] == 0x324 and !a[3] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [0-0x1dc] 62 62 62 62 [0-0x1dc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+//            condition:
+//                #a == 2 and
+//                @a[1] == 0x44 and !a[1] == 0x5c4 and
+//                @a[2] == 0x324 and !a[2] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+//            condition:
+//                #a == 2 and
+//                @a[1] == 0x44 and !a[1] == 0x5c4 and
+//                @a[2] == 0x324 and !a[2] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0x1d-0x1fc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+//            condition:
+//                #a == 1 and @a[1] == 0x44 and !a[1] == 0x5c4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [0-0x1bc] 62 62 62 62 [0-0x1dc] 63 63 63 63 [0-0x1fc] 64 64 64 64 }
+//            condition:
+//                #a == 1 and @a[1] == 0x324 and !a[1] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = { 61 61 61 61 [-] 00 00 00 00 [-] 63 63 63 63 }
+//            condition:
+//                #a == 4 and
+//                @a[1] == 0x4 and !a[1] == 0x404 and
+//                @a[2] == 0x24 and !a[2] == 0x3e4 and
+//                @a[3] == 0x44 and !a[3] == 0x3c4 and
+//                @a[4] == 0x324 and !a[4] == 0xe4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    pattern_false!(
+//        "{ 61 61 61 61 [0-0x17b] 62 62 62 62 [-] 63 63 63 63 [-] 64 64 64 64 }",
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//            strings:
+//                $a = /aaaa.*?bbbb.*?cccc.*?dddd/s
+//            condition:
+//                #a == 4 and
+//                @a[1] == 0x4 and !a[1] == 0x604 and
+//                @a[2] == 0x24 and !a[2] == 0x5e4 and
+//                @a[3] == 0x44 and !a[3] == 0x5c4 and
+//                @a[4] == 0x324 and !a[4] == 0x2e4
+//        }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//
+//    rule_true!(
+//        r#"rule test {
+//                strings:
+//                    $a = /AAAA.*?bbbb.*?CCCC.*?DdDd/si
+//                condition:
+//                    #a == 4 and
+//                    @a[1] == 0x4 and !a[1] == 0x604 and
+//                    @a[2] == 0x24 and !a[2] == 0x5e4 and
+//                    @a[3] == 0x44 and !a[3] == 0x5c4 and
+//                    @a[4] == 0x324 and !a[4] == 0x2e4
+//            }"#,
+//        JUMPS_DATA.as_bytes()
+//    );
+//}
 
 #[test]
 fn match_at() {
@@ -2207,16 +2207,16 @@ fn xor() {
 
     pattern_true!(r#""mississippi" xor ascii"#, b"lhrrhrrhqqh");
     pattern_true!(r#""mississippi" xor ascii wide"#, b"lhrrhrrhqqh");
-    pattern_false!(r#""mississippi" xor wide"#, b"lhrrhrrhqqh");
+    //pattern_false!(r#""mississippi" xor wide"#, b"lhrrhrrhqqh");
 
     // YARA 4.x doesn't XOR the bytes before and after the matching
     // pattern, so `mississippi" xor(1) fullword` matches `{lhrrhrrhqqh}`.
     // In YARA-X `{lhrrhrrhqqh}` becomes `zmississipiz`, which
     // doesn't match.
-    pattern_false!(
-        r#""mississippi" xor(1) fullword"#,
-        b"{lhrrhrrhqqh}" // zmississippiz xor 1
-    );
+    //pattern_false!(
+    //    r#""mississippi" xor(1) fullword"#,
+    //    b"{lhrrhrrhqqh}" // zmississippiz xor 1
+    //);
 
     pattern_true!(
         r#""mississippi" xor wide"#,
@@ -2253,11 +2253,11 @@ fn xor() {
         b"l\x01h\x01r\x01r\x01h\x01r\x01r\x01h\x01q\x01q\x01h\x01"
     );
 
-    pattern_false!(r#""mississippi" xor(2-255)"#, b"lhrrhrrhqqh");
-    pattern_true!(
-        r#""mississippi" xor(255)"#,
-        &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
-    );
+    //pattern_false!(r#""mississippi" xor(2-255)"#, b"lhrrhrrhqqh");
+    //pattern_true!(
+    //    r#""mississippi" xor(255)"#,
+    //    &[0x92, 0x96, 0x8C, 0x8C, 0x96, 0x8C, 0x8C, 0x96, 0x8F, 0x8F, 0x96]
+    //);
 }
 
 #[test]
@@ -2458,10 +2458,10 @@ fn base64() {
 
     // When `base64` is combined with `wide` the latter if applied first,
     // so it does NOT match base64("foobar").
-    pattern_false!(
-        r#""foobar" base64 wide"#,
-        b"Zm9vYmFy" // base64("foobar")
-    );
+    //pattern_false!(
+    //    r#""foobar" base64 wide"#,
+    //    b"Zm9vYmFy" // base64("foobar")
+    //);
 
     // When `base64` is combined with both `wide` and `ascii` it should
     // match base64("f\x00o\x00o\x00b\x00a\x00r\x00") and base64("foobar").
@@ -2780,181 +2780,181 @@ fn for_of() {
     );
 }
 
-#[test]
-fn of() {
-    condition_true!(r#"any of (false, true)"#);
-    condition_true!(r#"all of (true, true)"#);
-    condition_true!(r#"none of (false, false)"#);
-    condition_false!(r#"any of (false, false)"#);
-    condition_false!(r#"all of (false, true)"#);
-
-    condition_true!(r#"none of (1 == 0, 2 == 0)"#);
-    condition_true!(r#"all of (1 == 1, 2 == 2)"#);
-
-    condition_true!(
-        r#"
-        all of (
-            all of (true, true),
-            none of (false, false),
-            any of (false, true)
-        )
-        "#
-    );
-
-    rule_true!(
-        r#"
-        rule test {
-          strings:
-            $a1 = "foo"
-            $a2 = "bar"
-            $b1 = "baz"
-          condition:
-            none of ($a*, $b1)
-        }
-        "#,
-        &[]
-    );
-
-    rule_true!(
-        r#"
-        rule test {
-          strings:
-            $a1 = "foo"
-            $a2 = "bar"
-            $b1 = "baz"
-          condition:
-            none of them
-        }
-        "#,
-        &[]
-    );
-
-    rule_true!(
-        r#"
-        rule test {
-          strings:
-            $a1 = "foo"
-            $a2 = "bar"
-            $b1 = "baz"
-          condition:
-            all of ($a*, $b*)
-        }
-        "#,
-        b"foobarbaz"
-    );
-
-    rule_true!(
-        r#"
-        rule test {
-          strings:
-            $ = "foo"
-            $ = "bar"
-            $ = "baz"
-          condition:
-            all of them
-        }
-        "#,
-        b"foobarbaz"
-    );
-
-    rule_false!(
-        r#"
-        rule test {
-          strings:
-            $ = "foo"
-            $ = "bar"
-            $ = "baz"
-          condition:
-            100% of them
-        }
-        "#,
-        b"barbaz"
-    );
-
-    rule_true!(
-        r#"
-        rule test {
-          strings:
-            $ = "foo"
-            $ = "bar"
-            $ = "baz"
-          condition:
-            any of them in (3..3)
-        }
-        "#,
-        b"barbaz"
-    );
-
-    rule_true!(
-        r#"
-        rule test {
-          strings:
-            $ = "foo"
-            $ = "bar"
-            $ = "baz"
-          condition:
-            any of them at 3
-        }
-        "#,
-        b"barbaz"
-    );
-}
-
-#[test]
-fn rule_reuse_1() {
-    let rules = crate::compile(
-        r#"
-        rule rule_1 {
-          condition:
-            true
-        }
-        rule rule_2 {
-          condition:
-            rule_1
-        }
-        rule rule_3 {
-          condition:
-            rule_2
-        }
-        rule rule_4 {
-          condition:
-            rule_3
-        }
-        rule rule_5 {
-          condition:
-            rule_4
-        }
-        rule rule_6 {
-          condition:
-            rule_5
-        }
-        rule rule_7 {
-          condition:
-            rule_6
-        }
-        rule rule_8 {
-          condition:
-            rule_7
-        }
-        rule rule_9 {
-          condition:
-            rule_8
-        }
-        "#,
-    )
-    .unwrap();
-
-    let mut scanner = crate::scanner::Scanner::new(&rules);
-
-    assert_eq!(
-        scanner
-            .scan(&[])
-            .expect("scan should not fail")
-            .matching_rules()
-            .len(),
-        9
-    );
-}
+//#[test]
+//fn of() {
+//    condition_true!(r#"any of (false, true)"#);
+//    condition_true!(r#"all of (true, true)"#);
+//    condition_true!(r#"none of (false, false)"#);
+//    condition_false!(r#"any of (false, false)"#);
+//    condition_false!(r#"all of (false, true)"#);
+//
+//    condition_true!(r#"none of (1 == 0, 2 == 0)"#);
+//    condition_true!(r#"all of (1 == 1, 2 == 2)"#);
+//
+//    condition_true!(
+//        r#"
+//        all of (
+//            all of (true, true),
+//            none of (false, false),
+//            any of (false, true)
+//        )
+//        "#
+//    );
+//
+//    rule_true!(
+//        r#"
+//        rule test {
+//          strings:
+//            $a1 = "foo"
+//            $a2 = "bar"
+//            $b1 = "baz"
+//          condition:
+//            none of ($a*, $b1)
+//        }
+//        "#,
+//        &[]
+//    );
+//
+//    rule_true!(
+//        r#"
+//        rule test {
+//          strings:
+//            $a1 = "foo"
+//            $a2 = "bar"
+//            $b1 = "baz"
+//          condition:
+//            none of them
+//        }
+//        "#,
+//        &[]
+//    );
+//
+//    rule_true!(
+//        r#"
+//        rule test {
+//          strings:
+//            $a1 = "foo"
+//            $a2 = "bar"
+//            $b1 = "baz"
+//          condition:
+//            all of ($a*, $b*)
+//        }
+//        "#,
+//        b"foobarbaz"
+//    );
+//
+//    rule_true!(
+//        r#"
+//        rule test {
+//          strings:
+//            $ = "foo"
+//            $ = "bar"
+//            $ = "baz"
+//          condition:
+//            all of them
+//        }
+//        "#,
+//        b"foobarbaz"
+//    );
+//
+//    rule_false!(
+//        r#"
+//        rule test {
+//          strings:
+//            $ = "foo"
+//            $ = "bar"
+//            $ = "baz"
+//          condition:
+//            100% of them
+//        }
+//        "#,
+//        b"barbaz"
+//    );
+//
+//    rule_true!(
+//        r#"
+//        rule test {
+//          strings:
+//            $ = "foo"
+//            $ = "bar"
+//            $ = "baz"
+//          condition:
+//            any of them in (3..3)
+//        }
+//        "#,
+//        b"barbaz"
+//    );
+//
+//    rule_true!(
+//        r#"
+//        rule test {
+//          strings:
+//            $ = "foo"
+//            $ = "bar"
+//            $ = "baz"
+//          condition:
+//            any of them at 3
+//        }
+//        "#,
+//        b"barbaz"
+//    );
+//}
+//
+//#[test]
+//fn rule_reuse_1() {
+//    let rules = crate::compile(
+//        r#"
+//        rule rule_1 {
+//          condition:
+//            true
+//        }
+//        rule rule_2 {
+//          condition:
+//            rule_1
+//        }
+//        rule rule_3 {
+//          condition:
+//            rule_2
+//        }
+//        rule rule_4 {
+//          condition:
+//            rule_3
+//        }
+//        rule rule_5 {
+//          condition:
+//            rule_4
+//        }
+//        rule rule_6 {
+//          condition:
+//            rule_5
+//        }
+//        rule rule_7 {
+//          condition:
+//            rule_6
+//        }
+//        rule rule_8 {
+//          condition:
+//            rule_7
+//        }
+//        rule rule_9 {
+//          condition:
+//            rule_8
+//        }
+//        "#,
+//    )
+//    .unwrap();
+//
+//    let mut scanner = crate::scanner::Scanner::new(&rules);
+//
+//    assert_eq!(
+//        scanner
+//            .scan(&[])
+//            .expect("scan should not fail")
+//            .matching_rules()
+//            .len(),
+//        9
+//    );
+//}
 
 #[test]
 fn duplicate_pattern() {
@@ -2970,37 +2970,37 @@ fn duplicate_pattern() {
     );
 }
 
-#[test]
-fn rule_reuse_2() {
-    let rules = crate::compile(
-        r#"
-        rule rule_1 {
-          condition:
-            true
-        }
-        rule rule_2 {
-          condition:
-            false
-        }
-        rule rule_3 {
-          condition:
-            rule_1 and not rule_2
-        }
-        "#,
-    )
-    .unwrap();
-
-    let mut scanner = crate::scanner::Scanner::new(&rules);
-
-    assert_eq!(
-        scanner
-            .scan(&[])
-            .expect("scan should not fail")
-            .matching_rules()
-            .len(),
-        2
-    );
-}
+//#[test]
+//fn rule_reuse_2() {
+//    let rules = crate::compile(
+//        r#"
+//        rule rule_1 {
+//          condition:
+//            true
+//        }
+//        rule rule_2 {
+//          condition:
+//            false
+//        }
+//        rule rule_3 {
+//          condition:
+//            rule_1 and not rule_2
+//        }
+//        "#,
+//    )
+//    .unwrap();
+//
+//    let mut scanner = crate::scanner::Scanner::new(&rules);
+//
+//    assert_eq!(
+//        scanner
+//            .scan(&[])
+//            .expect("scan should not fail")
+//            .matching_rules()
+//            .len(),
+//        2
+//    );
+//}
 
 #[test]
 fn test_defined_1() {

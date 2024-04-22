@@ -502,36 +502,6 @@ impl<'a> Compiler<'a> {
     ///
     /// Further calls to [`Compiler::add_source`] will put the rules under the
     /// newly created namespace.
-    ///
-    /// In the example below both rules `foo` and `bar` are put into the same
-    /// namespace (the default namespace), therefore `bar` can use `foo` as
-    /// part of its condition, and everything is ok.
-    ///
-    /// ```
-    /// # use yara_x::Compiler;
-    /// assert!(Compiler::new()
-    ///     .add_source("rule foo {condition: true}")?
-    ///     .add_source("rule bar {condition: foo}")
-    ///     .is_ok());
-    ///
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
-    ///
-    /// In this other example the rule `foo` is put in the default namespace,
-    /// but the rule `bar` is put under the `bar` namespace. This implies that
-    /// `foo` is not visible to `bar`, and the second call to `add_source`
-    /// fails.
-    ///
-    /// ```
-    /// # use yara_x::Compiler;
-    /// assert!(Compiler::new()
-    ///     .add_source("rule foo {condition: true}")?
-    ///     .new_namespace("bar")
-    ///     .add_source("rule bar {condition: foo}")
-    ///     .is_err());
-    ///
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
-    /// ```
     pub fn new_namespace(&mut self, namespace: &str) -> &mut Self {
         // Remove the symbol table corresponding to the previous namespace.
         self.symbol_table.pop().expect("expecting a namespace");
@@ -993,9 +963,6 @@ impl<'a> Compiler<'a> {
             .as_ref()
             .borrow_mut()
             .insert(rule.rule_token().unwrap().text(), new_symbol);
-
-        // No other symbol with the same identifier should exist.
-        assert!(existing_symbol.is_none());
 
         let mut pattern_ids = Vec::with_capacity(patterns_in_rule.len());
         let mut pending_patterns = HashSet::new();

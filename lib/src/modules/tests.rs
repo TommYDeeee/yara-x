@@ -1,144 +1,119 @@
-use std::fs::File;
-use std::io::Read;
+/*! End-to-end tests. */
+use goldenfile::Mint;
+use ihex::Reader;
+use protobuf::MessageDyn;
+use std::fs;
+use std::io::{Read, Write};
 use std::path::Path;
 
-/// Utility function that receives the content of an [`Intel HEX`][1] (ihex)
-/// file and returns the binary data contained in it.
-///
-/// All test files in this repository are stored in ihex format in order to
-/// avoid storing executable files (some of them malware) in binary form.
-///
-/// [1]: https://en.wikipedia.org/wiki/Intel_HEX
-pub fn create_binary_from_ihex(ihex: &str) -> anyhow::Result<Vec<u8>> {
-    let mut reader = ihex::Reader::new(ihex);
-    let mut data = Vec::new();
-    while let Some(Ok(record)) = reader.next() {
-        if let ihex::Record::Data { value, .. } = record {
-            data.extend(value);
+macro_rules! create_binary_from_ihex {
+    ($filename:expr) => {{
+        let mut file = fs::File::open($filename).expect("Unable to open file");
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).expect("Unable to read file");
+
+        let mut reader = Reader::new(&contents);
+        let mut data = Vec::new();
+        while let Some(Ok(record)) = reader.next() {
+            if let ihex::Record::Data { value, .. } = record {
+                data.extend(value);
+            }
         }
-    }
-    Ok(data)
+
+        Ok(data)
+    }};
 }
 
-/// Utility function that receives a file to a ZIP archive that contains a
-/// a compressed [`Intel HEX`][1] (ihex) file and returns the binary data
-/// encoded in the ihex file.
-pub fn create_binary_from_zipped_ihex<P: AsRef<Path>>(path: P) -> Vec<u8> {
-    let path = path.as_ref();
-
-    let f = File::open(path)
-        .unwrap_or_else(|_| panic!("can not open file: {:?}", &path));
-
-    let mut zip = zip::ZipArchive::new(f)
-        .unwrap_or_else(|_| panic!("can not unzip file: {:?}", &path));
-
-    // The name of the file inside the ZIP must be equal to the name of the
-    // ZIP file, but without the .zip extension.
-    let path_without_zip_ext = path.with_extension("");
-    let inner_file_name =
-        path_without_zip_ext.file_name().unwrap().to_str().unwrap();
-
-    // Read the content of the .in file.
-    let mut inner_file = zip.by_name(inner_file_name).unwrap_or_else(|_| {
-        panic!(
-            "ZIP archive {:?} doesn't contain file: {:?}",
-            &path, &inner_file_name
-        )
-    });
-
-    let mut ihex = String::new();
-
-    inner_file.read_to_string(&mut ihex).unwrap_or_else(|_| {
-        panic!("can not read ihex content from : {:?}", &path)
-    });
-
-    create_binary_from_ihex(ihex.as_str())
-        .unwrap_or_else(|_| panic!("invalid ihex content in: {:?}", &path))
-}
-
-/// This function tests YARA modules by comparing the output produced by the
-/// module with a golden file that contains the expected output.
-///
-/// The function walks the  directory looking for files with extension
-/// `*.in.zip`. These files can contain arbitrary binary content, but they
-/// must be encoded in the [`Intel HEX format`][1], which is a text
-/// representation of the original content, and then compressed with ZIP.
-/// Storing binary files in our source repository is not a good idea,
-/// specially if such files are executable files containing malware.
-///
-/// Each `*.in.zip` ZIP archive must contain a single file with the same
-/// name than the ZIP archive, but without the `.zip` extension. For
-/// instance, an archive named `foo.in.zip` must contain a file named
-/// `foo.in`. The `.in` files (encoded in IHEX format) are decoded and then
-/// passed to the corresponding module, which is determined by looking at
-/// the path where the file was found. If the file is found anywhere under
-/// a directory named `yara-x/src/modules/foo`, its content is passed as
-/// input to the `foo` module. Then, the output produced by the module is
-/// compared with the content of a `*.out` file that is expected to have
-/// the same name than the `*.in.zip` file.
-///
-/// There are many tools for converting binary files to Intel HEX format, one
-/// of such tools is `objcopy` (`llvm-objcopy` on Mac OS X).
-///
-/// ```text
-/// objcopy -I binary -O ihex foo foo.in
-/// ```
-///
-/// For compressing the files:
-///
-/// ```text
-/// zip foo.in.zip foo.in
-/// ```
-///
-/// [1]: https://en.wikipedia.org/wiki/Intel_HEX
 #[test]
 fn test_modules() {
-    // Create goldenfile mint.
-    let mut mint = goldenfile::Mint::new(".");
+    // Create goldenfile mint
+    let mut mint = Mint::new("src/modules");
 
-    for entry in globwalk::glob("src/modules/**/*.in.zip").unwrap().flatten() {
-        // Path to the .in.zip file.
-        let path = entry.into_path();
+    // Get all directories in "src/modules/"
+    let module_dirs =
+        fs::read_dir("src/modules").expect("Failed to read directory");
 
-        // Read the data encoded in the .in.zip file.
-        let data = create_binary_from_zipped_ihex(&path);
+    // Iterate over the directories
+    for dir in module_dirs {
+        let dir = dir.expect("Failed to read directory entry");
+        if dir.file_type().expect("Failed to get file type").is_dir() {
+            // Get the name of the directory
+            let module_name = dir
+                .file_name()
+                .into_string()
+                .expect("Failed to convert OsString");
 
-        // Path to the .out file. First remove the .zip extension, then replace
-        // the .in extension with .out.
-        let out_path = path.with_extension("").with_extension("out");
+            // Skip the "protos" directory
+            if module_name == "protos" {
+                continue;
+            }
 
-        // The name of module being tested is extracted from the path, which
-        // should have the form src/modules/<module name>/....
-        let module_name = path
-            .components()
-            .nth(3)
-            .map(|s| s.as_os_str().to_str().unwrap())
-            .expect("can not extract module name from tests path");
+            // Construct the rule
+            let rule = format!(
+                r#"
+                import "{}"
+                rule test {{
+                    condition: false
+                }}"#,
+                module_name
+            );
 
-        // Construct a dummy YARA rule that only imports the module.
-        let rule = format!(
-            r#"import "{}" rule test {{ condition: false }}"#,
-            module_name
-        );
+            // Compile the rule
+            let rules = crate::compile(rule.as_str()).unwrap();
+            let mut scanner = crate::scanner::Scanner::new(&rules);
 
-        // Compile the rule.
-        let rules = crate::compile(rule.as_str()).unwrap();
-        let mut scanner = crate::scanner::Scanner::new(&rules);
+            // Get all ".in" files in the directory
+            let input_files = fs::read_dir(dir.path().join("tests/input"))
+                .expect("Failed to read directory");
+            for file in input_files {
+                let file = file.expect("Failed to read directory entry");
+                if file.file_type().expect("Failed to get file type").is_file()
+                {
+                    let file_path = file.path();
+                    if file_path.extension()
+                        == Some(Path::new("in").as_os_str())
+                    {
+                        // Read the ".in" file and create a binary from it
+                        let data: Result<Vec<u8>, Box<dyn std::error::Error>> =
+                            create_binary_from_ihex!(file_path
+                                .to_str()
+                                .unwrap());
+                        let data = data.unwrap();
 
-        // Scan the data.
-        let scan_results = scanner.scan(&data).expect("scan should not fail");
+                        // Scan the data
+                        let scan_results =
+                            scanner.scan(&data).expect("scan should not fail");
 
-        // Get the module output.
-        let output =
-            scan_results.module_output(module_name).unwrap_or_else(|| {
-                panic!("module `{}` should produce some output", module_name)
-            });
+                        // Get the module output
+                        let output = scan_results
+                            .module_output(&module_name)
+                            .unwrap_or_else(|| {
+                                panic!(
+                                    "{} should produce some output",
+                                    module_name
+                                )
+                            });
 
-        let output_file = mint.new_goldenfile(out_path).unwrap();
+                        // Downcast the output
+                        let output: &crate::modules::protos::macho::Macho =
+                            <dyn MessageDyn>::downcast_ref(output).unwrap();
 
-        // Render the module's output as YAML.
-        let mut yaml = yara_x_proto_yaml::Serializer::new(output_file);
-
-        yaml.serialize(output).unwrap();
+                        // Create a Goldenfile test
+                        let mut output_file = mint
+                            .new_goldenfile(format!(
+                                "{}/tests/output/{}.out",
+                                module_name,
+                                file_path
+                                    .file_stem()
+                                    .unwrap()
+                                    .to_str()
+                                    .unwrap()
+                            ))
+                            .unwrap();
+                        write!(output_file, "{:#?}", output).unwrap();
+                    }
+                }
+            }
+        }
     }
 }
