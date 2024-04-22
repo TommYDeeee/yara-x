@@ -49,7 +49,7 @@ pub const COMPILED_RULES_HELP: &str = r#"Indicates that <RULES_PATH> is a file c
 YARA rules can be compiled with the `yr compile` command. The file produced by
 this command can be passed later to `yr scan` by using this flag."#;
 
-pub const DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
+pub const _DUMP_LONG_HELP: &str = r#"Show the data produced by YARA modules for a file
 
 YARA modules analyze files and extract information from them. This command shows
 all the data produced by one ore more YARA module for the given file. If no module

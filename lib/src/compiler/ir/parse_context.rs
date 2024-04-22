@@ -26,6 +26,7 @@ pub(crate) struct Context {
     pub(crate) unused_patterns: HashSet<String>,
 
     /// While parsing a pattern declaration this holds its identifier.
+    #[allow(dead_code)]
     pub(crate) current_pattern: Option<SyntaxToken>,
 }
 
@@ -43,7 +44,7 @@ impl Context {
     /// # Panics
     ///
     /// Panics if called at some point where a pattern is not being parsed
-    pub(crate) fn current_pattern_ident(&self) -> String {
+    pub(crate) fn _current_pattern_ident(&self) -> String {
         self.current_pattern.as_ref().unwrap().text().to_string()
     }
 }

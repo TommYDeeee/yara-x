@@ -1,12 +1,11 @@
 /*! Functions for converting a hex pattern AST into a HIR. */
 
 use crate::compiler::ir::ast2ir::integer_lit_from_cst;
-use crate::compiler::CompileContext;
+
 use crate::report::{ReportBuilder, SourceId};
 use crate::span::Span;
 use crate::warnings::Warning;
-use nom::AsChar;
-use num_traits::ToPrimitive;
+
 use regex_syntax::hir;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
@@ -363,16 +362,16 @@ fn hex_byte_to_class(value: u8, mask: u8) -> hir::ClassBytes {
 
 #[cfg(test)]
 mod tests {
-    use super::hex_byte_to_class;
-    use crate::re::hir::class_to_masked_byte;
-    use pretty_assertions::assert_eq;
-    use regex_syntax::hir::{
-        Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
-    };
-    use yara_x_parser::ast::{
-        HexAlternative, HexByte, HexJump, HexToken, HexTokens,
-    };
-
+    //use super::hex_byte_to_class;
+    //use crate::re::hir::class_to_masked_byte;
+    //use pretty_assertions::assert_eq;
+    //use regex_syntax::hir::{
+    //    Class, ClassBytes, ClassBytesRange, Dot, Hir, HirKind, Repetition,
+    //};
+    //use yara_x_parser::ast::{
+    //    HexAlternative, HexByte, HexJump, HexToken, HexTokens,
+    //};
+    //
     //    #[test]
     //    fn hex_byte_to_hir() {
     //        let hir =

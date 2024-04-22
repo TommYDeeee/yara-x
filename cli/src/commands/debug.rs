@@ -56,12 +56,21 @@ pub fn exec_ast(args: &ArgMatches) -> anyhow::Result<()> {
     let src = yara_x_parser::SourceCode::from(src.as_slice())
         .with_origin(rules_path.as_os_str().to_str().unwrap());
 
-    let ast = Parser::new().colorize_errors(true).build_ast(src)?;
+    let mut total_time = std::time::Duration::new(0, 0);
+    let runs = 1000;
+    for _ in 0..runs {
+        let m = std::time::Instant::now();
+        let _ast =
+            Parser::new().colorize_errors(true).build_ast(src.clone())?;
+        total_time += m.elapsed();
+    }
 
-    let mut output = String::new();
-    ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
+    let average_time = total_time / runs;
+    println!("Average time: {:?}", average_time);
+    //let mut output = String::new();
+    //ascii_tree::write_tree(&mut output, &ast.ascii_tree())?;
 
-    println!("{output}");
+    //println!("{output}");
     Ok(())
 }
 

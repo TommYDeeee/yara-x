@@ -4,7 +4,7 @@ use regex_syntax as re;
 use thiserror::Error;
 
 use crate::re::hir::Hir;
-use yara_x_parser::ast;
+
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {

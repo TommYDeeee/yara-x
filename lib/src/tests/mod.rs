@@ -1,8 +1,8 @@
 /*! End-to-end tests. */
-use bstr::ByteSlice;
+//use bstr::ByteSlice;
 use pretty_assertions::assert_eq;
 
-const JUMPS_DATA: &[u8; 1664] = include_bytes!("testdata/jumps.bin");
+//const JUMPS_DATA: &[u8; 1664] = include_bytes!("testdata/jumps.bin");
 
 macro_rules! test_condition {
     ($condition:literal, $data:expr, $expected_result:expr) => {{

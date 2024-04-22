@@ -146,7 +146,7 @@ impl BitmapSet {
     }
 
     #[cfg(test)]
-    pub fn into_vec(self) -> Vec<usize> {
+    pub fn _into_vec(self) -> Vec<usize> {
         self.values
     }
 }

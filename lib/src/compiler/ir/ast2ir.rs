@@ -1,21 +1,20 @@
 /*! Functions for converting an AST into an IR. */
 
 use num_traits::{Bounded, CheckedMul, FromPrimitive, Num};
-use std::borrow::{Borrow, Cow};
+use std::borrow::{Borrow};
 use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
-use std::{iter, string};
+use std::{iter};
 
 use crate::report::{ReportBuilder, SourceId};
-use crate::span::{HasSpan, Span};
+use crate::span::{Span};
 use crate::warnings::{self, Warning};
-use bstr::{BStr, BString, ByteSlice, ByteVec};
+use bstr::{BString, ByteSlice, ByteVec};
 use itertools::Itertools;
-use serde_json::value;
-use yara_parser::AstToken;
-use yara_parser::{AstNode, SyntaxToken, XorRange};
-use yara_x_parser::{ast, ErrorInfo};
+
+use yara_parser::{AstNode, SyntaxToken};
+use yara_x_parser::{ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -1617,7 +1616,7 @@ fn of_expr_from_ast(
 fn identifier_node_from_ast(
     ctx: &mut CompileContext,
     ident_node: yara_parser::IdentifierNode,
-    parse_context: &mut Context,
+    _parse_context: &mut Context,
 ) -> Result<Expr, Box<CompileError>> {
     let current_symbol_table = ctx.current_symbol_table.take();
     let ident = ident_node.identifier_token().unwrap();

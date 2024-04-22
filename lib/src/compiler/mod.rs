@@ -30,10 +30,10 @@ use crate::report::{ReportBuilder, SourceId};
 use crate::span::Span;
 use crate::warnings::Warning;
 use crate::SourceCode;
-use text_size::TextSize;
+
 use yara_parser::{AstNode, ImportStmt, Rule, SourceFile};
-use yara_x_parser::ast::{self, Ident, Import, RuleFlag, RuleFlags};
-use yara_x_parser::Parser;
+use yara_x_parser::ast::{RuleFlags};
+
 
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};
@@ -957,7 +957,7 @@ impl<'a> Compiler<'a> {
 
         // Insert the symbol in the symbol table corresponding to the
         // current namespace.
-        let existing_symbol = self
+        let _existing_symbol = self
             .current_namespace
             .symbols
             .as_ref()

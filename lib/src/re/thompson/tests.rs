@@ -1,16 +1,16 @@
-use itertools::Itertools;
-use pretty_assertions::assert_eq;
-
-use yara_x_parser::ast;
-
-use crate::compiler::Atom;
-use crate::re;
-use crate::re::bitmapset::BitmapSet;
-use crate::re::{BckCodeLoc, FwdCodeLoc};
-
-use super::compiler::{CodeLoc, Compiler, RegexpAtom};
-use super::pikevm::{epsilon_closure, EpsilonClosureState};
-
+//use itertools::Itertools;
+//use pretty_assertions::assert_eq;
+//
+//use yara_x_parser::ast;
+//
+//use crate::compiler::Atom;
+//use crate::re;
+//use crate::re::bitmapset::BitmapSet;
+//use crate::re::{BckCodeLoc, FwdCodeLoc};
+//
+//use super::compiler::{CodeLoc, Compiler, RegexpAtom};
+//use super::pikevm::{epsilon_closure, EpsilonClosureState};
+//
 //macro_rules! assert_re_code {
 //    ($re:expr, $fwd:expr, $bck:expr, $atoms:expr, $fwd_closure:expr, $bck_closure:expr) => {{
 //        let parser = re::parser::Parser::new();
