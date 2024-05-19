@@ -1,0 +1,46 @@
+name: Golang package
+
+on:
+  push:
+    paths:
+    - 'go/**'
+    - '.github/workflows/golang.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: [ '1.19', '1.20', '1.21.x' ]
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Go ${{ matrix.go-version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+
+    - name: Install cargo-c
+      run: cargo install cargo-c
+
+    - name: Build and install Rust library
+      run: cargo cinstall -p yara-x-capi --release --pkgconfigdir=${{ github.workspace }} --includedir=${{ github.workspace }} --libdir=${{ github.workspace }}
+
+    - name: Run Go tests
+      run: |
+        cd go
+        go test
+      env:
+        PKG_CONFIG_PATH: ${{ github.workspace }}
+        LD_LIBRARY_PATH: ${{ github.workspace }}

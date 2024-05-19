@@ -1,0 +1,37 @@
+[package]
+name = "yara-x-capi"
+description = """
+A C API for the YARA-X library.
+"""
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+
+[features]
+# The `capi` feature is required by `cargo-c`.
+capi = []
+default = ["capi"]
+
+[lib]
+name = "yara_x_capi"
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+yara-x = { workspace = true }
+
+[build-dependencies]
+cbindgen = { workspace = true }
+
+
+# This section is used by `cargo-c`, for generating the header file and
+[package.metadata.capi.header]
+# Name of the header file, without the `.h` extension. 
+name = "yara_x"
+# Install the header into a subdirectory with the name of the crate. This
+# is enabled by default, pass `false` or "" to disable it.
+subdirectory = ""
+# Generate the header file with `cbindgen`.
+generation = true

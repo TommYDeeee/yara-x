@@ -1,0 +1,11 @@
+.env
+.idea
+.pytest_cache
+.vscode
+*.profdata
+*.profraw
+target
+macros/target
+site/node_modules
+site/public
+site/resources

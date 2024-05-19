@@ -1,0 +1,160 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 5
+    minor: 1
+subsystem_version:
+    major: 5
+    minor: 1
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 10
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 8450
+dll_characteristics: 1344
+timestamp: 1314765018 # 2011-08-31 04:30:18 UTC
+image_base: 268435456
+checksum: 0
+base_of_code: 4096
+base_of_data: 4096
+entry_point: 0
+entry_point_raw: 0
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 0
+size_of_initialized_data: 3072
+size_of_uninitialized_data: 0
+size_of_image: 12288
+size_of_headers: 512
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 2
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 5
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+rich_signature:
+    offset: 128
+    length: 32
+    key: 2327776733
+    raw_data: "\x99l\xd1\xd9\xdd\r\xbf\x8a\xdd\r\xbf\x8a\xdd\r\xbf\x8a\xb2{%\x8a\xdc\r\xbf\x8a\xb2{\"\x8a\xdc\r\xbf\x8a"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ov\x9a\x00\x01\x00\x00\x00ov\x9d\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 154
+        version: 30319
+        times: 1
+      - toolid: 157
+        version: 30319
+        times: 1
+pdb_path: "C:\\SL\\Bin\\ResourceDll\\Cpp\\Release\\Win32\\ResourceDLL.pdb"
+sections:
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 512
+    virtual_address: 4096
+    virtual_size: 108
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 2560
+    raw_data_offset: 1024
+    virtual_address: 8192
+    virtual_size: 2100
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8192
+    size: 2100
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 4096
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 64
+    rva: 8604
+    offset: 1436
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "D\x00E\x00S\x00C\x00R\x00I\x00P\x00T\x00I\x00O\x00N\x00"
+  - length: 200
+    rva: 8668
+    offset: 1500
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00I\x00N\x00F\x00O\x00"
+  - length: 256
+    rva: 8868
+    offset: 1700
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\x00A\x00C\x00K\x00A\x00G\x00E\x00O\x00P\x00T\x00I\x00O\x00N\x00S\x00"
+  - length: 2
+    rva: 9124
+    offset: 1956
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "P\x00L\x00A\x00T\x00F\x00O\x00R\x00M\x00T\x00A\x00R\x00G\x00E\x00T\x00S\x00"
+  - length: 1163
+    rva: 9128
+    offset: 1960
+    type: RESOURCE_TYPE_RCDATA
+    language: 0
+    name_string: "T\x00L\x00F\x00_\x00P\x00D\x00_\x00J\x00O\x00"
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

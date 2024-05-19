@@ -1,0 +1,297 @@
+is_pe: true
+machine: MACHINE_AMD64
+subsystem: SUBSYSTEM_WINDOWS_CUI
+os_version:
+    major: 10
+    minor: 0
+subsystem_version:
+    major: 10
+    minor: 0
+image_version:
+    major: 10
+    minor: 0
+linker_version:
+    major: 14
+    minor: 13
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR64_MAGIC
+characteristics: 8226
+dll_characteristics: 16736
+timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
+image_base: 6442450944
+checksum: 57102
+base_of_code: 4096
+entry_point: 1920
+entry_point_raw: 4992
+dll_name: "mtxex.dll"
+export_timestamp: 1827812126 # 2027-12-03 05:35:26 UTC
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 240
+size_of_code: 3584
+size_of_initialized_data: 6144
+size_of_uninitialized_data: 0
+size_of_image: 28672
+size_of_headers: 1024
+size_of_stack_reserve: 262144
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 6
+number_of_imported_functions: 24
+number_of_delayed_imported_functions: 0
+number_of_resources: 1
+number_of_version_infos: 8
+number_of_imports: 2
+number_of_delayed_imports: 0
+number_of_exports: 4
+number_of_signatures: 0
+version_info:
+    "CompanyName": "Microsoft Corporation"
+    "FileDescription": "COM+"
+    "FileVersion": "2001.12.10941.16384 (WinBuild.160101.0800)"
+    "InternalName": "MTXEX.DLL"
+    "LegalCopyright": "© Microsoft Corporation. All rights reserved."
+    "OriginalFilename": "MTXEX.DLL"
+    "ProductName": "Microsoft® Windows® Operating System"
+    "ProductVersion": "10.0.17763.1"
+version_info_list:
+  - key: "CompanyName"
+    value: "Microsoft Corporation"
+  - key: "FileDescription"
+    value: "COM+"
+  - key: "FileVersion"
+    value: "2001.12.10941.16384 (WinBuild.160101.0800)"
+  - key: "InternalName"
+    value: "MTXEX.DLL"
+  - key: "LegalCopyright"
+    value: "© Microsoft Corporation. All rights reserved."
+  - key: "OriginalFilename"
+    value: "MTXEX.DLL"
+  - key: "ProductName"
+    value: "Microsoft® Windows® Operating System"
+  - key: "ProductVersion"
+    value: "10.0.17763.1"
+rich_signature:
+    offset: 128
+    length: 80
+    key: 3360243275
+    raw_data: "\x0f_\'\x9bK>I\xc8K>I\xc8K>I\xc8.XJ\xc9I>I\xc8.XM\xc9A>I\xc8K>H\xc8W>I\xc8.XH\xc9N>I\xc8.XI\xc9J>I\xc8.XA\xc9I>I\xc8.X\xb6\xc8J>I\xc8.XK\xc9J>I\xc8"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00ef\x03\x01\x02\x00\x00\x00ef\x04\x01\n\x00\x00\x00\x00\x00\x01\x00\x1c\x00\x00\x00ef\x01\x01\x05\x00\x00\x00ef\x00\x01\x01\x00\x00\x00ef\x08\x01\x02\x00\x00\x00ef\xff\x00\x01\x00\x00\x00ef\x02\x01\x01\x00\x00\x00"
+    tools:
+      - toolid: 259
+        version: 26213
+        times: 2
+      - toolid: 260
+        version: 26213
+        times: 10
+      - toolid: 1
+        version: 0
+        times: 28
+      - toolid: 257
+        version: 26213
+        times: 5
+      - toolid: 256
+        version: 26213
+        times: 1
+      - toolid: 264
+        version: 26213
+        times: 2
+      - toolid: 255
+        version: 26213
+        times: 1
+      - toolid: 258
+        version: 26213
+        times: 1
+pdb_path: "mtxex.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 3584
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 3408
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 2560
+    raw_data_offset: 4608
+    virtual_address: 8192
+    virtual_size: 2510
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 7168
+    virtual_address: 12288
+    virtual_size: 1504
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".pdata"
+    full_name: ".pdata"
+    characteristics: 1073741888
+    raw_data_size: 512
+    raw_data_offset: 7680
+    virtual_address: 16384
+    virtual_size: 264
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 1024
+    raw_data_offset: 8192
+    virtual_address: 20480
+    virtual_size: 984
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 512
+    raw_data_offset: 9216
+    virtual_address: 24576
+    virtual_size: 28
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 9728
+    size: 220
+  - virtual_address: 9948
+    size: 60
+  - virtual_address: 20480
+    size: 984
+  - virtual_address: 16384
+    size: 264
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 24576
+    size: 28
+  - virtual_address: 8816
+    size: 84
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8208
+    size: 264
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8472
+    size: 208
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 0
+    minor: 0
+resources:
+  - length: 888
+    rva: 20576
+    offset: 8288
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+import_details:
+  - library_name: "msvcrt.dll"
+    number_of_functions: 6
+    functions:
+      - name: "__C_specific_handler"
+        rva: 8624
+      - name: "_XcptFilter"
+        rva: 8632
+      - name: "_initterm"
+        rva: 8640
+      - name: "malloc"
+        rva: 8648
+      - name: "free"
+        rva: 8656
+      - name: "_amsg_exit"
+        rva: 8664
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 18
+    functions:
+      - name: "LoadLibraryExW"
+        rva: 8472
+      - name: "TerminateProcess"
+        rva: 8480
+      - name: "GetCurrentProcess"
+        rva: 8488
+      - name: "SetUnhandledExceptionFilter"
+        rva: 8496
+      - name: "UnhandledExceptionFilter"
+        rva: 8504
+      - name: "RtlVirtualUnwind"
+        rva: 8512
+      - name: "RtlLookupFunctionEntry"
+        rva: 8520
+      - name: "RtlCaptureContext"
+        rva: 8528
+      - name: "GetTickCount"
+        rva: 8536
+      - name: "GetSystemTimeAsFileTime"
+        rva: 8544
+      - name: "GetCurrentThreadId"
+        rva: 8552
+      - name: "GetLastError"
+        rva: 8560
+      - name: "DisableThreadLibraryCalls"
+        rva: 8568
+      - name: "GetProcAddress"
+        rva: 8576
+      - name: "FreeLibrary"
+        rva: 8584
+      - name: "QueryPerformanceCounter"
+        rva: 8592
+      - name: "Sleep"
+        rva: 8600
+      - name: "GetCurrentProcessId"
+        rva: 8608
+export_details:
+  - name: "DllGetClassObject"
+    ordinal: 1
+    rva: 4144
+    offset: 1072
+  - name: "GetObjectContext"
+    ordinal: 2
+    rva: 9853
+    forward_name: "COMSVCS.GetObjectContext"
+  - name: "MTSCreateActivity"
+    ordinal: 3
+    rva: 9896
+    forward_name: "COMSVCS.MTSCreateActivity"
+  - name: "SafeRef"
+    ordinal: 4
+    rva: 9930
+    forward_name: "COMSVCS.SafeRef"
+is_signed: false
+overlay:
+    offset: 0
+    size: 0

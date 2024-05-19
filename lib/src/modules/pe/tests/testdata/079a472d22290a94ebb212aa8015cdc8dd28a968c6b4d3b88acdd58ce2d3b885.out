@@ -1,0 +1,461 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_WINDOWS_GUI
+os_version:
+    major: 5
+    minor: 1
+subsystem_version:
+    major: 5
+    minor: 1
+image_version:
+    major: 0
+    minor: 0
+linker_version:
+    major: 10
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 8450
+dll_characteristics: 320
+timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
+image_base: 268435456
+checksum: 82308
+base_of_code: 4096
+base_of_data: 12288
+entry_point: 2605
+entry_point_raw: 5677
+dll_name: "CUSTPROF.dll"
+export_timestamp: 1528213185 # 2018-06-05 15:39:45 UTC
+section_alignment: 4096
+file_alignment: 512
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 4608
+size_of_initialized_data: 5120
+size_of_uninitialized_data: 0
+size_of_image: 28672
+size_of_headers: 1024
+size_of_stack_reserve: 1048576
+size_of_stack_commit: 4096
+size_of_heap_reserve: 4096
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 5
+number_of_imported_functions: 38
+number_of_delayed_imported_functions: 6
+number_of_resources: 2
+number_of_version_infos: 11
+number_of_imports: 2
+number_of_delayed_imports: 1
+number_of_exports: 5
+number_of_signatures: 1
+version_info:
+    "Build Date": "Tue Jun 5 21:07:13 IST 2018"
+    "Build Version": "27.1.9.33"
+    "CompanyName": "Quicken Inc."
+    "FileDescription": "Customer Profile Interface DLL"
+    "FileVersion": "27.1.9.33"
+    "InternalName": "CUSTPROF.DLL"
+    "LegalCopyright": "Copyright © 2018 by Quicken Inc."
+    "OriginalFilename": "CUSTPROF.DLL"
+    "ProductName": "Quicken for Windows"
+    "ProductVersion": "27.1.9.33"
+    "Type": "QA"
+version_info_list:
+  - key: "FileVersion"
+    value: "27.1.9.33"
+  - key: "ProductName"
+    value: "Quicken for Windows"
+  - key: "ProductVersion"
+    value: "27.1.9.33"
+  - key: "CompanyName"
+    value: "Quicken Inc."
+  - key: "LegalCopyright"
+    value: "Copyright © 2018 by Quicken Inc."
+  - key: "Build Date"
+    value: "Tue Jun 5 21:07:13 IST 2018"
+  - key: "Build Version"
+    value: "27.1.9.33"
+  - key: "Type"
+    value: "QA"
+  - key: "FileDescription"
+    value: "Customer Profile Interface DLL"
+  - key: "InternalName"
+    value: "CUSTPROF.DLL"
+  - key: "OriginalFilename"
+    value: "CUSTPROF.DLL"
+rich_signature:
+    offset: 128
+    length: 96
+    key: 157631266
+    raw_data: "f\"\x0bZ\"Ce\t\"Ce\t\"Ce\t9\xde\xf9\t!Ce\t9\xde\xfb\t#Ce\t9\xde\xcf\t)Ce\tM5\xce\t!Ce\t+;\xf6\t Ce\t\"Cd\t\x0eCe\t9\xde\xce\t&Ce\t9\xde\xfe\t#Ce\t9\xde\xff\t#Ce\t9\xde\xf8\t#Ce\t"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1b\x9d\x9c\x00\x03\x00\x00\x00\x1b\x9d\x9e\x00\x01\x00\x00\x00\x1b\x9d\xaa\x00\x0b\x00\x00\x00ov\xab\x00\x03\x00\x00\x00\tx\x93\x00\x02\x00\x00\x00\x00\x00\x01\x00,\x00\x00\x00\x1b\x9d\xab\x00\x04\x00\x00\x00\x1b\x9d\x9b\x00\x01\x00\x00\x00\x1b\x9d\x9a\x00\x01\x00\x00\x00\x1b\x9d\x9d\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 156
+        version: 40219
+        times: 3
+      - toolid: 158
+        version: 40219
+        times: 1
+      - toolid: 170
+        version: 40219
+        times: 11
+      - toolid: 171
+        version: 30319
+        times: 3
+      - toolid: 147
+        version: 30729
+        times: 2
+      - toolid: 1
+        version: 0
+        times: 44
+      - toolid: 171
+        version: 40219
+        times: 4
+      - toolid: 155
+        version: 40219
+        times: 1
+      - toolid: 154
+        version: 40219
+        times: 1
+      - toolid: 157
+        version: 40219
+        times: 1
+pdb_path: "D:\\workspace\\2018_R9_RelBld\\target\\checkout\\custprof\\Release\\custprof.pdb"
+sections:
+  - name: ".text"
+    full_name: ".text"
+    characteristics: 1610612768
+    raw_data_size: 4608
+    raw_data_offset: 1024
+    virtual_address: 4096
+    virtual_size: 4524
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rdata"
+    full_name: ".rdata"
+    characteristics: 1073741888
+    raw_data_size: 2048
+    raw_data_offset: 5632
+    virtual_address: 12288
+    virtual_size: 1777
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".data"
+    full_name: ".data"
+    characteristics: 3221225536
+    raw_data_size: 512
+    raw_data_offset: 7680
+    virtual_address: 16384
+    virtual_size: 916
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".rsrc"
+    full_name: ".rsrc"
+    characteristics: 1073741888
+    raw_data_size: 1536
+    raw_data_offset: 8192
+    virtual_address: 20480
+    virtual_size: 1468
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+  - name: ".reloc"
+    full_name: ".reloc"
+    characteristics: 1107296320
+    raw_data_size: 1024
+    raw_data_offset: 9728
+    virtual_address: 24576
+    virtual_size: 524
+    pointer_to_relocations: 0
+    pointer_to_line_numbers: 0
+    number_of_relocations: 0
+    number_of_line_numbers: 0
+data_directories:
+  - virtual_address: 13904
+    size: 161
+  - virtual_address: 12980
+    size: 60
+  - virtual_address: 20480
+    size: 1468
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 10752
+    size: 6048
+  - virtual_address: 24576
+    size: 508
+  - virtual_address: 12480
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 12552
+    size: 64
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 12288
+    size: 160
+  - virtual_address: 12860
+    size: 64
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+resource_timestamp: 0 # 1970-01-01 00:00:00 UTC
+resource_version:
+    major: 4
+    minor: 0
+resources:
+  - length: 958
+    rva: 20640
+    offset: 8352
+    type: RESOURCE_TYPE_VERSION
+    id: 1
+    language: 1033
+  - length: 346
+    rva: 21600
+    offset: 9312
+    type: RESOURCE_TYPE_MANIFEST
+    id: 2
+    language: 1033
+import_details:
+  - library_name: "MSVCR100.dll"
+    number_of_functions: 16
+    functions:
+      - name: "_crt_debugger_hook"
+        rva: 12380
+      - name: "_except_handler4_common"
+        rva: 12384
+      - name: "_onexit"
+        rva: 12388
+      - name: "_lock"
+        rva: 12392
+      - name: "__dllonexit"
+        rva: 12396
+      - name: "_unlock"
+        rva: 12400
+      - name: "__clean_type_info_names_internal"
+        rva: 12404
+      - name: "__CppXcptFilter"
+        rva: 12408
+      - name: "_amsg_exit"
+        rva: 12412
+      - name: "_initterm_e"
+        rva: 12416
+      - name: "_initterm"
+        rva: 12420
+      - name: "_encoded_null"
+        rva: 12424
+      - name: "_malloc_crt"
+        rva: 12428
+      - name: "malloc"
+        rva: 12432
+      - name: "memcpy"
+        rva: 12436
+      - name: "free"
+        rva: 12440
+  - library_name: "KERNEL32.dll"
+    number_of_functions: 22
+    functions:
+      - name: "Sleep"
+        rva: 12288
+      - name: "LoadLibraryA"
+        rva: 12292
+      - name: "GetLastError"
+        rva: 12296
+      - name: "FreeLibrary"
+        rva: 12300
+      - name: "GetProcAddress"
+        rva: 12304
+      - name: "LocalFree"
+        rva: 12308
+      - name: "LocalAlloc"
+        rva: 12312
+      - name: "IsDebuggerPresent"
+        rva: 12316
+      - name: "SetUnhandledExceptionFilter"
+        rva: 12320
+      - name: "UnhandledExceptionFilter"
+        rva: 12324
+      - name: "GetCurrentProcess"
+        rva: 12328
+      - name: "TerminateProcess"
+        rva: 12332
+      - name: "GetSystemTimeAsFileTime"
+        rva: 12336
+      - name: "GetCurrentProcessId"
+        rva: 12340
+      - name: "GetCurrentThreadId"
+        rva: 12344
+      - name: "GetTickCount"
+        rva: 12348
+      - name: "EncodePointer"
+        rva: 12352
+      - name: "DecodePointer"
+        rva: 12356
+      - name: "InterlockedExchange"
+        rva: 12360
+      - name: "RaiseException"
+        rva: 12364
+      - name: "InterlockedCompareExchange"
+        rva: 12368
+      - name: "QueryPerformanceCounter"
+        rva: 12372
+delayed_import_details:
+  - library_name: "QDB.dll"
+    number_of_functions: 6
+    functions:
+      - name: "ord116"
+        ordinal: 116
+        rva: 16408
+      - name: "ord102"
+        ordinal: 102
+        rva: 16412
+      - name: "ord95"
+        ordinal: 95
+        rva: 16416
+      - name: "ord105"
+        ordinal: 105
+        rva: 16420
+      - name: "ord103"
+        ordinal: 103
+        rva: 16424
+      - name: "ord34"
+        ordinal: 34
+        rva: 16428
+export_details:
+  - name: "CP_PutItem"
+    ordinal: 200
+    rva: 4204
+    offset: 1132
+  - name: "CP_GetItem"
+    ordinal: 201
+    rva: 4414
+    offset: 1342
+  - name: "CP_DelItem"
+    ordinal: 202
+    rva: 4096
+    offset: 1024
+  - name: "CP_GetTaxMap"
+    ordinal: 203
+    rva: 4186
+    offset: 1114
+  - name: "_DllMain@12"
+    ordinal: 204
+    rva: 4624
+    offset: 1552
+is_signed: true
+signatures:
+  - subject: "/C=US/ST=California/L=Menlo Park/O=Quicken, Inc./OU=Operations/CN=Quicken, Inc."
+    issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+    thumbprint: "c1bf1b8f751bf97626ed77f755f0a393106f2454"
+    version: 3
+    algorithm: "sha256WithRSAEncryption"
+    algorithm_oid: "1.2.840.113549.1.1.11"
+    serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
+    not_before: 1491955200 # 2017-04-12 00:00:00 UTC
+    not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+    verified: true
+    digest_alg: "sha1"
+    digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
+    file_digest: "f4ca190ec9052243b8882d492b1c12d04da7817f"
+    number_of_certificates: 4
+    number_of_countersignatures: 1
+    signer_info:
+        digest: "845555fec6e472a43b0714911d6c452a092e9632"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+            subject: "/C=US/ST=California/L=Menlo Park/O=Quicken, Inc./OU=Operations/CN=Quicken, Inc."
+            thumbprint: "c1bf1b8f751bf97626ed77f755f0a393106f2454"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
+            not_before: 1491955200 # 2017-04-12 00:00:00 UTC
+            not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+          - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+            subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+            thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
+            version: 3
+            algorithm: "sha256WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.11"
+            serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
+            not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+            not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+    certificates:
+      - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
+        subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+        thumbprint: "6c07453ffdda08b83707c09b82fb3d15f35336b1"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
+        not_before: 1356048000 # 2012-12-21 00:00:00 UTC
+        not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+      - issuer: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+        subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G4"
+        thumbprint: "65439929b67973eb192d6ff243e6767adf0834e4"
+        version: 3
+        algorithm: "sha1WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.5"
+        serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
+        not_before: 1350518400 # 2012-10-18 00:00:00 UTC
+        not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+      - issuer: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+        subject: "/C=US/ST=California/L=Menlo Park/O=Quicken, Inc./OU=Operations/CN=Quicken, Inc."
+        thumbprint: "c1bf1b8f751bf97626ed77f755f0a393106f2454"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "21:bd:b2:cb:ec:e5:43:1e:24:f7:56:74:d6:0e:9c:1d"
+        not_before: 1491955200 # 2017-04-12 00:00:00 UTC
+        not_after: 1559692799 # 2019-06-04 23:59:59 UTC
+      - issuer: "/C=US/O=VeriSign, Inc./OU=VeriSign Trust Network/OU=(c) 2006 VeriSign, Inc. - For authorized use only/CN=VeriSign Class 3 Public Primary Certification Authority - G5"
+        subject: "/C=US/O=Symantec Corporation/OU=Symantec Trust Network/CN=Symantec Class 3 SHA256 Code Signing CA"
+        thumbprint: "007790f6561dad89b0bcd85585762495e358f8a5"
+        version: 3
+        algorithm: "sha256WithRSAEncryption"
+        algorithm_oid: "1.2.840.113549.1.1.11"
+        serial: "3d:78:d7:f9:76:49:60:b2:61:7d:f4:f0:1e:ca:86:2a"
+        not_before: 1386633600 # 2013-12-10 00:00:00 UTC
+        not_after: 1702166399 # 2023-12-09 23:59:59 UTC
+    countersignatures:
+      - verified: true
+        sign_time: 1528216551 # 2018-06-05 16:35:51 UTC
+        digest: "9fa1188e4c656d86e2d7fa133ee8138ac1ec4ec1"
+        digest_alg: "sha1"
+        chain:
+          - issuer: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+            subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services Signer - G4"
+            thumbprint: "65439929b67973eb192d6ff243e6767adf0834e4"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "0e:cf:f4:38:c8:fe:bf:35:6e:04:d8:6a:98:1b:1a:50"
+            not_before: 1350518400 # 2012-10-18 00:00:00 UTC
+            not_after: 1609286399 # 2020-12-29 23:59:59 UTC
+          - issuer: "/C=ZA/ST=Western Cape/L=Durbanville/O=Thawte/OU=Thawte Certification/CN=Thawte Timestamping CA"
+            subject: "/C=US/O=Symantec Corporation/CN=Symantec Time Stamping Services CA - G2"
+            thumbprint: "6c07453ffdda08b83707c09b82fb3d15f35336b1"
+            version: 3
+            algorithm: "sha1WithRSAEncryption"
+            algorithm_oid: "1.2.840.113549.1.1.5"
+            serial: "7e:93:eb:fb:7c:c6:4e:59:ea:4b:9a:77:d4:06:fc:3b"
+            not_before: 1356048000 # 2012-12-21 00:00:00 UTC
+            not_after: 1609372799 # 2020-12-30 23:59:59 UTC
+overlay:
+    offset: 10752
+    size: 6048

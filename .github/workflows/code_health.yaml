@@ -1,0 +1,40 @@
+name: Code health
+
+on: [ push, pull_request ]
+
+jobs:
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@1.74.0
+      with:
+        components: clippy
+    - run: cargo clippy --tests --no-deps --all-features -- --deny clippy::all
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@1.74.0
+      with:
+        components: rustfmt
+    - run: cargo fmt --all --check
+
+  udeps:
+    name: Unused dependencies
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install nightly toolchain
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Run cargo-udeps
+      uses: aig787/cargo-udeps-action@v1
+      with:
+        version: v0.1.45
+        args: '--all-targets'

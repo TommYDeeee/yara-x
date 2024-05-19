@@ -1,0 +1,112 @@
+is_pe: true
+machine: MACHINE_I386
+subsystem: SUBSYSTEM_NATIVE
+os_version:
+    major: 6
+    minor: 1
+subsystem_version:
+    major: 5
+    minor: 1
+image_version:
+    major: 6
+    minor: 1
+linker_version:
+    major: 9
+    minor: 0
+opthdr_magic: IMAGE_NT_OPTIONAL_HDR32_MAGIC
+characteristics: 258
+dll_characteristics: 1024
+timestamp: 1301987779 # 2011-04-05 07:16:19 UTC
+image_base: 65536
+checksum: 60403
+base_of_code: 1152
+base_of_data: 6400
+entry_point_raw: 6846
+section_alignment: 128
+file_alignment: 128
+loader_flags: 0
+size_of_optional_header: 224
+size_of_code: 5888
+size_of_initialized_data: 1664
+size_of_uninitialized_data: 0
+size_of_image: 8704
+size_of_headers: 1152
+size_of_stack_reserve: 262144
+size_of_stack_commit: 4096
+size_of_heap_reserve: 1048576
+size_of_heap_commit: 4096
+pointer_to_symbol_table: 0
+win32_version_value: 0
+number_of_symbols: 0
+number_of_rva_and_sizes: 16
+number_of_sections: 0
+number_of_imported_functions: 0
+number_of_delayed_imported_functions: 0
+number_of_resources: 0
+number_of_version_infos: 0
+number_of_imports: 0
+number_of_delayed_imports: 0
+number_of_exports: 0
+number_of_signatures: 0
+rich_signature:
+    offset: 512
+    length: 64
+    key: 2669511953
+    raw_data: "U\xe4s\xcc\x11\x85\x1d\x9f\x11\x85\x1d\x9f\x11\x85\x1d\x9f\x11\x85\x1c\x9f\x00\x85\x1d\x9f\xd2\x8a@\x9f\x12\x85\x1d\x9f\x18\xfd\x88\x9f\x10\x85\x1d\x9f\x18\xfd\x9e\x9f\x14\x85\x1d\x9f\x18\xfd\x89\x9f\x10\x85\x1d\x9f\x18\xfd\x8c\x9f\x10\x85\x1d\x9f"
+    clear_data: "DanS\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x11\x00\x00\x00\xc3\x0f]\x00\x03\x00\x00\x00\tx\x95\x00\x01\x00\x00\x00\tx\x83\x00\x05\x00\x00\x00\tx\x94\x00\x01\x00\x00\x00\tx\x91\x00\x01\x00\x00\x00"
+    tools:
+      - toolid: 1
+        version: 0
+        times: 17
+      - toolid: 93
+        version: 4035
+        times: 3
+      - toolid: 149
+        version: 30729
+        times: 1
+      - toolid: 131
+        version: 30729
+        times: 5
+      - toolid: 148
+        version: 30729
+        times: 1
+      - toolid: 145
+        version: 30729
+        times: 1
+data_directories:
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 6864
+    size: 40
+  - virtual_address: 7424
+    size: 952
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 8704
+    size: 4520
+  - virtual_address: 8448
+    size: 152
+  - virtual_address: 6480
+    size: 28
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 6400
+    size: 72
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+  - virtual_address: 0
+    size: 0
+is_signed: false
+overlay:
+    offset: 0
+    size: 0
