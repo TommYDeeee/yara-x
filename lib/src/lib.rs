@@ -49,10 +49,13 @@ pub use compiler::Compiler;
 pub use compiler::Error;
 pub use compiler::Rules;
 pub use compiler::SerializationError;
+pub use compiler::Warning;
 
 pub use scanner::Match;
 pub use scanner::Matches;
 pub use scanner::MatchingRules;
+pub use scanner::MetaValue;
+pub use scanner::Metadata;
 pub use scanner::ModuleOutputs;
 pub use scanner::NonMatchingRules;
 pub use scanner::Pattern;

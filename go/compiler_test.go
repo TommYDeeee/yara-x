@@ -39,6 +39,14 @@ func TestRelaxedReSyntax(t *testing.T) {
 	assert.Len(t, matchingRules, 1)
 }
 
+
+func TestErrorOnSlowPattern(t *testing.T) {
+	_, err := Compile(`
+		rule test { strings: $a = /a.*/ condition: $a }`,
+		ErrorOnSlowPattern(true))
+	assert.Error(t, err)
+}
+
 func TestSerialization(t *testing.T) {
 	r, err := Compile("rule test { condition: true }")
 	assert.NoError(t, err)
@@ -99,7 +107,7 @@ func TestVariables(t *testing.T) {
 
 func TestError(t *testing.T) {
 	_, err := Compile("rule test { condition: foo }")
-	assert.EqualError(t, err, `error: unknown identifier `+"`foo`"+`
+	assert.EqualError(t, err, `error[E107]: unknown identifier `+"`foo`"+`
  --> line:1:24
   |
 1 | rule test { condition: foo }

@@ -58,6 +58,7 @@ fn main() -> anyhow::Result<()> {
     let result = match args.subcommand() {
         Some(("debug", args)) => commands::exec_debug(args),
         Some(("check", args)) => commands::exec_check(args),
+        Some(("fix", args)) => commands::exec_fix(args),
         Some(("fmt", args)) => commands::exec_fmt(args),
         Some(("scan", args)) => commands::exec_scan(args),
         Some(("dump", args)) => commands::exec_dump(args),
@@ -73,26 +74,30 @@ fn main() -> anyhow::Result<()> {
         println!("profiling information written to flamegraph.svg");
     };
 
-    // Errors produced by the compiler already have colors and start with
-    // "error:", in such cases the error is printed as is. In all other
-    // cases imitate the style of compiler errors, so that they all look
-    // in the same way.
     if let Err(err) = result {
-        if err.is::<yara_x::Error>() {
-            eprintln!("{}", err);
-        } else {
-            if let Some(source) = err.source() {
-                eprintln!(
-                    "{} {}: {}",
-                    "error: ".paint(Red).bold(),
-                    err,
-                    source
-                );
-            } else {
-                eprintln!("{} {}", "error: ".paint(Red).bold(), err);
+        match err.downcast_ref::<yara_x::Error>() {
+            // Errors produced by the compiler already have colors and start
+            // with "error:", in such cases the error is printed as is.
+            Some(yara_x::Error::ParseError(_))
+            | Some(yara_x::Error::CompileError(_)) => {
+                eprintln!("{}", err);
             }
-            std::process::exit(1);
+            // In all other cases imitate the style of compiler errors, so that
+            // they all look in the same way.
+            _ => {
+                if let Some(source) = err.source() {
+                    eprintln!(
+                        "{} {}: {}",
+                        "error:".paint(Red).bold(),
+                        err,
+                        source
+                    );
+                } else {
+                    eprintln!("{} {}", "error:".paint(Red).bold(), err);
+                }
+            }
         }
+        process::exit(1);
     }
 
     Ok(())

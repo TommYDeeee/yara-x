@@ -1,9 +1,10 @@
 use pretty_assertions::assert_eq;
 use protobuf::MessageDyn;
 use protobuf::{Message, MessageFull};
+use serde_json::json;
 
 use crate::mods;
-use crate::scanner::Scanner;
+use crate::scanner::{MetaValue, Scanner};
 use crate::variables::VariableError;
 
 #[test]
@@ -51,7 +52,7 @@ fn matches() {
                 $c = "baz"
             condition:
                 any of them
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -60,8 +61,8 @@ fn matches() {
     let mut scanner = Scanner::new(&rules);
     let results = scanner.scan(b"foobar").expect("scan should not fail");
 
-    for matching_rules in results.matching_rules() {
-        for pattern in matching_rules.patterns() {
+    for matching_rule in results.matching_rules() {
+        for pattern in matching_rule.patterns() {
             matches.extend(
                 pattern
                     .matches()
@@ -77,6 +78,58 @@ fn matches() {
 }
 
 #[test]
+fn metadata() {
+    let rules = crate::compile(
+        r#"
+        rule test {
+            meta:
+                foo = 1
+                bar = 2.0
+                baz = true
+                qux = "qux"
+                quux = "qu\x00x"
+            condition:
+                true
+        }
+        "#,
+    )
+    .unwrap();
+
+    let mut metas = vec![];
+    let mut scanner = Scanner::new(&rules);
+    let results = scanner.scan(b"").expect("scan should not fail");
+    let matching_rule = results.matching_rules().next().unwrap();
+
+    for meta in matching_rule.metadata() {
+        metas.push(meta)
+    }
+
+    assert_eq!(
+        metas,
+        [
+            ("foo", MetaValue::Integer(1)),
+            ("bar", MetaValue::Float(2.0)),
+            ("baz", MetaValue::Bool(true)),
+            ("qux", MetaValue::String("qux")),
+            ("quux", MetaValue::Bytes(b"qu\0x".into())),
+        ]
+    );
+
+    let meta_json = matching_rule.metadata().into_json();
+
+    assert_eq!(
+        meta_json,
+        json!([
+            ("foo", 1),
+            ("bar", 2.0),
+            ("baz", true),
+            ("qux", "qux"),
+            ("quux", [113, 117, 0, 120])
+        ])
+    )
+}
+
+#[test]
 fn xor_matches() {
     let rules = crate::compile(
         r#"
@@ -85,19 +138,19 @@ fn xor_matches() {
                 $a = "mississippi" xor
             condition:
                 $a
-        } 
+        }
         "#,
     )
     .unwrap();
 
     let mut matches = vec![];
 
-    for matching_rules in Scanner::new(&rules)
+    for matching_rule in Scanner::new(&rules)
         .scan(b"lhrrhrrhqqh")
         .expect("scan should not fail")
         .matching_rules()
     {
-        for pattern in matching_rules.patterns() {
+        for pattern in matching_rule.patterns() {
             matches.extend(
                 pattern
                     .matches()
@@ -119,7 +172,7 @@ fn reuse_scanner() {
         rule test {
             condition:
                 test_proto2.file_size == 3
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -161,7 +214,7 @@ fn module_output() {
         rule test {
             condition:
                 test_proto2.file_size == 3
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -188,7 +241,7 @@ fn module_outputs() {
         rule test {
             condition:
                 test_proto2.file_size == 3
-        } 
+        }
         "#,
     )
     .unwrap();
@@ -223,7 +276,7 @@ fn variables_1() {
         rule test {
             condition:
             bool_var
-        } 
+        }
         "#,
         )
         .unwrap();
@@ -293,7 +346,7 @@ fn variables_2() {
             condition:
                 some_bool and
                 some_str == "foo"
-        } 
+        }
         "#,
         )
         .unwrap();
@@ -348,10 +401,15 @@ fn global_rules() {
     compiler
         .add_source(
             r#"
+        // This rule is always true.
+        private rule const_true {
+            condition:
+                true
+        }
         // This global rule doesn't affect the results because it's true.
         global rule global_true {
             condition:
-                true
+                const_true
         }
         // Even if the condition is true, this rule doesn't match because of
         // the false global rule that follows.
@@ -371,7 +429,7 @@ fn global_rules() {
         .new_namespace("matching")
         .add_source(
             r#"
-            // This rule matches because it is in separate namespace not 
+            // This rule matches because it is in separate namespace not
             // which is not affected by the global rule.
             rule matching {
                 condition:
@@ -563,4 +621,28 @@ fn set_module_output() {
         .unwrap();
     let scan_results = scanner.scan(b"").expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 1);
+}
+
+#[test]
+fn namespaces() {
+    let mut compiler = crate::Compiler::new();
+
+    compiler
+        .new_namespace("foo")
+        .add_source(r#"rule foo {strings: $foo = "foo" condition: $foo }"#)
+        .unwrap()
+        .new_namespace("bar")
+        .add_source(r#"rule bar {strings: $bar = "bar" condition: $bar }"#)
+        .unwrap();
+
+    let rules = compiler.build();
+    let mut scanner = Scanner::new(&rules);
+    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+    let matching_rules: Vec<_> = scan_results.matching_rules().collect();
+
+    assert_eq!(matching_rules.len(), 2);
+    assert_eq!(matching_rules[0].identifier(), "foo");
+    assert_eq!(matching_rules[0].namespace(), "foo");
+    assert_eq!(matching_rules[1].identifier(), "bar");
+    assert_eq!(matching_rules[1].namespace(), "bar");
 }

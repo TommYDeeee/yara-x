@@ -965,8 +965,10 @@ impl<'a> PE<'a> {
                     .get((name_or_id & 0x7FFFFFFF) as usize..)
                     .and_then(|string| {
                         length_data(map(
-                            le_u16::<&[u8], Error>,
-                            //  length from characters to bytes
+                            // any string with more than 1000 characters
+                            // (2000 bytes) is ignored.
+                            verify(le_u16::<&[u8], Error>, |len| *len < 1000),
+                            // length from characters to bytes.
                             |len| len.saturating_mul(2),
                         ))(string)
                         .map(|(_, s)| s)
@@ -1777,7 +1779,9 @@ impl<'a> PE<'a> {
         let mut import_descriptors = iterator(
             input,
             verify(descriptor_parser, |d| {
-                d.import_address_table != 0 || d.import_name_table != 0
+                d.name != 0
+                    && (d.import_address_table != 0
+                        || d.import_name_table != 0)
             }),
         );
 
@@ -2189,7 +2193,7 @@ impl<'a> PE<'a> {
 impl From<PE<'_>> for protos::pe::PE {
     fn from(pe: PE) -> Self {
         let mut result = protos::pe::PE::new();
-        
+
         result.set_is_pe(true);
         result.machine = Some(EnumOrUnknown::<protos::pe::Machine>::from_i32(pe
             .pe_hdr
@@ -2202,15 +2206,15 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_pointer_to_symbol_table(pe.pe_hdr.symbol_table_offset);
         result.set_number_of_symbols(pe.pe_hdr.number_of_symbols);
         result.set_size_of_optional_header(pe.pe_hdr.size_of_optional_header.into());
-        
+
         result.opthdr_magic = Some(EnumOrUnknown::<protos::pe::OptHdrMagic>::from_i32(pe
             .optional_hdr
             .magic.into()));
-        
+
         result.subsystem = Some(EnumOrUnknown::<protos::pe::Subsystem>::from_i32(pe
             .optional_hdr
             .subsystem.into()));
-        
+
         result.set_size_of_code(pe.optional_hdr.size_of_code);
         result.set_base_of_code(pe.optional_hdr.base_of_code);
         result.base_of_data = pe.optional_hdr.base_of_data;
@@ -2233,7 +2237,7 @@ impl From<PE<'_>> for protos::pe::PE {
         result.set_size_of_headers(pe.optional_hdr.size_of_headers);
         result.set_size_of_initialized_data(pe.optional_hdr.size_of_initialized_data);
         result.set_size_of_uninitialized_data(pe.optional_hdr.size_of_uninitialized_data);
-        
+
         result.linker_version = MessageField::some(protos::pe::Version {
             major: Some(pe.optional_hdr.major_linker_version.into()),
             minor: Some(pe.optional_hdr.minor_linker_version.into()),
@@ -2257,7 +2261,7 @@ impl From<PE<'_>> for protos::pe::PE {
             minor: Some(pe.optional_hdr.minor_subsystem_version.into()),
             ..Default::default()
         });
-        
+
         result
             .data_directories
             .extend(pe.get_dir_entries().iter().map(protos::pe::DirEntry::from));
@@ -2269,17 +2273,17 @@ impl From<PE<'_>> for protos::pe::PE {
         result
             .resources
             .extend(pe.get_resources().iter().map(protos::pe::Resource::from));
-        
+
         result
             .signatures
             .extend(pe.get_signatures().iter().map(protos::pe::Signature::from));
-        
+
         result.set_is_signed(
             result.signatures.iter().any(|signature| signature.verified.is_some_and(|v| v)));
-        
+
         let mut num_imported_funcs = 0;
         let mut num_delayed_imported_funcs = 0;
-        
+
         if let Some(imports) = pe.get_imports() {
             for (dll_name, functions) in imports {
                 let mut import = protos::pe::Import::new();
@@ -2290,7 +2294,7 @@ impl From<PE<'_>> for protos::pe::PE {
                 result.import_details.push(import);
             }
         }
-        
+
         if let Some(delayed_imports) = pe.get_delayed_imports() {
             for (dll_name, functions) in delayed_imports {
                 let mut import = protos::pe::Import::new();
@@ -2304,13 +2308,13 @@ impl From<PE<'_>> for protos::pe::PE {
 
         result.set_number_of_imported_functions(num_imported_funcs as u64);
         result.set_number_of_delayed_imported_functions(num_delayed_imported_funcs as u64);
-        
+
         if let Some(exports) = pe.get_exports() {
             result.dll_name = exports.dll_name.map(|name| name.to_owned());
             result.export_timestamp = Some(exports.timestamp);
             result.export_details.extend(exports.functions.iter().map(protos::pe::Export::from));
         }
-        
+
         for (key, value) in pe.get_version_info() {
             let mut kv = protos::pe::KeyValue::new();
             kv.key = Some(key.to_owned());
@@ -2318,7 +2322,7 @@ impl From<PE<'_>> for protos::pe::PE {
             result.version_info_list.push(kv);
             result.version_info.insert(key.to_owned(), value.to_owned());
         }
-        
+
         if let Some(rich_header) = pe.get_rich_header() {
             result.rich_signature = MessageField::some(protos::pe::RichSignature {
                 offset: Some(rich_header.offset.try_into().unwrap()),
@@ -2342,7 +2346,7 @@ impl From<PE<'_>> for protos::pe::PE {
                 ..Default::default()
             });
         }
-        
+
         if let Some(res) = pe.get_resource_dir() {
             result.resource_timestamp = Some(res.timestamp as u64);
             result.resource_version = MessageField::some(protos::pe::Version {
@@ -2351,11 +2355,11 @@ impl From<PE<'_>> for protos::pe::PE {
                 ..Default::default()
             });
         };
-        
-            
+
+
         result.set_number_of_resources(
             result.resources.len().try_into().unwrap());
-        
+
         result.set_number_of_sections(
             result.sections.len().try_into().unwrap());
 
@@ -2373,7 +2377,7 @@ impl From<PE<'_>> for protos::pe::PE {
 
         result.set_number_of_signatures(
             result.signatures.len().try_into().unwrap());
-        
+
         // The overlay offset is the offset where the last section ends. The
         // last section is not the last one in the section table, but the one
         // with the highest raw_data_offset + raw_data_size.

@@ -91,6 +91,35 @@ Examples:
 
 Disables the output produced by the [console]({{< ref "console.md" >}}) module.
 
+### --disable-warnings, -w
+
+Disables all warnings when used alone, or disable specific warnings when
+followed by comma-separated list of warnings identifiers.
+
+Disable all warnings:
+
+```
+--disable-warnings
+```
+
+Disable warning `slow_patterns`:
+
+```
+--disable-warnings=slow_patterns
+```
+
+Disable warnings `slow_patterns` and `redundant_modifier`:
+
+```
+--disable-warnings=slow_patterns,redundant_modifier
+```
+
+Equivalent to the previous one, but using `--disable-warnings` multiple times:
+
+```
+--disable-warnings=slow_patterns --disable-warnings=redundant_modifier
+```
+
 ### --negate, -n
 
 Prints the rules that doesn't match instead of those that match.
@@ -127,6 +156,13 @@ they form the repetition operator `{0,1}`).
 This setting controls whether the compiler should mimic YARA's behavior,
 allowing constructs that YARA-X doesn't accept by default.
 
+### --scan-list
+
+Indicate that `<TARGET_PATH>` is a file containing the paths to be scanned.
+
+`<TARGET_PATH>` must be a text file containing one path per line. The paths
+must be either absolute paths, or relative to the current directory.
+
 ### --skip-larger <FILE_SIZE>
 
 Skips files larger than the given size in bytes.
@@ -153,24 +189,29 @@ re-used for multiple scan operations.
 The syntax for this command is:
 
 ```
-yr compile [OPTIONS] <RULES_PATH>... <OUTPUT_PATH>
+yr compile [OPTIONS] <RULES_PATH>...
 ```
 
 Each `<RULES_PATH>` is the path of YARA source file or a directory containing
 source files. When`<RULES_PATH>` is a directory YARA-X iterates the directory
 recursively looking for any `*.yar` or `*.yara` files.
 
-The `<OUTPUT_PATH>` is the path of the output binary file. The supported
-options are:
+### --disable-warnings
 
-### --relaxed-re-syntax
+See [--disable-warnings](#--disable-warnings) for the scan command.
 
-See [--relaxed-re-syntax](#--relaxed-re-syntax) for the scan command.
+### --output, -o <OUTPUT_PATH>
+
+Specify the path for the output binary file containing the compiled rules. By
+default, is `output.yarc`.
 
 ### --path-as-namespace
 
 See [--path-as-namespace](#--path-as-namespace) for the scan command.
 
+### --relaxed-re-syntax
+
+See [--relaxed-re-syntax](#--relaxed-re-syntax) for the scan command.
 
 ------
 

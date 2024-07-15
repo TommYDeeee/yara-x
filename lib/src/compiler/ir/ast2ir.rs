@@ -9,7 +9,7 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 use yara_x_parser::ast::{HasSpan, Span};
 use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::{ast, ErrorInfo, Warning};
+use yara_x_parser::{ast, ErrorInfo};
 
 use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
@@ -17,6 +17,7 @@ use crate::compiler::ir::{
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
     PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
 };
+use crate::compiler::warnings::Warning;
 use crate::compiler::{CompileContext, CompileError};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
@@ -112,14 +113,14 @@ pub(in crate::compiler) fn text_pattern_from_ast<'src>(
 }
 
 pub(in crate::compiler) fn hex_pattern_from_ast<'src>(
-    _ctx: &mut CompileContext,
+    ctx: &mut CompileContext,
     pattern: &ast::HexPattern<'src>,
 ) -> Result<PatternInRule<'src>, Box<CompileError>> {
     Ok(PatternInRule {
         identifier: pattern.identifier.name,
         pattern: Pattern::Regexp(RegexpPattern {
             flags: PatternFlagSet::from(PatternFlags::Ascii),
-            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(pattern)),
+            hir: re::hir::Hir::from(hex_pattern_hir_from_ast(ctx, pattern)),
             anchored_at: None,
         }),
     })
@@ -385,34 +386,6 @@ pub(in crate::compiler) fn expr_from_ast(
             }
 
             let symbol = symbol.unwrap();
-
-            // Return error if a global rule depends on a non-global rule. This
-            // is an error because global rules are evaluated before non-global
-            // rules, even if the global rule appears after the non-global one
-            // in the source code. This means that by the time the global rule
-            // is being evaluated we can't know if the non-global rule matched
-            // or not.
-            // A global rule can depend on another global rule. And non-global
-            // rules can depend both on global rules and non-global ones.
-            if let SymbolKind::Rule(rule_id) = symbol.kind() {
-                let current_rule = ctx.get_current_rule();
-                let used_rule = ctx.get_rule(*rule_id);
-                if current_rule.is_global && !used_rule.is_global {
-                    return Err(Box::new(CompileError::wrong_rule_dependency(
-                            ctx.report_builder,
-                            ctx.ident_pool
-                                .get(current_rule.ident_id)
-                                .unwrap()
-                                .to_string(),
-                            ident.name.to_string(),
-                            current_rule.ident_span,
-                            used_rule.ident_span,
-                            ident.span,
-                        ),
-                    ));
-                }
-            }
-
             #[cfg(feature = "constant-folding")]
             {
                 let type_value = symbol.type_value();
@@ -733,7 +706,7 @@ fn of_expr_from_ast(
 
         if raise_warning {
             ctx.warnings.add(|| {
-                Warning::potentially_wrong_expression(
+                Warning::potentially_unsatisfiable_expression(
                     ctx.report_builder,
                     of.quantifier.span(),
                     of.anchor.as_ref().unwrap().span(),
