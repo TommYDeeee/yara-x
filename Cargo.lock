@@ -318,9 +318,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bitflags"
-version = "2.5.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
+checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
 name = "bitmask"
@@ -960,7 +960,7 @@ version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f476fe445d41c9e991fd07515a6f463074b782242ccf4a5b7b1d1012e70824df"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "crossterm_winapi",
  "libc",
  "mio",
@@ -1194,9 +1194,9 @@ dependencies = [
 
 [[package]]
 name = "displaydoc"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "487585f4d0c6655fe74905e2504d8ad6908e4db67f744eb140876906c2f3175d"
+checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1478,7 +1478,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27d12c0aed7f1e24276a241aadc4cb8ea9f83000f34bc062b7cc2d51e3b0fabd"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "debugid",
  "fxhash",
  "serde",
@@ -1560,7 +1560,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf760ebf69878d9fd8f110c89703d90ce35095324d1f1edcb595c63945ee757"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "ignore",
  "walkdir",
 ]
@@ -1925,11 +1925,11 @@ checksum = "bf36173d4167ed999940f804952e6b08197cae5ad5d572eb4db150ce8ad5d58f"
 
 [[package]]
 name = "lazy_static"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
- "spin 0.5.2",
+ "spin",
 ]
 
 [[package]]
@@ -1956,7 +1956,7 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c0ff37bd590ca25063e35af745c343cb7a0271906fb7b37e4813e8f79f00268d"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "libc",
 ]
 
@@ -2136,7 +2136,7 @@ version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a200ae03df8c3dce7a963f6eeaac8feb41bf9001cb7e5ab22e3205aec2f0373d"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "libc",
  "magic-sys",
  "thiserror",
@@ -2150,6 +2150,15 @@ checksum = "eff86ae08895140d628119d407d568f3b657145ee8c265878064f717534bb3bc"
 dependencies = [
  "libc",
  "vcpkg",
+]
+
+[[package]]
+name = "mail-parser"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5a1335c3a964788c90cb42ae04a34b5f2628e89566949ce3bd4ada695c0bcd"
+dependencies = [
+ "encoding_rs",
 ]
 
 [[package]]
@@ -2495,9 +2504,9 @@ dependencies = [
 
 [[package]]
 name = "ordered-float"
-version = "4.2.0"
+version = "4.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a76df7075c7d4d01fdcb46c912dd17fba5b60c78ea480b475f2b6ab6f666584e"
+checksum = "19ff2cf528c6c03d9ed653d6c4ce1dc0582dc4af309790ad92f07c1cd551b0be"
 dependencies = [
  "num-traits",
 ]
@@ -2608,9 +2617,9 @@ dependencies = [
 
 [[package]]
 name = "pest"
-version = "2.7.10"
+version = "2.7.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "560131c633294438da9f7c4b08189194b20946c8274c6b9e38881a7874dc8ee8"
+checksum = "cd53dff83f26735fdc1ca837098ccf133605d794cdae66acfc2bfac3ec809d95"
 dependencies = [
  "memchr",
  "thiserror",
@@ -2892,7 +2901,7 @@ version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57206b407293d2bcd3af849ce869d52068623f19e1b5ff8e8778e3309439682b"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "memchr",
  "unicase",
 ]
@@ -3050,7 +3059,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c82cf8cff14456045f55ec4241383baeff27af886adb72ffb2162f99911de0fd"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
 ]
 
 [[package]]
@@ -3130,9 +3139,9 @@ dependencies = [
 
 [[package]]
 name = "rgb"
-version = "0.8.37"
+version = "0.8.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05aaa8004b64fd573fc9d002f4e632d51ad4f026c2b5ba95fcb6c2f32c2c47d8"
+checksum = "a7439be6844e40133eda024efd85bf07f59d0dd2f59b10c00dd6cfb92cc5c741"
 dependencies = [
  "bytemuck",
 ]
@@ -3147,7 +3156,7 @@ dependencies = [
  "cfg-if",
  "getrandom",
  "libc",
- "spin 0.9.8",
+ "spin",
  "untrusted",
  "windows-sys 0.52.0",
 ]
@@ -3224,7 +3233,7 @@ version = "0.38.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70dc5ec042f7a43c4a73241207cecc9873a06d45debb38b329f8541d85c2730f"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "errno",
  "libc",
  "linux-raw-sys",
@@ -3500,12 +3509,6 @@ dependencies = [
 
 [[package]]
 name = "spin"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
-
-[[package]]
-name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
@@ -3600,9 +3603,9 @@ dependencies = [
 
 [[package]]
 name = "subtle"
-version = "2.5.0"
+version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
+checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superconsole"
@@ -3959,9 +3962,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.8.0"
+version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a183cf7feeba97b4dd1c0d46788634f6221d87fa961b305bed08c851829efcc0"
+checksum = "5de17fd2f7da591098415cff336e12965a28061ddace43b59cb3c430179c9439"
 dependencies = [
  "getrandom",
 ]
@@ -4104,6 +4107,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-encoder"
+version = "0.212.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "501940df4418b8929eb6d52f1aade1fdd15a5b86c92453cb696e3c906bd3fc33"
+dependencies = [
+ "leb128",
+]
+
+[[package]]
 name = "wasmparser"
 version = "0.80.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4115,7 +4127,7 @@ version = "0.201.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84e5df6dba6c0d7fafc63a450f1738451ed7a0b52295d83e868218fa286bf708"
 dependencies = [
- "bitflags 2.5.0",
+ "bitflags 2.6.0",
  "indexmap 2.2.6",
  "semver 1.0.23",
 ]
@@ -4428,22 +4440,22 @@ checksum = "c9a8c62e9df8322b2166d2a6f096fbec195ddb093748fd74170dcf25ef596769"
 
 [[package]]
 name = "wast"
-version = "201.0.0"
+version = "212.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ef6e1ef34d7da3e2b374fd2b1a9c0227aff6cad596e1b24df9b58d0f6222faa"
+checksum = "4606a05fb0aae5d11dd7d8280a640d88a63ee019360ba9be552da3d294b8d1f5"
 dependencies = [
  "bumpalo",
  "leb128",
  "memchr",
  "unicode-width",
- "wasm-encoder 0.201.0",
+ "wasm-encoder 0.212.0",
 ]
 
 [[package]]
 name = "wat"
-version = "1.201.0"
+version = "1.212.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "453d5b37a45b98dee4f4cb68015fc73634d7883bbef1c65e6e9c78d454cf3f32"
+checksum = "c74ca7f93f11a5d6eed8499f2a8daaad6e225cab0151bc25a091fff3b987532f"
 dependencies = [
  "wast",
 ]
@@ -4490,7 +4502,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfb128bacfa86734e07681fb6068e34c144698e84ee022d6e009145d1abb77b5"
 dependencies = [
  "log",
- "ordered-float 4.2.0",
+ "ordered-float 4.2.1",
  "strsim 0.10.0",
  "thiserror",
  "wezterm-dynamic-derive",
@@ -4886,6 +4898,7 @@ dependencies = [
  "linkme",
  "log",
  "magic",
+ "mail-parser",
  "md-5",
  "md2",
  "memchr",
@@ -4960,6 +4973,7 @@ dependencies = [
  "yara-x",
  "yara-x-fmt",
  "yara-x-parser",
+ "yara-x-parser-ng",
  "yara-x-proto-yaml",
 ]
 
@@ -4972,7 +4986,7 @@ dependencies = [
  "lazy_static",
  "pretty_assertions",
  "thiserror",
- "yara-x-parser",
+ "yara-x-parser-ng",
 ]
 
 [[package]]
@@ -5012,14 +5026,17 @@ dependencies = [
 name = "yara-x-parser-ng"
 version = "0.5.0"
 dependencies = [
+ "env_logger",
  "globwalk",
  "goldenfile",
  "indexmap 2.2.6",
  "itertools 0.13.0",
+ "log",
  "logos",
  "pretty_assertions",
  "rayon",
  "rowan",
+ "rustc-hash 2.0.0",
 ]
 
 [[package]]

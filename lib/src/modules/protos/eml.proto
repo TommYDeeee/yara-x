@@ -1,0 +1,64 @@
+syntax = "proto2";
+
+import "yara.proto";
+import "yaml.proto";
+
+package eml;
+
+option (yara.module_options) = {
+  name : "eml"
+  root_message: "eml.EML"
+  rust_module: "eml"
+  cargo_feature: "eml-module"
+};
+
+message EML {
+  required bool is_eml = 1;
+  map<string, Header> header_fields = 2;
+
+  optional string subject = 11;
+  repeated string comments = 12;
+  repeated string keywords = 13;
+
+  repeated Mailbox from = 20;
+  repeated Mailbox to = 21;
+  repeated Mailbox cc = 22;
+  repeated Mailbox bcc = 23;
+  repeated Mailbox reply_to = 24;
+  optional Mailbox sender = 25;
+
+  optional string message_id = 30;
+  repeated string in_reply_to = 31;
+  repeated string references = 32;
+
+  optional uint64 date = 40 [(yaml.field).fmt = "t"];;
+
+  repeated MessagePart parts = 100;
+}
+
+message Mailbox {
+  optional string address = 1;
+  optional string name = 2;
+}
+
+message Header {
+  optional string name = 1;
+  optional string value = 2;
+}
+
+message MessagePart {
+  required PartType type = 1;
+  repeated uint32 children = 2;
+  required uint64 offset_header = 3;
+  required uint64 offset_body = 4;
+  required uint64 offset_end = 5;
+  optional bytes decoded_data = 6;
+}
+
+enum PartType {
+  option (yara.enum_options).inline = true;
+  PART_MULTI = 0;
+  PART_TEXT = 1;
+  PART_BINARY = 2;
+  PART_NESTED_MSG = 3;
+}

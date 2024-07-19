@@ -157,6 +157,15 @@ pub mod mods {
     /// Data structure returned by the `elf` module.
     pub use super::protos::elf::ELF;
 
+    /// Data structures defined by the `eml` module.
+    ///
+    /// The main structure produced by the module is [`eml::EML`]. The rest of
+    /// them are used by one or more fields in the main structure.
+    ///
+    pub use super::protos::eml;
+    /// Data structure returned by the `eml` module.
+    pub use super::protos::eml::EML;
+
     /// Data structures defined by the `lnk` module.
     ///     
     /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
@@ -254,6 +263,7 @@ pub mod mods {
         info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
         info.macho = protobuf::MessageField(invoke::<Macho>(data));
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info.eml = protobuf::MessageField(invoke::<EML>(data));
         info
     }
 }

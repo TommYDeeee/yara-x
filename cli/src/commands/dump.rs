@@ -22,6 +22,7 @@ enum SupportedModules {
     Elf,
     Pe,
     Dotnet,
+    Eml,
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -107,6 +108,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         if !requested_modules.contains(&&SupportedModules::Elf) {
             module_output.elf = MessageField::none()
         }
+        if !requested_modules.contains(&&SupportedModules::Eml) {
+            module_output.eml = MessageField::none()
+        }
         if !requested_modules.contains(&&SupportedModules::Lnk) {
             module_output.lnk = MessageField::none()
         }
@@ -124,6 +128,9 @@ pub fn exec_dump(args: &ArgMatches) -> anyhow::Result<()> {
         }
         if !module_output.elf.has_type() {
             module_output.elf = MessageField::none()
+        }
+        if !module_output.eml.is_eml() {
+            module_output.eml = MessageField::none()
         }
         if !module_output.lnk.is_lnk() {
             module_output.lnk = MessageField::none()
