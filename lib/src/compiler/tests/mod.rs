@@ -3,7 +3,6 @@ use serde_json::json;
 use std::fs;
 use std::io::Write;
 use std::mem::size_of;
-use yara_x_parser::Parser;
 
 use crate::compiler::{
     SerializationError, SubPattern, Var, VarStack, VariableError,
@@ -542,8 +541,19 @@ fn unsupported_modules() {
         .add_source(
             r#"
             import "foo_module"
-            rule ignored { condition: foo_module.some_field == 1 }
-            // This rule should match even if the previous one was ignored.
+
+            // This rule is ignored because it uses an ignored module.
+            rule ignored_1 { condition: foo_module.some_field == 1 }
+
+            // This rule is ignored because it depends on a rule that directly
+            // depends on an ignored moduled.
+            rule ignored_2 { condition: ignored_1 }
+
+            // This rule is ignored because it depends on a rule that indirectly
+            // depends on an ignored module.
+            rule ignored_3 { condition: ignored_2 }
+
+            // This rule should match even if the previous ones were ignored.
             rule always_true { condition: true }
             "#,
         )
@@ -643,7 +653,7 @@ fn errors_2() {
             .add_source("rule foo  {condition: true}")
             .unwrap_err()
             .to_string(),
-        "error[E111]: rule `foo` conflicts with an existing identifier
+        "error[E013]: rule `foo` conflicts with an existing identifier
  --> line:1:6
   |
 1 | rule foo  {condition: true}
@@ -658,7 +668,7 @@ fn errors_2() {
             .add_source("rule foo : second {condition: true}")
             .unwrap_err()
             .to_string(),
-        "error[E110]: duplicate rule `foo`
+        "error[E012]: duplicate rule `foo`
  --> line:1:6
   |
 1 | rule foo : first {condition: true}
@@ -682,7 +692,7 @@ condition:
             )
             .unwrap_err()
             .to_string(),
-        "error[E105]: number out of range
+        "error[E007]: number out of range
  --> line:3:4
   |
 3 |    9223372036854775807 + 1000000000 == 0
@@ -700,11 +710,11 @@ fn utf8_errors() {
     src.insert(4, 0xff);
 
     assert_eq!(
-        Parser::new()
-            .build_ast(src.as_slice())
+        Compiler::new()
+            .add_source(src.as_slice())
             .expect_err("expected error")
             .to_string(),
-        "error[E017]: invalid UTF-8
+        "error[E032]: invalid UTF-8
  --> line:1:5
   |
 1 | rule� test {condition: true}
@@ -724,6 +734,8 @@ fn test_errors() {
         // Path to the .in file.
         let in_path = entry.into_path();
 
+        println!("{:?}", in_path);
+
         // Path to the .out file.
         let out_path = in_path.with_extension("out");
 
@@ -731,11 +743,17 @@ fn test_errors() {
 
         let rules = fs::read_to_string(&in_path).expect("unable to read");
 
+        // If the `constant-folding` feature is not enabled ignore files
+        // starting with "// constant-folding required".
+        #[cfg(not(feature = "constant-folding"))]
+        if rules.starts_with("// constant-folding required") {
+            continue;
+        }
+
         src.push_str(rules.as_str());
 
         let err = compile(src.as_str()).expect_err(
-            format!("file {:?} should have failed with error", in_path)
-                .as_str(),
+            format!("file {:?} should have failed", in_path).as_str(),
         );
 
         let mut output_file = mint.new_goldenfile(out_path).unwrap();

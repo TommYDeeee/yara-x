@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 
 use thiserror::Error;
+
 use yara_x_macros::Error as DeriveError;
 
-use yara_x_parser::ast::Span;
-use yara_x_parser::report::Level;
-use yara_x_parser::report::ReportBuilder;
+use crate::compiler::report::Level;
+use crate::compiler::report::{ReportBuilder, SourceRef};
 
 /// A warning raised while compiling YARA rules.
 #[rustfmt::skip]
@@ -14,97 +14,104 @@ use yara_x_parser::report::ReportBuilder;
 #[derive(DeriveError)]
 pub enum Warning {
     #[warning("consecutive_jumps", "consecutive jumps in hex pattern `{pattern_ident}`")]
-    #[label("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]
+    #[label_warn("these consecutive jumps will be treated as {coalesced_jump}", jumps_span)]
     ConsecutiveJumps {
         detailed_report: String,
         pattern_ident: String,
         coalesced_jump: String,
-        jumps_span: Span,
+        jumps_span: SourceRef ,
     },
-    
+
     #[warning("unsatisfiable_expr", "potentially unsatisfiable expression")]
-    #[label("this implies that multiple patterns must match", quantifier_span)]
-    #[label("but they must match at the same offset", at_span)]
+    #[label_warn("this implies that multiple patterns must match", quantifier_span)]
+    #[label_warn("but they must match at the same offset", at_span)]
     PotentiallyUnsatisfiableExpression {
         detailed_report: String,
-        quantifier_span: Span,
-        at_span: Span,
+        quantifier_span: SourceRef,
+        at_span: SourceRef,
     },
 
     #[warning("invariant_expr", "invariant boolean expression")]
-    #[label("this expression is always {value}", span)]
+    #[label_warn("this expression is always {value}", span)]
     #[note(note)]
     InvariantBooleanExpression {
         detailed_report: String,
         value: bool,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
     #[warning("non_bool_expr", "non-boolean expression used as boolean")]
-    #[label("this expression is `{expression_type}` but is being used as `bool`", span)]
+    #[label_warn("this expression is `{expression_type}` but is being used as `bool`", span)]
     #[note(note)]
     NonBooleanAsBoolean {
         detailed_report: String,
         expression_type: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
-    
+
+    #[warning("bool_int_comparison", "comparison between boolean and integer")]
+    #[label_warn("this comparison can be replaced with: `{replacement}`", span)]
+    BooleanIntegerComparison {
+        detailed_report: String,
+        span: SourceRef,
+        replacement: String,
+    },
+
     #[warning("duplicate_import", "duplicate import statement")]
-    #[label(
+    #[label_warn(
       "duplicate import",
       new_import_span
     )]
-    #[label(
+    #[label_note(
       "`{module_name}` imported here for the first time",
-      existing_import_span,
-      style="note"
+      existing_import_span
     )]
     DuplicateImport {
         detailed_report: String,
         module_name: String,
-        new_import_span: Span,
-        existing_import_span: Span,
+        new_import_span: SourceRef,
+        existing_import_span: SourceRef,
     },
 
     #[warning("redundant_modifier", "redundant case-insensitive modifier")]
-    #[label("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
-    #[label("the `nocase` modifier does the same", nocase_span)]
+    #[label_warn("the `i` suffix indicates that the pattern is case-insensitive", i_span)]
+    #[label_warn("the `nocase` modifier does the same", nocase_span)]
     RedundantCaseModifier {
         detailed_report: String,
-        nocase_span: Span,
-        i_span: Span,
+        nocase_span: SourceRef,
+        i_span: SourceRef,
     },
 
     #[warning("slow_pattern", "slow pattern")]
-    #[label("this pattern may slow down the scan", span)]
+    #[label_warn("this pattern may slow down the scan", span)]
     SlowPattern {
         detailed_report: String,
-        span: Span,
+        span: SourceRef,
     },
 
     #[warning("unsupported_module", "module `{module_name}` is not supported")]
-    #[label("module `{module_name}` used here", span)]
+    #[label_warn("module `{module_name}` used here", span)]
     #[note(note)]
     IgnoredModule {
         detailed_report: String,
         module_name: String,
-        span: Span,
+        span: SourceRef,
         note: Option<String>,
     },
 
     #[warning(
-        "ignored_rule", 
+        "ignored_rule",
         "rule `{ignored_rule}` will be ignored due to an indirect dependency on module `{module_name}`"
     )]
-    #[label("this other rule depends on module `{module_name}`, which is unsupported", span)]
+    #[label_warn("this other rule depends on module `{module_name}`, which is unsupported", span)]
     IgnoredRule {
         detailed_report: String,
         ignored_rule: String,
         dependency: String,
         module_name: String,
-        span: Span,
+        span: SourceRef,
     },
 }
 
@@ -143,7 +150,7 @@ impl Warnings {
     }
 
     #[inline]
-    pub fn add(&mut self, f: impl Fn() -> Warning) {
+    pub fn add(&mut self, f: impl FnOnce() -> Warning) {
         if self.warnings.len() < self.max_warnings {
             let warning = f();
             if !self.disabled_warnings.contains(warning.code()) {

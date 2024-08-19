@@ -7,16 +7,18 @@ module implements the YARA compiler.
 use std::cell::RefCell;
 use std::collections::hash_map::Entry;
 use std::collections::HashSet;
+#[cfg(test)]
+use std::io::Write;
 use std::ops::RangeInclusive;
 use std::path::Path;
 use std::rc::Rc;
 #[cfg(feature = "logging")]
 use std::time::Instant;
-use std::{fmt, iter, u32};
+use std::{fmt, iter};
 
 use bincode::Options;
 use bitmask::bitmask;
-use bstr::ByteSlice;
+use bstr::{BStr, ByteSlice};
 use itertools::izip;
 #[cfg(feature = "logging")]
 use log::*;
@@ -26,12 +28,12 @@ use serde::{Deserialize, Serialize};
 use walrus::FunctionId;
 
 use yara_x_parser::ast;
-use yara_x_parser::ast::{HasSpan, Ident, Import, RuleFlag, Span};
-use yara_x_parser::report::ReportBuilder;
-use yara_x_parser::{Parser, SourceCode};
+use yara_x_parser::ast::{Ident, Import, RuleFlag, WithSpan};
+use yara_x_parser::{Parser, Span};
 
 use crate::compiler::base64::base64_patterns;
 use crate::compiler::emit::{emit_rule_condition, EmitContext};
+use crate::compiler::report::{ReportBuilder, SourceRef};
 use crate::compiler::{CompileContext, VarStack};
 use crate::modules::BUILTIN_MODULES;
 use crate::re;
@@ -64,12 +66,106 @@ mod context;
 mod emit;
 mod errors;
 mod ir;
+mod report;
 mod rules;
 mod warnings;
 
 pub mod base64;
 #[cfg(test)]
 mod tests;
+
+/// A structure that describes some YARA source code.
+///
+/// This structure contains a `&str` pointing to the code itself, and an
+/// optional `origin` that tells where the source code came from. The
+/// most common use for `origin` is indicating the path of the file from
+/// where the source code was obtained, but it can contain any arbitrary
+/// string. This string, if provided, will appear in error messages. For
+/// example, in this error message `origin` was set to `some_file.yar`:
+///
+/// ```text
+/// error: syntax error
+///  --> some_file.yar:4:17
+///   |
+/// 4 | ... more details
+/// ```
+///
+/// # Example
+///
+/// ```
+/// use yara_x::SourceCode;
+/// let src = SourceCode::from("rule test { condition: true }").with_origin("some_file.yar");
+/// ```
+///
+#[derive(Debug, Clone)]
+pub struct SourceCode<'src> {
+    /// A reference to the source code itself. This is a BStr because the
+    /// source code could contain non-UTF8 content.
+    pub(crate) raw: &'src BStr,
+    /// A reference to the source code after validating that it is valid
+    /// UTF-8.
+    pub(crate) valid: Option<&'src str>,
+    /// An optional string that tells which is the origin of the code. Usually
+    /// a file path.
+    pub(crate) origin: Option<String>,
+}
+
+impl<'src> SourceCode<'src> {
+    /// Sets a string that describes the origin of the source code.
+    ///
+    /// This is usually the path of the file that contained the source code,
+    /// but it can be an arbitrary string. The origin appears in error and
+    /// warning messages.
+    pub fn with_origin(self, origin: &str) -> Self {
+        Self {
+            raw: self.raw,
+            valid: self.valid,
+            origin: Some(origin.to_owned()),
+        }
+    }
+
+    /// Returns the source code as a `&str`.
+    ///
+    /// If the source code is not valid UTF-8 it will return an error.
+    fn as_str(&mut self) -> Result<&'src str, bstr::Utf8Error> {
+        match self.valid {
+            // We already know that source code is valid UTF-8, return it
+            // as is.
+            Some(s) => Ok(s),
+            // We don't know yet if the source code is valid UTF-8, some
+            // validation must be done. If validation fails an error is
+            // returned.
+            None => {
+                let src = self.raw.to_str()?;
+                self.valid = Some(src);
+                Ok(src)
+            }
+        }
+    }
+}
+
+impl<'src> From<&'src str> for SourceCode<'src> {
+    /// Creates a new [`SourceCode`] from a `&str`.
+    fn from(src: &'src str) -> Self {
+        // The input is a &str, therefore it's guaranteed to be valid UTF-8
+        // and the `valid` field can be initialized.
+        Self { raw: BStr::new(src), valid: Some(src), origin: None }
+    }
+}
+
+impl<'src> From<&'src [u8]> for SourceCode<'src> {
+    /// Creates a new [`SourceCode`] from a `&[u8]`.
+    ///
+    /// As `src` is not guaranteed to be a valid UTF-8 string, the parser will
+    /// verify it and return an error if invalid UTF-8 characters are found.
+    fn from(src: &'src [u8]) -> Self {
+        // The input is a &[u8], its content is not guaranteed to be valid
+        // UTF-8 so the `valid` field is set to `None`. The `validate_utf8`
+        // function will be called for validating the source code before
+        // being parsed.
+        Self { raw: BStr::new(src), valid: None, origin: None }
+    }
+}
 
 /// Compiles a YARA source code.
 ///
@@ -229,7 +325,7 @@ pub struct Compiler<'a> {
     atoms: Vec<SubPatternAtom>,
 
     /// A vector that contains the code for all regexp patterns (this includes
-    /// hex patterns which are just an special case of regexp). The code for
+    /// hex patterns which are just a special case of regexp). The code for
     /// each regexp is appended to the vector, during the compilation process
     /// and the atoms extracted from the regexp contain offsets within this
     /// vector. This vector contains both forward and backward code.
@@ -258,6 +354,11 @@ pub struct Compiler<'a> {
 
     /// Warnings generated while compiling the rules.
     warnings: Warnings,
+
+    /// Optional writer where the compiler writes the IR produced by each rule.
+    /// This is used for test cases and debugging.
+    #[cfg(test)]
+    ir_writer: Option<Box<dyn Write>>,
 }
 
 impl<'a> Compiler<'a> {
@@ -335,6 +436,8 @@ impl<'a> Compiler<'a> {
             lit_pool: BStringPool::new(),
             regexp_pool: StringPool::new(),
             patterns: FxHashMap::default(),
+            #[cfg(test)]
+            ir_writer: None,
         }
     }
 
@@ -347,12 +450,48 @@ impl<'a> Compiler<'a> {
     {
         // Convert `src` into an instance of `SourceCode` if it is something
         // else, like a &str.
-        let src = src.into();
+        let mut src = src.into();
 
-        // Parse the source code and build the Abstract Syntax Tree.
-        let ast = Parser::new()
-            .set_report_builder(&self.report_builder)
-            .build_ast(src)?;
+        // Register source code, even before validating that it is UTF-8. In
+        // case of UTF-8 encoding errors we want to report that error too,
+        // and we need the source code registered for creating the report.
+        self.report_builder.register_source(&src);
+
+        // Make sure that the source code is valid UTF-8, or return an error
+        // if otherwise.
+        let ast = match src.as_str() {
+            Ok(src) => {
+                // Parse the source code and build the Abstract Syntax Tree.
+                Parser::new(src.as_bytes()).into_ast()
+            }
+            Err(err) => {
+                let span_start = err.valid_up_to();
+                let span_end = if let Some(error_len) = err.error_len() {
+                    // `error_len` is the number of invalid UTF-8 bytes found
+                    // after `span_start`. Round the number up to the next 3
+                    // bytes boundary because invalid bytes are replaced with
+                    // the Unicode replacement characters that takes 3 bytes.
+                    // This way the span ends at a valid UTF-8 character
+                    // boundary.
+                    span_start + error_len.next_multiple_of(3)
+                } else {
+                    span_start
+                };
+                return Err(Error::CompileError(Box::new(
+                    CompileError::invalid_utf_8(
+                        &self.report_builder,
+                        Span(span_start as u32..span_end as u32).into(),
+                    ),
+                )));
+            }
+        };
+
+        if !ast.errors().is_empty() {
+            return Err(Error::CompileError(Box::new(CompileError::from(
+                &self.report_builder,
+                ast.into_errors().remove(0),
+            ))));
+        }
 
         let mut already_imported = FxHashMap::default();
 
@@ -362,14 +501,14 @@ impl<'a> Compiler<'a> {
         // symbol to the current namespace.
         for import in &ast.imports {
             if let Some(span) =
-                already_imported.insert(&import.module_name, import.span)
+                already_imported.insert(&import.module_name, import.span())
             {
                 self.warnings.add(|| {
                     Warning::duplicate_import(
                         &self.report_builder,
-                        import.module_name.clone(),
-                        import.span,
-                        span,
+                        import.module_name.to_string(),
+                        import.span().into(),
+                        span.into(),
                     )
                 })
             }
@@ -382,7 +521,7 @@ impl<'a> Compiler<'a> {
         // Iterate over the list of declared rules and verify that their
         // conditions are semantically valid. For each rule add a symbol
         // to the current namespace.
-        for rule in &ast.rules {
+        for rule in ast.rules() {
             self.c_rule(rule)?;
         }
 
@@ -672,7 +811,7 @@ impl<'a> Compiler<'a> {
         sub_pattern_id
     }
 
-    /// Check if another rule, module or variable has the given identifier and
+    /// Checks if another rule, module or variable has the given identifier and
     /// return an error in that case.
     fn check_for_existing_identifier(
         &self,
@@ -680,20 +819,45 @@ impl<'a> Compiler<'a> {
     ) -> Result<(), Box<CompileError>> {
         if let Some(symbol) = self.symbol_table.lookup(ident.name) {
             return match symbol.kind() {
+                // Found another rule with the same name.
                 SymbolKind::Rule(rule_id) => {
                     Err(Box::new(CompileError::duplicate_rule(
                         &self.report_builder,
                         ident.name.to_string(),
-                        ident.span,
-                        self.rules.get(rule_id.0 as usize).unwrap().ident_span,
+                        ident.span().into(),
+                        self.rules
+                            .get(rule_id.0 as usize)
+                            .unwrap()
+                            .ident_ref
+                            .clone(),
                     )))
                 }
+                // Found another symbol that is not a rule, but has the same
+                // name.
                 _ => Err(Box::new(CompileError::conflicting_rule_identifier(
                     &self.report_builder,
                     ident.name.to_string(),
-                    ident.span,
+                    ident.span().into(),
                 ))),
             };
+        }
+        Ok(())
+    }
+
+    /// Checks that tags are not duplicate.
+    fn check_for_duplicate_tags(
+        &self,
+        tags: &[Ident],
+    ) -> Result<(), Box<CompileError>> {
+        let mut s = HashSet::new();
+        for tag in tags {
+            if !s.insert(tag.name) {
+                return Err(Box::new(CompileError::duplicate_tag(
+                    &self.report_builder,
+                    tag.name.to_string(),
+                    tag.span().into(),
+                )));
+            }
         }
         Ok(())
     }
@@ -745,6 +909,16 @@ impl<'a> Compiler<'a> {
         self.atoms.truncate(snapshot.atoms_len);
         self.symbol_table.truncate(snapshot.symbol_table_len);
     }
+
+    /// Sets a writer where the compiler will write the Intermediate
+    /// Representation (IR) of compiled conditions.
+    ///
+    /// This is used for testing and debugging purposes.
+    #[cfg(test)]
+    fn set_ir_writer<W: Write + 'static>(&mut self, w: W) -> &mut Self {
+        self.ir_writer = Some(Box::new(w));
+        self
+    }
 }
 
 impl<'a> Compiler<'a> {
@@ -752,6 +926,18 @@ impl<'a> Compiler<'a> {
         // Check if another rule, module or variable has the same identifier
         // and return an error in that case.
         self.check_for_existing_identifier(&rule.identifier)?;
+
+        // Check that rule tags, if any, doesn't contain duplicates.
+        if let Some(tags) = &rule.tags {
+            self.check_for_duplicate_tags(tags.as_slice())?;
+        }
+
+        let tags: Vec<IdentId> = rule
+            .tags
+            .iter()
+            .flatten()
+            .map(|t| self.ident_pool.get_or_intern(t.name))
+            .collect();
 
         // Take snapshot of the current compiler state. In case of error
         // compiling the current rule this snapshot allows restoring the
@@ -802,7 +988,11 @@ impl<'a> Compiler<'a> {
             namespace_id: self.current_namespace.id,
             namespace_ident_id: self.current_namespace.ident_id,
             ident_id: self.ident_pool.get_or_intern(rule.identifier.name),
-            ident_span: rule.identifier.span,
+            ident_ref: SourceRef::new(
+                self.report_builder.current_source_id(),
+                rule.identifier.span(),
+            ),
+            tags,
             patterns: vec![],
             is_global: rule.flags.contains(RuleFlag::Global),
             is_private: rule.flags.contains(RuleFlag::Private),
@@ -819,6 +1009,7 @@ impl<'a> Compiler<'a> {
             current_rule_patterns: &mut rule_patterns,
             warnings: &mut self.warnings,
             vars: VarStack::new(),
+            for_of_depth: 0,
         };
 
         // Convert the patterns from AST to IR. This populates the
@@ -831,7 +1022,7 @@ impl<'a> Compiler<'a> {
 
         // Convert the rule condition's AST to the intermediate representation
         // (IR). Also updates the patterns with information about whether they
-        // are anchored or not.
+        // are used in the condition and if they are anchored or not.
         let condition = bool_expr_from_ast(&mut ctx, &rule.condition);
 
         drop(ctx);
@@ -843,7 +1034,9 @@ impl<'a> Compiler<'a> {
         let mut condition = match condition.map_err(|err| *err) {
             Ok(condition) => condition,
             Err(CompileError::UnknownIdentifier {
-                identifier, span, ..
+                identifier,
+                span: identifier_ref,
+                ..
             }) if self.ignored_modules.contains(&identifier)
                 || self.ignored_rules.contains_key(&identifier) =>
             {
@@ -855,17 +1048,21 @@ impl<'a> Compiler<'a> {
                         Warning::ignored_rule(
                             &self.report_builder,
                             rule.identifier.name.to_string(),
-                            identifier.clone(),
+                            identifier,
                             module_name.clone(),
-                            span,
+                            identifier_ref,
                         )
                     });
+                    self.ignored_rules.insert(
+                        rule.identifier.name.to_string(),
+                        module_name.clone(),
+                    );
                 } else {
                     self.warnings.add(|| {
                         Warning::ignored_module(
                             &self.report_builder,
                             identifier.clone(),
-                            span,
+                            identifier_ref,
                             Some(format!(
                                 "the whole rule `{}` will be ignored",
                                 rule.identifier.name
@@ -884,6 +1081,13 @@ impl<'a> Compiler<'a> {
             }
         };
 
+        #[cfg(test)]
+        if let Some(w) = &mut self.ir_writer {
+            write!(w, "{:?}", condition).unwrap_or_else(|_| {
+                panic!("error writing IR for rule `{}`", rule.identifier.name)
+            });
+        }
+
         // Check if the value of the condition is known at compile time and
         // raise a warning if that's the case. Rules with constant conditions
         // are not very useful in real life, except for testing.
@@ -894,7 +1098,7 @@ impl<'a> Compiler<'a> {
                 Warning::invariant_boolean_expression(
                     &self.report_builder,
                     value,
-                    rule.condition.span(),
+                    rule.condition.span().into(),
                     Some(format!(
                         "rule `{}` is always `{}`",
                         rule.identifier.name, value
@@ -927,6 +1131,16 @@ impl<'a> Compiler<'a> {
         let current_rule = self.rules.last_mut().unwrap();
 
         for pattern in &rule_patterns {
+            // Raise error is some pattern was not used, except if the pattern
+            // identifier starts with underscore.
+            if !pattern.in_use() && !pattern.identifier().starts_with("$_") {
+                return Err(Box::new(CompileError::unused_pattern(
+                    &self.report_builder,
+                    pattern.identifier().name.to_string(),
+                    pattern.identifier().span().into(),
+                )));
+            }
+
             // Check if this pattern has been declared before, in this rule or
             // in some other rule. In such cases the pattern ID is re-used, and
             // we don't need to process (i.e: extract atoms and add them to
@@ -949,7 +1163,7 @@ impl<'a> Compiler<'a> {
                 };
 
             current_rule.patterns.push((
-                self.ident_pool.get_or_intern(pattern.identifier()),
+                self.ident_pool.get_or_intern(pattern.identifier().name),
                 pattern_id,
             ));
 
@@ -999,7 +1213,6 @@ impl<'a> Compiler<'a> {
             wasm_exports: &self.wasm_exports,
             exception_handler_stack: Vec::new(),
             lookup_list: Vec::new(),
-            vars: VarStack::new(),
         };
 
         emit_rule_condition(
@@ -1009,15 +1222,11 @@ impl<'a> Compiler<'a> {
             &mut condition,
         );
 
-        // After emitting the whole condition, the stack of variables should
-        // be empty.
-        assert_eq!(ctx.vars.used, 0);
-
         Ok(())
     }
 
     fn c_import(&mut self, import: &Import) -> Result<(), Box<CompileError>> {
-        let module_name = import.module_name.as_str();
+        let module_name = import.module_name;
         let module = BUILTIN_MODULES.get(module_name);
 
         // Does a module with the given name actually exist? ...
@@ -1030,7 +1239,7 @@ impl<'a> Compiler<'a> {
                     Warning::ignored_module(
                         &self.report_builder,
                         module_name.to_string(),
-                        import.span(),
+                        import.span().into(),
                         None,
                     )
                 });
@@ -1041,7 +1250,7 @@ impl<'a> Compiler<'a> {
                 Err(Box::new(CompileError::unknown_module(
                     &self.report_builder,
                     module_name.to_string(),
-                    import.span(),
+                    import.span().into(),
                 )))
             };
         }
@@ -1502,7 +1711,8 @@ impl<'a> Compiler<'a> {
         } else {
             let mut flags = common_flags;
 
-            let (atoms, is_fast_regexp) = self.c_regexp(leading, span)?;
+            let (atoms, is_fast_regexp) =
+                self.c_regexp(leading, span.clone())?;
 
             if is_fast_regexp {
                 flags.set(SubPatternFlags::FastRegexp);
@@ -1567,7 +1777,8 @@ impl<'a> Compiler<'a> {
                     flags.set(SubPatternFlags::GreedyRegexp);
                 }
 
-                let (atoms, is_fast_regexp) = self.c_regexp(&p.hir, span)?;
+                let (atoms, is_fast_regexp) =
+                    self.c_regexp(&p.hir, span.clone())?;
 
                 if is_fast_regexp {
                     flags.set(SubPatternFlags::FastRegexp);
@@ -1632,7 +1843,7 @@ impl<'a> Compiler<'a> {
             re::Error::TooLarge => Box::new(CompileError::invalid_regexp(
                 &self.report_builder,
                 "regexp is too large".to_string(),
-                span,
+                (&span).into(),
                 None,
             )),
             _ => unreachable!(),
@@ -1642,7 +1853,7 @@ impl<'a> Compiler<'a> {
             return Err(Box::new(CompileError::invalid_regexp(
                 &self.report_builder,
                 "this regexp can match empty strings".to_string(),
-                span,
+                (&span).into(),
                 None,
             )));
         }
@@ -1659,11 +1870,12 @@ impl<'a> Compiler<'a> {
             if self.error_on_slow_pattern {
                 return Err(Box::new(CompileError::slow_pattern(
                     &self.report_builder,
-                    span,
+                    span.into(),
                 )));
             } else {
-                self.warnings
-                    .add(|| Warning::slow_pattern(&self.report_builder, span));
+                self.warnings.add(|| {
+                    Warning::slow_pattern(&self.report_builder, span.into())
+                });
             }
         }
 

@@ -53,7 +53,6 @@ solely matches the `0xAA` byte.
 
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
-use std::u8;
 
 use bitvec::order::Lsb0;
 use bitvec::slice::{BitSlice, IterOnes};
@@ -98,7 +97,7 @@ impl SplitId {
     }
 
     /// Add a given amount to the split id, returning [`None`] if the result
-    /// is exceeds the maximum allowed value, which depends on the number of
+    /// is exceeding the maximum allowed value, which depends on the number of
     /// bits indicated by [`SplitId::BITS`].
     #[inline]
     pub fn add(self, amount: u16) -> Option<Self> {
@@ -152,16 +151,16 @@ pub enum Instr<'a> {
     ClassRanges(ClassRanges<'a>),
 
     /// Creates a new thread that starts at the current instruction pointer
-    /// + offset while the current thread continues at the next instruction.
-    /// The name comes from the fact that this instruction splits the execution
-    /// flow in two.
+    /// plus an offset, while the current thread continues at the next
+    /// instruction. The name comes from the fact that this instruction splits
+    /// the execution flow in two.
     SplitA(SplitId, Offset),
 
     /// Similar to SplitA, but the current thread continues at instruction
-    /// pointer + offset while the new thread continues at the next instruction.
-    /// This difference is important because the newly created thread has lower
-    /// priority than the existing one, and priority affects the greediness of
-    /// the regular expression.
+    /// pointer plus an offset while the new thread continues at the next
+    /// instruction. This difference is important because the newly created
+    /// thread has lower priority than the existing one, and priority affects
+    /// the greediness of the regular expression.
     SplitB(SplitId, Offset),
 
     /// Continues executing the code at N different locations. The current
