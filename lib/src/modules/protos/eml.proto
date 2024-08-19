@@ -14,12 +14,19 @@ option (yara.module_options) = {
 
 message EML {
   required bool is_eml = 1;
-  map<string, Header> header_fields = 2;
+  optional uint64 date = 2 [(yaml.field).fmt = "t"];
+  repeated Header other = 3; // all other headers
+  optional uint64 other_count = 4;
 
+  // Informational headers
   optional string subject = 11;
   repeated string comments = 12;
   repeated string keywords = 13;
 
+  optional uint64 comments_count = 14;
+  optional uint64 keywords_count = 15;
+
+  // Mailbox headers
   repeated Mailbox from = 20;
   repeated Mailbox to = 21;
   repeated Mailbox cc = 22;
@@ -27,12 +34,31 @@ message EML {
   repeated Mailbox reply_to = 24;
   optional Mailbox sender = 25;
 
-  optional string message_id = 30;
-  repeated string in_reply_to = 31;
-  repeated string references = 32;
+  optional uint64 from_count = 26;
+  optional uint64 to_count = 27;
+  optional uint64 cc_count = 28;
+  optional uint64 bcc_count = 29;
+  optional uint64 reply_to_count = 30;
 
-  optional uint64 date = 40 [(yaml.field).fmt = "t"];;
+  // MessageID headers
+  optional string message_id = 31;
+  repeated string in_reply_to = 32;
+  repeated string references = 33;
 
+  optional uint64 in_reply_to_count = 34;
+  optional uint64 references_count = 35;
+
+  // Resent headers
+  repeated Resent resent = 40;
+  optional uint64 resent_count = 41;
+
+  // Trace headers
+  repeated Received received = 46;
+  optional uint64 received_count = 47;
+  repeated string return_path = 48;
+  optional uint64 return_path_count = 49;
+
+  // Message parts
   repeated MessagePart parts = 100;
 }
 
@@ -44,6 +70,38 @@ message Mailbox {
 message Header {
   optional string name = 1;
   optional string value = 2;
+}
+
+message Resent {
+  repeated Mailbox from = 1;
+  repeated Mailbox to = 2;
+  repeated Mailbox cc = 3;
+  repeated Mailbox bcc = 4;
+  repeated Mailbox reply_to = 5;
+  optional Mailbox sender = 6;
+  optional uint64 date = 7 [(yaml.field).fmt = "t"];
+  optional string msg_id = 8;
+
+  optional uint64 from_count = 11;
+  optional uint64 to_count = 12;
+  optional uint64 cc_count = 13;
+  optional uint64 bcc_count = 14;
+  optional uint64 reply_to_count = 15;
+}
+
+message Received {
+  optional string from = 1;
+  optional string from_ip = 2;
+  optional string from_iprev = 3;
+  optional string by = 4;
+  optional string for = 5;
+  optional string with = 6;
+  optional string tls_version = 7;
+  optional string tls_cipher = 8;
+  optional string id = 9;
+  optional string ident = 10;
+  optional string via = 11;
+  optional uint64 date = 12 [(yaml.field).fmt = "t"];
 }
 
 message MessagePart {
