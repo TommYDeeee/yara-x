@@ -70,9 +70,13 @@ received_count: 2
 return_path:
   - "any_return_path@domain.com"
 return_path_count: 1
-parts:
-  - type: PART_TEXT
-    offset_header: 0
-    offset_body: 1270
-    offset_end: 1292
-    decoded_data: "Testing basic headers."
+texts_count: 1
+htmls_count: 0
+attachments_count: 0
+texts:
+  - data: "Testing basic headers."
+    length: 22
+    headers_start: 0
+    body_start: 1270
+    body_end: 1292
+    headers_count: 0

@@ -1,0 +1,76 @@
+is_eml: true
+date: 1720099777  # 2024-07-04 13:29:37 UTC
+other_count: 0
+subject: "binary file test"
+comments_count: 0
+keywords_count: 0
+from:
+  - address: "michelle@subject.com"
+    name: "Michelle"
+to:
+  - address: "friend@friends.com"
+    name: "Secret Friend"
+from_count: 1
+to_count: 1
+cc_count: 0
+bcc_count: 0
+in_reply_to_count: 0
+references_count: 0
+resent_count: 0
+received_count: 0
+return_path_count: 0
+mime_version: "1.0"
+content_type:
+    type: "multipart"
+    subtype: "mixed"
+    attributes:
+        "boundary": "0000000000000b146b061c6a435e"
+texts_count: 1
+htmls_count: 1
+attachments_count: 1
+texts:
+  - data: "binary attachment with Hello World inside\r\n"
+    length: 43
+    headers_start: 381
+    body_start: 426
+    body_end: 469
+    content_type:
+        type: "text"
+        subtype: "plain"
+        attributes:
+            "charset": "UTF-8"
+    headers_count: 0
+htmls:
+  - data: "<div dir=\"ltr\"><div class=\"mail_default\" style=\"font-family:verdana,sans-serif;font-size:small\">binary attachment with Hello World inside</div></div>\r\n"
+    length: 151
+    headers_start: 503
+    body_start: 547
+    body_end: 698
+    content_type:
+        type: "text"
+        subtype: "html"
+        attributes:
+            "charset": "UTF-8"
+    headers_count: 0
+attachments:
+  - data: "Hello World"
+    length: 11
+    headers_start: 766
+    body_start: 975
+    body_end: 991
+    encoding: "base64"
+    content_type:
+        type: "application"
+        subtype: "octet-stream"
+        attributes:
+            "name": "sample.bin"
+    content_id: "f_ly76pfle0"
+    content_disposition:
+        type: "attachment"
+        attributes:
+            "filename": "sample.bin"
+    filename: "sample.bin"
+    headers:
+      - name: "X-Attachment-Id"
+        value: "f_ly76pfle0"
+    headers_count: 1

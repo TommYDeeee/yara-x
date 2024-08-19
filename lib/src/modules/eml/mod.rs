@@ -42,7 +42,8 @@ fn header(
     for header in proto.other.iter() {
         if let Some(header_name) = &header.name {
             if header_name == name.as_bstr(ctx) {
-                return header.value
+                return header
+                    .value
                     .as_ref()
                     .map(|value| RuntimeString::new(value.clone()));
             }
@@ -194,6 +195,23 @@ fn serialize_received_header(received: &Received) -> eml::Received {
         let timestamp = date.to_timestamp();
         if timestamp >= 0 {
             proto.set_date(timestamp as u64);
+        }
+    }
+
+    proto
+}
+
+// Serializes value of a Content-Type or Content-Disposition into protobuf message.
+fn serialize_content_type_header(ct: &ContentType) -> eml::ContentAttributes {
+    let mut proto: eml::ContentAttributes = Default::default();
+
+    proto.set_type(ct.c_type.to_string());
+    if let Some(subtype) = &ct.c_subtype {
+        proto.set_subtype(subtype.to_string());
+    }
+    if let Some(attributes) = ct.attributes() {
+        for (key, val) in attributes {
+            proto.attributes.insert(key.to_string(), val.to_string());
         }
     }
 
@@ -354,15 +372,17 @@ fn serialize_headers(message: &Message, eml_proto: &mut eml::EML) {
                 }
             }
 
-            // TO DO: MIME headers
-            // HeaderName::MimeVersion => todo!(),
-            // HeaderName::ContentDescription => todo!(),
-            // HeaderName::ContentId => todo!(),
-            // HeaderName::ContentLanguage => todo!(),
-            // HeaderName::ContentLocation => todo!(),
-            // HeaderName::ContentTransferEncoding => todo!(),
-            // HeaderName::ContentType => todo!(),
-            // HeaderName::ContentDisposition => todo!(),
+            HeaderName::MimeVersion => {
+                if let HeaderValue::Text(s) = &header.value {
+                    eml_proto.set_mime_version(s.to_string());
+                }
+            }
+            HeaderName::ContentType => {
+                if let HeaderValue::ContentType(ct) = &header.value {
+                    eml_proto.content_type =
+                        MessageField::some(serialize_content_type_header(ct));
+                }
+            }
 
             // Other headers
             _ => {
@@ -375,50 +395,104 @@ fn serialize_headers(message: &Message, eml_proto: &mut eml::EML) {
     }
 }
 
-fn serialize_message_parts(
-    part: &MessagePart,
-    into: &mut Vec<eml::MessagePart>,
-) {
-    let mut proto_part = eml::MessagePart::new();
+/// Looks up filename of the MailPart in the ContentDescription field, if not
+/// found there then in ContentType.
+fn find_filename_of_mailpart(part: &eml::MailPart) -> Option<String> {
+    let headers = [&part.content_disposition, &part.content_type];
+    headers
+        .iter()
+        .find_map(|header| {
+            header.as_ref().and_then(|h| {
+                h.attributes
+                    .get("filename")
+                    .or_else(|| h.attributes.get("name"))
+            })
+        })
+        .map(|s| s.to_string())
+}
 
-    proto_part.set_offset_header(part.offset_header as u64);
-    proto_part.set_offset_body(part.offset_body as u64);
-    proto_part.set_offset_end(part.offset_end as u64);
+fn serialize_mailpart(part: &MessagePart, message: &Message) -> eml::MailPart {
+    let mut proto: eml::MailPart = Default::default();
 
-    match &part.body {
-        PartType::Text(text) => {
-            proto_part.set_decoded_data(text.as_bytes().to_vec());
-            proto_part.set_type(eml::PartType::PART_TEXT);
-        }
-        PartType::Html(html) => {
-            proto_part.set_decoded_data(html.as_bytes().to_vec());
-            proto_part.set_type(eml::PartType::PART_TEXT);
-        }
-        PartType::Binary(data) => {
-            proto_part.set_decoded_data(data.to_vec());
-            proto_part.set_type(eml::PartType::PART_BINARY);
-        }
-        PartType::InlineBinary(data) => {
-            proto_part.set_decoded_data(data.to_vec());
-            proto_part.set_type(eml::PartType::PART_BINARY);
-        }
-        PartType::Multipart(multipart) => {
-            proto_part.set_type(eml::PartType::PART_MULTI);
-            for p in multipart.iter() {
-                proto_part.children.push(*p as u32);
+    proto.set_data(part.contents().to_vec());
+    proto.set_length(part.len() as u64);
+    proto.set_headers_start(part.offset_header as u64);
+    proto.set_body_start(part.offset_body as u64);
+    proto.set_body_end(part.offset_end as u64);
+
+    for header in part.headers() {
+        match header.name {
+            HeaderName::ContentType => {
+                if let HeaderValue::ContentType(ct) = &header.value {
+                    proto.content_type =
+                        MessageField::some(serialize_content_type_header(ct));
+                }
             }
-        }
-
-        // TO DO
-        PartType::Message(_) => (),
+            HeaderName::ContentDisposition => {
+                if let HeaderValue::ContentType(ct) = &header.value {
+                    proto.content_disposition =
+                        MessageField::some(serialize_content_type_header(ct));
+                }
+            }
+            HeaderName::ContentId => {
+                if let HeaderValue::Text(s) = &header.value {
+                    proto.set_content_id(s.to_string());
+                }
+            }
+            HeaderName::ContentDescription => {
+                if let HeaderValue::Text(s) = &header.value {
+                    proto.set_content_description(s.to_string());
+                }
+            }
+            HeaderName::ContentTransferEncoding => {
+                if let HeaderValue::Text(s) = &header.value {
+                    proto.set_encoding(s.to_string());
+                }
+            }
+            _ => {
+                proto.headers.push(serialize_header_into_proto_header(
+                    header,
+                    message.raw_message(),
+                ));
+            }
+        };
     }
 
-    into.push(proto_part);
+    match part.body {
+        PartType::Binary(_) | PartType::InlineBinary(_) => {
+            if let Some(filename) = find_filename_of_mailpart(&proto) {
+                proto.set_filename(filename);
+            }
+        }
+        _ => (),
+    };
+
+    proto
 }
 
 fn serialize_body(message: &Message, eml_proto: &mut eml::EML) {
-    for part in message.parts.iter() {
-        serialize_message_parts(part, &mut eml_proto.parts);
+    for (idx, part) in message.parts.iter().enumerate() {
+        let mut part_proto = serialize_mailpart(part, message);
+
+        // Root/First MessagePart inherits always all headers from the main
+        // struct Message. This can be problematic with messages containing
+        // only text or html part where both the top protobuf and the MailPart
+        // would contain the same headers.
+        // Other messages have usually as the root part PartType::Multipart,
+        // which is ignored.
+        if idx == 0 {
+            part_proto.headers.clear();
+        }
+
+        match &part.body {
+            PartType::Text(_) => eml_proto.texts.push(part_proto),
+            PartType::Html(_) => eml_proto.htmls.push(part_proto),
+            PartType::Binary(_) | PartType::InlineBinary(_) => {
+                eml_proto.attachments.push(part_proto)
+            }
+            PartType::Message(_) => (), // TO DO
+            PartType::Multipart(_) => (),
+        };
     }
 }
 
@@ -443,4 +517,18 @@ fn initialize_count_fields(eml_proto: &mut eml::EML) {
     }
     eml_proto.set_received_count(eml_proto.received.len() as u64);
     eml_proto.set_return_path_count(eml_proto.return_path.len() as u64);
+
+    eml_proto.set_texts_count(eml_proto.texts.len() as u64);
+    eml_proto.set_htmls_count(eml_proto.htmls.len() as u64);
+    eml_proto.set_attachments_count(eml_proto.attachments.len() as u64);
+    let mut mailpart_arrays = [
+        &mut eml_proto.texts,
+        &mut eml_proto.htmls,
+        &mut eml_proto.attachments,
+    ];
+    mailpart_arrays.iter_mut().for_each(|arr| {
+        arr.iter_mut().for_each(|part| {
+            part.set_headers_count(part.headers.len() as u64);
+        });
+    });
 }

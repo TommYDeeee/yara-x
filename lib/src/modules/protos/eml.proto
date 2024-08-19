@@ -58,8 +58,17 @@ message EML {
   repeated string return_path = 48;
   optional uint64 return_path_count = 49;
 
+  // MIME
+  optional string mime_version = 50;
+  optional ContentAttributes content_type = 51;
+
   // Message parts
-  repeated MessagePart parts = 100;
+  optional uint64 texts_count = 100;
+  optional uint64 htmls_count = 101;
+  optional uint64 attachments_count = 102;
+  repeated MailPart texts = 103;
+  repeated MailPart htmls = 104;
+  repeated MailPart attachments = 105;
 }
 
 message Mailbox {
@@ -104,19 +113,26 @@ message Received {
   optional uint64 date = 12 [(yaml.field).fmt = "t"];
 }
 
-message MessagePart {
-  required PartType type = 1;
-  repeated uint32 children = 2;
-  required uint64 offset_header = 3;
-  required uint64 offset_body = 4;
-  required uint64 offset_end = 5;
-  optional bytes decoded_data = 6;
+message ContentAttributes { // for Content-Type and Content-Disposition headers
+  optional string type = 1;
+  optional string subtype = 2;
+  map<string, string> attributes = 3;
 }
 
-enum PartType {
-  option (yara.enum_options).inline = true;
-  PART_MULTI = 0;
-  PART_TEXT = 1;
-  PART_BINARY = 2;
-  PART_NESTED_MSG = 3;
+message MailPart {
+  required bytes data = 1;
+  required uint64 length = 2;
+  required uint64 headers_start = 3;
+  required uint64 body_start = 4;
+  required uint64 body_end = 5;
+
+  optional string encoding = 10;
+  optional ContentAttributes content_type = 11;
+  optional string content_id = 12;
+  optional ContentAttributes content_disposition = 13;
+  optional string content_description = 14;
+  optional string filename = 15;
+
+  repeated Header headers = 20; // all other headers
+  optional uint64 headers_count = 21;
 }

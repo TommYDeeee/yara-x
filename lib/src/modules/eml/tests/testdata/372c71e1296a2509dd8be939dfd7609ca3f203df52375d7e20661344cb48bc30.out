@@ -63,9 +63,13 @@ resent:
 resent_count: 3
 received_count: 0
 return_path_count: 0
-parts:
-  - type: PART_TEXT
-    offset_header: 0
-    offset_body: 688
-    offset_end: 713
-    decoded_data: "Test of Resent-* headers."
+texts_count: 1
+htmls_count: 0
+attachments_count: 0
+texts:
+  - data: "Test of Resent-* headers."
+    length: 25
+    headers_start: 0
+    body_start: 688
+    body_end: 713
+    headers_count: 0
