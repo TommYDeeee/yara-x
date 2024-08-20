@@ -2,6 +2,7 @@ is_eml: true
 date: 1720198833  # 2024-07-05 17:00:33 UTC
 other_count: 0
 subject: "Outer Email with Inner Email"
+subject_ascii: "Outer Email with Inner Email"
 comments_count: 0
 keywords_count: 0
 from:

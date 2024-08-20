@@ -5,6 +5,7 @@ other:
     value: "ok"
 other_count: 1
 subject: "test resending"
+subject_ascii: "test resending"
 comments_count: 0
 keywords_count: 0
 from:

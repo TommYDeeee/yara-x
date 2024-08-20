@@ -2,6 +2,7 @@ is_eml: true
 date: 1720099777  # 2024-07-04 13:29:37 UTC
 other_count: 0
 subject: "binary file test"
+subject_ascii: "binary file test"
 comments_count: 0
 keywords_count: 0
 from:

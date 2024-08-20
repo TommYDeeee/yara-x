@@ -1,5 +1,6 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::eml;
+use deunicode::deunicode;
 use mail_parser::*;
 use nom::Slice;
 use protobuf::MessageField;
@@ -303,6 +304,7 @@ fn serialize_headers(message: &Message, eml_proto: &mut eml::EML) {
             HeaderName::Subject => {
                 if let HeaderValue::Text(s) = &header.value {
                     eml_proto.set_subject(s.to_string());
+                    eml_proto.set_subject_ascii(deunicode(s));
                 }
             }
             HeaderName::Comments => {
