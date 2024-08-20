@@ -15,7 +15,7 @@ fn main(data: &[u8]) -> eml::EML {
 
     if let Some(message) = parser.parse(data) {
         serialize_headers(&message, &mut eml_proto);
-        serialize_body(&message, &mut eml_proto);
+        serialize_body(&message, data, &mut eml_proto);
         initialize_count_fields(&mut eml_proto);
 
         // According to RFC5322, origination date field and originator address field are mandatory.
@@ -411,11 +411,21 @@ fn find_filename_of_mailpart(part: &eml::MailPart) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-fn serialize_mailpart(part: &MessagePart, message: &Message) -> eml::MailPart {
+fn serialize_mailpart(
+    part: &MessagePart,
+    top_msg_raw_data: &[u8],
+) -> eml::MailPart {
     let mut proto: eml::MailPart = Default::default();
 
-    proto.set_data(part.contents().to_vec());
-    proto.set_length(part.len() as u64);
+    if let PartType::Message(_) = part.body {
+        // mail-parser returns the whole parent message instead of just the nested message
+        proto.set_data(
+            top_msg_raw_data.slice(part.offset_body..part.offset_end).to_vec(),
+        );
+    } else {
+        proto.set_data(part.contents().to_vec());
+    }
+    proto.set_length(proto.data().len() as u64);
     proto.set_headers_start(part.offset_header as u64);
     proto.set_body_start(part.offset_body as u64);
     proto.set_body_end(part.offset_end as u64);
@@ -452,14 +462,16 @@ fn serialize_mailpart(part: &MessagePart, message: &Message) -> eml::MailPart {
             _ => {
                 proto.headers.push(serialize_header_into_proto_header(
                     header,
-                    message.raw_message(),
+                    top_msg_raw_data,
                 ));
             }
         };
     }
 
     match part.body {
-        PartType::Binary(_) | PartType::InlineBinary(_) => {
+        PartType::Binary(_)
+        | PartType::InlineBinary(_)
+        | PartType::Message(_) => {
             if let Some(filename) = find_filename_of_mailpart(&proto) {
                 proto.set_filename(filename);
             }
@@ -470,9 +482,13 @@ fn serialize_mailpart(part: &MessagePart, message: &Message) -> eml::MailPart {
     proto
 }
 
-fn serialize_body(message: &Message, eml_proto: &mut eml::EML) {
+fn serialize_body(
+    message: &Message,
+    top_msg_raw_data: &[u8],
+    eml_proto: &mut eml::EML,
+) {
     for (idx, part) in message.parts.iter().enumerate() {
-        let mut part_proto = serialize_mailpart(part, message);
+        let mut part_proto = serialize_mailpart(part, top_msg_raw_data);
 
         // Root/First MessagePart inherits always all headers from the main
         // struct Message. This can be problematic with messages containing
@@ -481,16 +497,26 @@ fn serialize_body(message: &Message, eml_proto: &mut eml::EML) {
         // Other messages have usually as the root part PartType::Multipart,
         // which is ignored.
         if idx == 0 {
-            part_proto.headers.clear();
+            // Nested messages have their headers saved in the first part of the message too.
+            if let Some(nested_msg_parent) = eml_proto.messages.last_mut() {
+                nested_msg_parent.headers.append(&mut part_proto.headers);
+            } else {
+                // This branch is executed only once with the top Message
+                // to prevent copied headers.
+                part_proto.headers.clear();
+            }
         }
 
         match &part.body {
             PartType::Text(_) => eml_proto.texts.push(part_proto),
             PartType::Html(_) => eml_proto.htmls.push(part_proto),
             PartType::Binary(_) | PartType::InlineBinary(_) => {
-                eml_proto.attachments.push(part_proto)
+                eml_proto.attachments.push(part_proto);
             }
-            PartType::Message(_) => (), // TO DO
+            PartType::Message(msg) => {
+                eml_proto.messages.push(part_proto);
+                serialize_body(msg, top_msg_raw_data, eml_proto);
+            }
             PartType::Multipart(_) => (),
         };
     }
@@ -521,10 +547,12 @@ fn initialize_count_fields(eml_proto: &mut eml::EML) {
     eml_proto.set_texts_count(eml_proto.texts.len() as u64);
     eml_proto.set_htmls_count(eml_proto.htmls.len() as u64);
     eml_proto.set_attachments_count(eml_proto.attachments.len() as u64);
+    eml_proto.set_messages_count(eml_proto.messages.len() as u64);
     let mut mailpart_arrays = [
         &mut eml_proto.texts,
         &mut eml_proto.htmls,
         &mut eml_proto.attachments,
+        &mut eml_proto.messages,
     ];
     mailpart_arrays.iter_mut().for_each(|arr| {
         arr.iter_mut().for_each(|part| {

@@ -28,6 +28,7 @@ content_type:
 texts_count: 1
 htmls_count: 1
 attachments_count: 1
+messages_count: 0
 texts:
   - data: "binary attachment with Hello World inside\r\n"
     length: 43

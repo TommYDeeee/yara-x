@@ -1,0 +1,78 @@
+is_eml: true
+date: 1720198833  # 2024-07-05 17:00:33 UTC
+other_count: 0
+subject: "Outer Email with Inner Email"
+comments_count: 0
+keywords_count: 0
+from:
+  - address: "start@supermail.com"
+to:
+  - address: "end@supermail.com"
+from_count: 1
+to_count: 1
+cc_count: 0
+bcc_count: 0
+in_reply_to_count: 0
+references_count: 0
+resent_count: 0
+received_count: 0
+return_path_count: 0
+mime_version: "1.0"
+content_type:
+    type: "multipart"
+    subtype: "mixed"
+    attributes:
+        "boundary": "BOUNDARY"
+texts_count: 2
+htmls_count: 0
+attachments_count: 0
+messages_count: 1
+texts:
+  - data: "Mail with a nested message.\r\n"
+    length: 29
+    headers_start: 212
+    body_start: 290
+    body_end: 319
+    encoding: "7bit"
+    content_type:
+        type: "text"
+        subtype: "plain"
+        attributes:
+            "charset": "UTF-8"
+    headers_count: 0
+  - data: "Message inside message. :D\r\n"
+    length: 28
+    headers_start: 418
+    body_start: 599
+    body_end: 627
+    encoding: "7bit"
+    content_type:
+        type: "text"
+        subtype: "plain"
+        attributes:
+            "charset": "UTF-8"
+    headers_count: 0
+messages:
+  - data: "From: start2@supermail.com\r\nTo: end2@supermail.com\r\nSubject: Nested RFC822 message\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=\"UTF-8\"\r\nContent-Transfer-Encoding: 7bit\r\n\r\nMessage inside message. :D\r\n"
+    length: 209
+    headers_start: 333
+    body_start: 418
+    body_end: 627
+    content_type:
+        type: "message"
+        subtype: "rfc822"
+    content_disposition:
+        type: "attachment"
+        attributes:
+            "filename": "msg.eml"
+    filename: "msg.eml"
+    headers:
+      - name: "From"
+        value: "start2@supermail.com"
+      - name: "To"
+        value: "end2@supermail.com"
+      - name: "Subject"
+        value: "Nested RFC822 message"
+      - name: "MIME-Version"
+        value: "1.0"
+    headers_count: 4

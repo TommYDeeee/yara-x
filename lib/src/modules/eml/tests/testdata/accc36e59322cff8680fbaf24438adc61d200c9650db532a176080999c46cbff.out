@@ -73,6 +73,7 @@ return_path_count: 1
 texts_count: 1
 htmls_count: 0
 attachments_count: 0
+messages_count: 0
 texts:
   - data: "Testing basic headers."
     length: 22
