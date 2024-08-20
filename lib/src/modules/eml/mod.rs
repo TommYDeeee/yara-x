@@ -3,6 +3,7 @@ use crate::modules::protos::eml;
 use mail_parser::*;
 use nom::Slice;
 use protobuf::MessageField;
+use sha2::{Digest, Sha256};
 
 #[cfg(test)]
 mod tests;
@@ -47,6 +48,37 @@ fn header(
                     .as_ref()
                     .map(|value| RuntimeString::new(value.clone()));
             }
+        }
+    }
+    None
+}
+
+/// Returns lowercase SHA256 hash of sender's email address found in header `Sender`.
+/// If sender contains no email address then first address in header `From` is
+/// used instead. If even there is no address present then `undefined` is
+/// returned.
+#[module_export]
+fn sender_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
+    let proto = ctx.module_output::<eml::EML>()?;
+
+    let address = find_sender_address(proto)?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(address);
+    Some(RuntimeString::new(format!("{:x}", hasher.finalize())))
+}
+
+/// Returns sender's email address.
+/// If sender contains no email address then first address in header `From` is
+/// used instead. If even there is no address present then `None` is
+/// returned.
+fn find_sender_address(eml_proto: &eml::EML) -> Option<&str> {
+    if eml_proto.sender.address.is_some() {
+        return eml_proto.sender.address.as_deref();
+    }
+    for mailbox in eml_proto.from.iter() {
+        if mailbox.address.is_some() {
+            return mailbox.address.as_deref();
         }
     }
     None
@@ -429,6 +461,10 @@ fn serialize_mailpart(
     proto.set_headers_start(part.offset_header as u64);
     proto.set_body_start(part.offset_body as u64);
     proto.set_body_end(part.offset_end as u64);
+
+    let mut hasher = Sha256::new();
+    hasher.update(proto.data());
+    proto.set_hash(format!("{:x}", hasher.finalize()));
 
     for header in part.headers() {
         match header.name {

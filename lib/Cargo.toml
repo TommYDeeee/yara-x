@@ -79,6 +79,7 @@ elf-module = [
 
 eml-module = [
     "dep:mail-parser",
+    "dep:sha2",
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,

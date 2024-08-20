@@ -33,6 +33,7 @@ texts:
     headers_start: 212
     body_start: 290
     body_end: 319
+    hash: "5d006c75736af203c683cae52ee17b3499577a7640374d0685e4945be7f77607"
     encoding: "7bit"
     content_type:
         type: "text"
@@ -45,6 +46,7 @@ texts:
     headers_start: 418
     body_start: 599
     body_end: 627
+    hash: "21b7f68b2ac745ded021fe25ce5b60a60a95139a286618f63b18eb1fe21c3aa2"
     encoding: "7bit"
     content_type:
         type: "text"
@@ -58,6 +60,7 @@ messages:
     headers_start: 333
     body_start: 418
     body_end: 627
+    hash: "0f75d6dbcc235ee4bd52c3f7933d095a892249f67ea58d22a7f9906387100897"
     content_type:
         type: "message"
         subtype: "rfc822"

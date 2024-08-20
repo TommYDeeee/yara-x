@@ -35,6 +35,7 @@ texts:
     headers_start: 381
     body_start: 426
     body_end: 469
+    hash: "4649f66573708497d172e5a03dc5d00cbdc8e143cdefe90c7a3b153f9a7b393a"
     content_type:
         type: "text"
         subtype: "plain"
@@ -47,6 +48,7 @@ htmls:
     headers_start: 503
     body_start: 547
     body_end: 698
+    hash: "b7b1d58aaa36d2277b558b4c369ef27077e31dc233af319de58d784940eed57a"
     content_type:
         type: "text"
         subtype: "html"
@@ -59,6 +61,7 @@ attachments:
     headers_start: 766
     body_start: 975
     body_end: 991
+    hash: "a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"
     encoding: "base64"
     content_type:
         type: "application"

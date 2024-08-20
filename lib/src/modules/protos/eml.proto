@@ -127,6 +127,7 @@ message MailPart {
   required uint64 headers_start = 3;
   required uint64 body_start = 4;
   required uint64 body_end = 5;
+  required string hash = 6; // sha256 (lowercase form)
 
   optional string encoding = 10;
   optional ContentAttributes content_type = 11;
