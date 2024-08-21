@@ -111,6 +111,8 @@ magic-module = [
 # The `math` module.
 math-module = []
 
+metadata-module = []
+
 # The `pe` module parses PE files.
 pe-module = [
     "dep:const-oid",
@@ -166,6 +168,7 @@ default = [
     "lnk-module",
     "test_proto2-module",
     "test_proto3-module",
+    "metadata-module",
 ]
 
 [dependencies]

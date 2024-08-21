@@ -112,13 +112,28 @@ pub fn scan() -> Command {
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append)
         )
+        // todo copy from /home/lukas.chudicek/Documents/yara/cli/yara.c
+        // .arg(
+        //     arg!(
+        //         -x --"module-data"
+        //     )
+        // )
+        .arg(
+            arg!(-x --"module-data")
+                .help("todo json help")
+                .value_parser(value_parser!(PathBuf))
+                .action(ArgAction::Append)
+        )
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
-    let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
+    // let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
+
+    let target_path = args.get_one::<PathBuf>("module-data").unwrap();
+
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let negate = args.get_flag("negate");

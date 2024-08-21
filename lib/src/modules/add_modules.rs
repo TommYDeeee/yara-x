@@ -18,6 +18,8 @@ add_module!(modules, "macho", macho, "macho.Macho", Some("macho"), Some(macho::_
 add_module!(modules, "magic", magic, "magic.Magic", Some("magic"), Some(magic::__main__ as MainFn));
 #[cfg(feature = "math-module")]
 add_module!(modules, "math", math, "math.Math", Some("math"), Some(math::__main__ as MainFn));
+#[cfg(feature = "metadata-module")]
+add_module!(modules, "metadata", metadata, "metadata.Metadata", Some("metadata"), Some(metadata::__main__ as MainFn));
 #[cfg(feature = "pe-module")]
 add_module!(modules, "pe", pe, "pe.PE", Some("pe"), Some(pe::__main__ as MainFn));
 #[cfg(feature = "string-module")]

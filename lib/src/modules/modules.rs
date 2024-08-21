@@ -17,6 +17,8 @@ mod macho;
 mod magic;
 #[cfg(feature = "math-module")]
 mod math;
+#[cfg(feature = "metadata-module")]
+mod metadata;
 #[cfg(feature = "pe-module")]
 mod pe;
 #[cfg(feature = "string-module")]
