@@ -22,7 +22,7 @@ use walrus::{FunctionId, InstrSeqBuilder, ValType};
 
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, Iterable, MatchAnchor, Of, OfItems, PatternIdx,
-    Quantifier,
+    Quantifier, With,
 };
 use crate::compiler::{
     LiteralId, PatternId, RegexpId, RuleId, RuleInfo, Var, VarStackFrame,
@@ -625,6 +625,10 @@ fn emit_expr(
                 emit_for_in_expr(ctx, instr, for_in);
             }
         },
+
+        Expr::With(with) => {
+            emit_with(ctx, instr, with);
+        }
 
         Expr::FuncCall(fn_call) => {
             // Emit the arguments first.
@@ -2123,6 +2127,14 @@ fn emit_for<I, B, C, A>(
             }
         });
     });
+}
+
+fn emit_with(
+    ctx: &mut EmitContext,
+    instr: &mut InstrSeqBuilder,
+    for_in: &mut With,
+) {
+    todo!()
 }
 
 /// Produces a switch statement by calling a `branch_generator` function

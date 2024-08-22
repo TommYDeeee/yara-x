@@ -545,6 +545,9 @@ pub(in crate::compiler) enum Expr {
     /// A `for <quantifier> <vars> in ...` expression. (e.g. `for all i in (1..100) : ( ... )`)
     ForIn(Box<ForIn>),
 
+    /// A `with <identifiers> : ...` expression. (e.g. `with $a, $b : ( ... )`)
+    With(Box<With>),
+
     /// Array or dictionary lookup expression (e.g. `array[1]`, `dict["key"]`)
     Lookup(Box<Lookup>),
 }
@@ -599,6 +602,14 @@ pub(in crate::compiler) struct ForIn {
     pub quantifier: Quantifier,
     pub variables: Vec<Var>,
     pub iterable: Iterable,
+    pub condition: Expr,
+    pub stack_frame: VarStackFrame,
+}
+
+/// A `with` expression (e.g `with $a, $b : (..)`)
+#[derive(Debug)]
+pub(in crate::compiler) struct With {
+    pub identifiers: Vec<Var>,
     pub condition: Expr,
     pub stack_frame: VarStackFrame,
 }
@@ -706,7 +717,8 @@ impl Expr {
             | Expr::PatternMatchVar { .. }
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_) => Type::Bool,
+            | Expr::ForIn(_)
+            | Expr::With(_) => Type::Bool,
 
             Expr::Minus { operand, .. } => match operand.ty() {
                 Type::Integer => Type::Integer,
@@ -775,7 +787,8 @@ impl Expr {
             | Expr::PatternMatchVar { .. }
             | Expr::Of(_)
             | Expr::ForOf(_)
-            | Expr::ForIn(_) => TypeValue::Bool(Value::Unknown),
+            | Expr::ForIn(_)
+            | Expr::With(_) => TypeValue::Bool(Value::Unknown),
 
             Expr::Minus { operand, .. } => match operand.ty() {
                 Type::Integer => TypeValue::Integer(Value::Unknown),
@@ -1021,6 +1034,7 @@ impl Debug for Expr {
                         Expr::Of(_) => writeln!(f, "OF")?,
                         Expr::ForOf(_) => writeln!(f, "FOR_OF")?,
                         Expr::ForIn(_) => writeln!(f, "FOR_IN")?,
+                        Expr::With(_) => writeln!(f, "WITH")?,
                         Expr::Lookup(_) => writeln!(f, "LOOKUP")?,
                         Expr::PatternMatch { pattern, anchor } => writeln!(
                             f,

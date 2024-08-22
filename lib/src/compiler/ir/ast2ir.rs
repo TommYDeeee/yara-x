@@ -2,6 +2,7 @@
 
 use std::borrow::Borrow;
 use std::collections::BTreeSet;
+use std::env::var;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
@@ -16,7 +17,7 @@ use crate::compiler::ir::hex2hir::hex_pattern_hir_from_ast;
 use crate::compiler::ir::{
     Expr, ForIn, ForOf, FuncCall, Iterable, LiteralPattern, Lookup,
     MatchAnchor, Of, OfItems, Pattern, PatternFlagSet, PatternFlags,
-    PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern,
+    PatternIdx, PatternInRule, Quantifier, Range, RegexpPattern, With,
 };
 use crate::compiler::report::ReportBuilder;
 use crate::compiler::warnings::Warning;
@@ -1102,7 +1103,38 @@ fn with_expr_from_ast(
     ctx: &mut CompileContext,
     with: &ast::With,
 ) -> Result<Expr, Box<CompileError>> {
-    todo!()
+    // Create stack frame with capacity for the loop variables, plus 4
+    // temporary variables used for controlling the loop (see emit_for),
+    // plus one additional variable used in loops over arrays and maps
+    // (see emit_for_in_array and emit_for_in_map).
+    let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32 + 5);
+    let mut symbols = SymbolTable::new();
+    let mut identifiers = Vec::new();
+
+    for item in with.items.iter() {
+        let type_value = expr_from_ast(ctx, &item.expression)?
+            .type_value()
+            .clone_without_value();
+        let var = stack_frame.new_var(type_value.ty());
+
+        identifiers.push(var);
+        symbols.insert(
+            item.identifier.name,
+            Symbol::new(type_value, SymbolKind::Var(var)),
+        );
+    }
+
+    // Put the loop variables into scope.
+    ctx.symbol_table.push(Rc::new(symbols));
+
+    let condition = bool_expr_from_ast(ctx, &with.condition)?;
+
+    // Leaving the condition's scope. Remove loop variables.
+    ctx.symbol_table.pop();
+
+    ctx.vars.unwind(&stack_frame);
+
+    Ok(Expr::With(Box::new(With { identifiers, condition, stack_frame })))
 }
 
 fn iterable_from_ast(

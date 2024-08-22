@@ -165,6 +165,7 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                 Expr::Of(_) => {}
                 Expr::ForOf(_) => {}
                 Expr::ForIn(_) => {}
+                Expr::With(_) => {}
                 Expr::Lookup(_) => {}
             }
         }
