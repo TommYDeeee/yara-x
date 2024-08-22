@@ -129,7 +129,7 @@ pub enum SyntaxKind {
     FOR_EXPR,
     OF_EXPR,
     WITH_EXPR,
-    WITH_IDENTIFIER,
+    WITH_IDENTIFIERS,
     ITERABLE,
     QUANTIFIER,
     EXPR_TUPLE,

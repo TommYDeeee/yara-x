@@ -518,6 +518,7 @@ pub(in crate::compiler) fn expr_from_ast(
         ast::Expr::Of(of) => of_expr_from_ast(ctx, of),
         ast::Expr::ForOf(for_of) => for_of_expr_from_ast(ctx, for_of),
         ast::Expr::ForIn(for_in) => for_in_expr_from_ast(ctx, for_in),
+        ast::Expr::With(with) => with_expr_from_ast(ctx, with),
         ast::Expr::FuncCall(fn_call) => func_call_from_ast(ctx, fn_call),
 
         ast::Expr::FieldAccess(expr) => {
@@ -1095,6 +1096,13 @@ fn for_in_expr_from_ast(
         condition,
         stack_frame,
     })))
+}
+
+fn with_expr_from_ast(
+    ctx: &mut CompileContext,
+    with: &ast::With,
+) -> Result<Expr, Box<CompileError>> {
+    todo!()
 }
 
 fn iterable_from_ast(

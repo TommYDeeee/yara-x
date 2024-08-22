@@ -1587,9 +1587,6 @@ impl<'src> ParserImpl<'src> {
         self.begin(WITH_EXPR)
             .expect(t!(WITH_KW))
             .then(|p| p.with_identifier())
-            .zero_or_more(|p| {
-                p.expect(t!(COMMA)).then(|p| p.with_identifier())
-            })
             .expect(t!(COLON))
             .expect(t!(L_PAREN))
             .then(|p| p.boolean_expr())
@@ -1598,12 +1595,18 @@ impl<'src> ParserImpl<'src> {
     }
 
     fn with_identifier(&mut self) -> &mut Self {
-        self.begin(WITH_IDENTIFIER)
+        self.begin(WITH_IDENTIFIERS)
             .expect(t!(IDENT))
             .expect(t!(EQUAL))
             .then(|p| p.expr())
+            .zero_or_more(|p| {
+                p.expect(t!(COMMA)).then(|p| {
+                    p.expect(t!(IDENT)).expect(t!(EQUAL)).then(|p| p.expr())
+                })
+            })
             .end()
     }
+
     /// Parses quantifier.
     ///
     /// ```text
