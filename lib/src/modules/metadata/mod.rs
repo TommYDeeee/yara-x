@@ -2,6 +2,56 @@ use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::metadata::*;
 
+const FILE_NAMES_JSON_KEY: &str = "file_names"; // key in the json file
+
+/// Counts the number of times a string appears in a json list of strings
+pub fn match_list_string(
+    ctx: &ScanContext,
+    json_array: &json::Array,
+    match_value: &RuntimeString,
+) -> usize {
+    let match_value =
+        match_value.to_str(ctx).expect("conversion should be possible");
+
+    json_array
+        .iter()
+        .filter_map(|it| {
+            let actual = match it {
+                json::JsonValue::String(actual) => actual,
+                json::JsonValue::Short(short_actual) => short_actual.as_str(),
+                other => panic!(
+                    "expected the array item to be string, but was {:?}",
+                    other
+                ), // todo behavior in this case???
+            };
+
+            (actual == match_value).then_some(())
+        })
+        .count()
+}
+
+fn match_list_regex(
+    ctx: &ScanContext, // todo how to test? (how to create the ctx instance?)
+    json_array: &json::Array,
+    re: RegexpId,
+) -> usize {
+    json_array
+        .iter()
+        .filter_map(|it| {
+            let actual = match it {
+                json::JsonValue::String(actual) => actual,
+                json::JsonValue::Short(short_actual) => short_actual.as_str(),
+                other => panic!(
+                    "expected the array item to be string, but was {:?}",
+                    other
+                ), // todo behavior in this case???
+            };
+
+            ctx.regexp_matches(re, actual.as_bytes()).then_some(())
+        })
+        .count()
+}
+
 #[module_main]
 fn main(_data: &[u8]) -> Metadata {
     let parsed = serde_json::from_slice::<serde_json::Value>(_data).unwrap();
@@ -16,21 +66,54 @@ fn main(_data: &[u8]) -> Metadata {
         )
     }
 
-    println!("{:?}", _data);
-    println!("{:?}", parsed);
+    let mut res = Metadata::new();
+    res.set_json(parsed.to_string());
+    res
+}
 
-    // this is where to fill the ctx fro the fns
-    Metadata::new()
+fn get_file_names_array(ctx: &ScanContext) -> json::Array {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let json::JsonValue::Array(file_names_array) =
+        parsed_json[FILE_NAMES_JSON_KEY].to_owned()
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            FILE_NAMES_JSON_KEY, parsed_json
+        );
+    };
+
+    file_names_array
 }
 
 #[module_export(name = "file.name")]
-fn name_string(_ctx: &ScanContext, _string: RuntimeString) -> Option<i64> {
-    Some(42)
+fn name_string(
+    ctx: &ScanContext,
+    matched_string: RuntimeString,
+) -> Option<i64> {
+    // todo get it from somewhere else than the ctx once implemented in upstream
+    let file_names_array = get_file_names_array(ctx);
+
+    let matches_count =
+        match_list_string(ctx, &file_names_array, &matched_string);
+
+    Some(matches_count as _)
 }
 
 #[module_export(name = "file.name")]
-fn name_regex(_ctx: &ScanContext, _re: RegexpId) -> Option<i64> {
-    Some(666)
+fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    // todo get it from somewhere else than the ctx once implemented in upstream
+    let file_names_array = get_file_names_array(ctx);
+
+    let matches_count = match_list_regex(ctx, &file_names_array, re);
+
+    Some(matches_count as _)
 }
 
 // detection
