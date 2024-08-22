@@ -2,6 +2,11 @@ use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::metadata::*;
 
+// todo; just wanted to see how stuff works, serious refactor needed
+// - [x] make it work
+// - [ ] make it right
+// - [ ] make it fast
+
 const FILE_NAMES_JSON_KEY: &str = "file_names"; // key in the json file
 
 /// Counts the number of times a string appears in a json list of strings
@@ -118,69 +123,390 @@ fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 // detection
 
+const DETECTIONS_JSON_KEY: &str = "detections";
+const NAMES_IN_DETECTIONS_JSON_KEY: &str = "names";
+
 #[module_export(name = "detection.name")]
-fn detection_int(_ctx: &ScanContext, _re: RegexpId) -> Option<i64> {
-    todo!()
+fn detection_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let json::JsonValue::Array(ref detections_array) =
+        parsed_json[DETECTIONS_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            DETECTIONS_JSON_KEY, parsed_json
+        );
+    };
+
+    let matches_count = detections_array
+        .iter()
+        .map(|it| {
+            let json::JsonValue::Array(ref names) =
+                it[NAMES_IN_DETECTIONS_JSON_KEY]
+            else {
+                panic!(
+                    "expected element at key {} to be an array, but was {:?}",
+                    NAMES_IN_DETECTIONS_JSON_KEY, it
+                );
+            };
+
+            match_list_regex(ctx, names, re)
+        })
+        .sum::<usize>();
+
+    Some(matches_count as _)
 }
 
 #[module_export(name = "detection.name")]
 fn detection_string(
-    _ctx: &ScanContext,
-    _string: RuntimeString,
+    ctx: &ScanContext,
+    matched_string: RuntimeString,
 ) -> Option<i64> {
-    todo!()
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let json::JsonValue::Array(ref detections_array) =
+        parsed_json[DETECTIONS_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            DETECTIONS_JSON_KEY, parsed_json
+        );
+    };
+
+    let matches_count = detections_array
+        .iter()
+        .map(|it| {
+            let json::JsonValue::Array(ref names) =
+                it[NAMES_IN_DETECTIONS_JSON_KEY]
+            else {
+                panic!(
+                    "expected element at key {} to be an array, but was {:?}",
+                    NAMES_IN_DETECTIONS_JSON_KEY, it
+                );
+            };
+
+            match_list_string(ctx, names, &matched_string)
+        })
+        .sum::<usize>();
+
+    Some(matches_count as _)
 }
+
+const AV_WITHIN_DETECTIONS_JSON_KEY: &str = "av";
 
 #[module_export(name = "detection.name")]
 fn detection_regexp_av(
-    _ctx: &ScanContext,
-    _string: RuntimeString,
-    _re: RegexpId,
+    ctx: &ScanContext,
+    av_filter: RuntimeString,
+    re: RegexpId,
 ) -> Option<i64> {
-    todo!()
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let json::JsonValue::Array(ref detections_array) =
+        parsed_json[DETECTIONS_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            DETECTIONS_JSON_KEY, parsed_json
+        );
+    };
+
+    let matches_count = detections_array
+        .iter()
+        .filter_map(|it| {
+            if match &it[AV_WITHIN_DETECTIONS_JSON_KEY] {
+                json::JsonValue::String(av_value) => av_value,
+                json::JsonValue::Short(short_av_value) => {
+                    short_av_value.as_str()
+                }
+                other => panic!(
+                    "expected the array item to be string, but was {:?}",
+                    other
+                ), // todo behavior in this case???
+            } != av_filter.to_str(ctx).expect("should be able to convert")
+            {
+                return None;
+            }
+
+            let json::JsonValue::Array(ref names) =
+                it[NAMES_IN_DETECTIONS_JSON_KEY]
+            else {
+                panic!(
+                    "expected element at key {} to be an array, but was {:?}",
+                    NAMES_IN_DETECTIONS_JSON_KEY, it
+                );
+            };
+
+            Some(match_list_regex(ctx, names, re))
+        })
+        .sum::<usize>();
+
+    Some(matches_count as _)
 }
 
 #[module_export(name = "detection.name")]
 fn detection_string_av(
-    _ctx: &ScanContext,
-    _string1: RuntimeString,
-    _string2: RuntimeString,
+    ctx: &ScanContext,
+    av_filter: RuntimeString,
+    matching_string: RuntimeString,
 ) -> Option<i64> {
-    todo!()
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let json::JsonValue::Array(ref detections_array) =
+        parsed_json[DETECTIONS_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            DETECTIONS_JSON_KEY, parsed_json
+        );
+    };
+
+    let matches_count = detections_array
+        .iter()
+        .filter_map(|it| {
+            if match &it[AV_WITHIN_DETECTIONS_JSON_KEY] {
+                json::JsonValue::String(av_value) => av_value,
+                json::JsonValue::Short(short_av_value) => {
+                    short_av_value.as_str()
+                }
+                other => panic!(
+                    "expected the array item to be string, but was {:?}",
+                    other
+                ), // todo behavior in this case???
+            } != av_filter.to_str(ctx).expect("should be able to convert")
+            {
+                return None;
+            }
+
+            let json::JsonValue::Array(ref names) =
+                it[NAMES_IN_DETECTIONS_JSON_KEY]
+            else {
+                panic!(
+                    "expected element at key {} to be an array, but was {:?}",
+                    NAMES_IN_DETECTIONS_JSON_KEY, it
+                );
+            };
+
+            Some(match_list_string(ctx, names, &matching_string))
+        })
+        .sum::<usize>();
+
+    Some(matches_count as _)
 }
 
 // arpot
 
+const ARPOT_JSON_KEY: &str = "arpot";
+const DLLS_IN_ARPOT_JSON_KEY: &str = "dlls";
+
 #[module_export(name = "arpot.dll")]
-fn arpot_dll_regexp(_ctx: &ScanContext, _re: RegexpId) -> Option<i64> {
-    todo!()
+fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    // let json::JsonValue::
+
+    let ref arpot_object @ json::JsonValue::Object(_) =
+        parsed_json[ARPOT_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an object, but was {:?}",
+            ARPOT_JSON_KEY, parsed_json
+        );
+    };
+
+    let json::JsonValue::Array(ref dlls) =
+        arpot_object[DLLS_IN_ARPOT_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            DLLS_IN_ARPOT_JSON_KEY, arpot_object
+        );
+    };
+
+    let matches_count = match_list_regex(ctx, dlls, re);
+
+    Some(matches_count as _)
 }
 
+const PROCESSES_IN_ARPOT_JSON_KEY: &str = "processes";
+
 #[module_export(name = "arpot.process")]
-fn arpot_process_regexp(_ctx: &ScanContext, _re: RegexpId) -> Option<i64> {
-    todo!()
+fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    // let json::JsonValue::
+
+    let ref arpot_object @ json::JsonValue::Object(_) =
+        parsed_json[ARPOT_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an object, but was {:?}",
+            ARPOT_JSON_KEY, parsed_json
+        );
+    };
+
+    let json::JsonValue::Array(ref processes) =
+        arpot_object[PROCESSES_IN_ARPOT_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            PROCESSES_IN_ARPOT_JSON_KEY, arpot_object
+        );
+    };
+
+    let matches_count = match_list_regex(ctx, processes, re);
+
+    Some(matches_count as _)
 }
 
 // idp
 
+const IDP_JSON_KEY: &str = "idp";
+const RULES_IN_IDP_JSON_KEY: &str = "rules";
+
 #[module_export(name = "idp.rule_name")]
-fn idp_rule_regexp(_ctx: &ScanContext, _re: RegexpId) -> Option<i64> {
-    todo!()
+fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    // let json::JsonValue::
+
+    let ref idp_object @ json::JsonValue::Object(_) =
+        parsed_json[IDP_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an object, but was {:?}",
+            ARPOT_JSON_KEY, parsed_json
+        );
+    };
+
+    let json::JsonValue::Array(ref rules) = idp_object[RULES_IN_IDP_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            RULES_IN_IDP_JSON_KEY, idp_object
+        );
+    };
+
+    let matches_count = match_list_regex(ctx, rules, re);
+
+    Some(matches_count as _)
 }
 
 // source
 
+const SOURCE_JSON_KEY: &str = "source";
+const URLS_IN_SOURCE_JSON_KEY: &str = "urls";
+
 #[module_export(name = "source.url")]
-fn source_url_regexp(_ctx: &ScanContext, _re: RegexpId) -> Option<i64> {
-    todo!()
+fn source_url_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let ref source_object @ json::JsonValue::Object(_) =
+        parsed_json[SOURCE_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an object, but was {:?}", // todo update all the error messages
+            ARPOT_JSON_KEY, parsed_json
+        );
+    };
+
+    let json::JsonValue::Array(ref processes) =
+        source_object[URLS_IN_SOURCE_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            URLS_IN_SOURCE_JSON_KEY, source_object
+        );
+    };
+
+    let matches_count = match_list_regex(ctx, processes, re);
+
+    Some(matches_count as _)
 }
 
 // parent_process
 
+const PARENT_PROCESS_JSON_KEY: &str = "parent_process";
+const PATHS_IN_PARENT_PROCESS_JSON_KEY: &str = "paths";
+
 #[module_export(name = "parent_process.path")]
-fn parent_process_path_regexp(
-    _ctx: &ScanContext,
-    _re: RegexpId,
-) -> Option<i64> {
-    todo!()
+fn parent_process_path_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
+    let received_json = ctx
+        .module_output::<Metadata>()
+        .expect("metadata should be set")
+        .json();
+
+    let parsed_json =
+        json::parse(received_json).expect("json should be valid");
+
+    let ref parent_process_object @ json::JsonValue::Object(_) =
+        parsed_json[PARENT_PROCESS_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an object, but was {:?}", // todo update all the error messages
+            ARPOT_JSON_KEY, parsed_json
+        );
+    };
+
+    let json::JsonValue::Array(ref paths) =
+        parent_process_object[PATHS_IN_PARENT_PROCESS_JSON_KEY]
+    else {
+        panic!(
+            "expected element at key {} to be an array, but was {:?}",
+            PATHS_IN_PARENT_PROCESS_JSON_KEY, parent_process_object
+        );
+    };
+
+    let matches_count = match_list_regex(ctx, paths, re);
+
+    Some(matches_count as _)
 }
