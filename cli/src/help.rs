@@ -24,6 +24,8 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
+pub const MODULE_DATA_LONG_HELP: &str = r#"<todo>"#; // todo
+
 pub const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
 
 This is ignored if <RULES_PATH> is not a directory. When <MAX_DEPTH> is 0 it means

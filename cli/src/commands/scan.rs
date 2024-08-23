@@ -112,15 +112,12 @@ pub fn scan() -> Command {
                 .value_parser(external_var_parser)
                 .action(ArgAction::Append)
         )
-        // todo copy from /home/lukas.chudicek/Documents/yara/cli/yara.c
-        // .arg(
-        //     arg!(
-        //         -x --"module-data"
-        //     )
-        // )
         .arg(
             arg!(-x --"module-data")
-                .help("todo json help")
+                .help("pass FILE's content as extra data to MODULE")
+                .long_help(help::MODULE_DATA_LONG_HELP)
+                .required(false)
+                .value_name("MODULE=FILE")
                 .value_parser(value_parser!(PathBuf))
                 .action(ArgAction::Append)
         )
