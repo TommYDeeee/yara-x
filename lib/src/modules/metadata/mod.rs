@@ -57,25 +57,25 @@ fn get_json(ctx: &ScanContext) -> json::JsonValue {
 // original .c code "solves" this by having UB (`strcmp(maybe_null, _)` in `match_list_string`)
 // -> using this function (panicking on non-string values) is likely the way to go
 // would still be nice to write this down somewhere
-fn expect_str(json_value: &json::JsonValue) -> &str {
+fn expect_str(json_value: &json::JsonValue) -> Option<&str> {
     match json_value {
-        json::JsonValue::String(actual) => actual,
-        json::JsonValue::Short(short_actual) => short_actual.as_str(),
-        other => panic!("expected string value, found {:?}", other),
+        json::JsonValue::String(actual) => Some(actual),
+        json::JsonValue::Short(short_actual) => Some(short_actual.as_str()),
+        _ => None,
     }
 }
 
-fn expect_array(json_value: &json::JsonValue) -> &json::Array {
+fn expect_array(json_value: &json::JsonValue) -> Option<&json::Array> {
     match json_value {
-        json::JsonValue::Array(array) => array,
-        other => panic!("expected array value, found {:?}", other),
+        json::JsonValue::Array(array) => Some(array),
+        _ => None,
     }
 }
 
-fn expect_object(json_value: &json::JsonValue) -> &json::JsonValue {
+fn expect_object(json_value: &json::JsonValue) -> Option<&json::JsonValue> {
     match json_value {
-        object @ json::JsonValue::Object(_) => object,
-        other => panic!("expected object value, found {:?}", other),
+        object @ json::JsonValue::Object(_) => Some(object),
+        _ => None,
     }
 }
 
@@ -85,28 +85,50 @@ fn name_string(
     matched_string: RuntimeString,
 ) -> Option<i64> {
     let received_json = get_json(ctx);
-    let matched_string =
-        matched_string.to_str(ctx).expect("should be able to convert");
+    let matched_string = matched_string.to_str(ctx).ok()?;
 
-    let file_names_array = expect_array(&received_json[FILE_NAMES_JSON_KEY]);
+    let file_names_array = expect_array(&received_json[FILE_NAMES_JSON_KEY])?;
 
-    let matches_count = file_names_array
-        .iter()
-        .filter(|fname| expect_str(fname) == matched_string)
-        .count();
+    let mut matches_count = 0;
+    for file_name in file_names_array.iter() {
+        let file_name_str = expect_str(file_name)?;
+        if file_name_str == matched_string {
+            matches_count += 1;
+        }
+    }
 
     Some(matches_count as _)
+
+    // todo remove the following
+    // (basically this is what i intended to use as the "more idiomatic" way
+    // however, the moment you start using options in nested iterators,
+    // it becomes a mess, so i went with just raw `for` loops)
+
+    // let valid_file_names =
+    //      // the extra allocation happens when you collect to the `Option<Vec<_>>`
+    //     file_names_array.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    // let matches_count = valid_file_names
+    //     .into_iter()
+    //     .filter(|fname| *fname == matched_string)
+    //     .count();
+
+    // Some(matches_count as _)
 }
 
 #[module_export(name = "file.name")]
 fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
-    let file_names_array = expect_array(&received_json[FILE_NAMES_JSON_KEY]);
+    let file_names_array = expect_array(&received_json[FILE_NAMES_JSON_KEY])?;
 
-    let matches_count = file_names_array
+    // todo consult the need for performance
+    let valid_file_names =
+        file_names_array.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_file_names
         .iter()
-        .filter(|fname| ctx.regexp_matches(re, expect_str(fname).as_bytes()))
+        .filter(|fname| ctx.regexp_matches(re, fname.as_bytes()))
         .count();
 
     Some(matches_count as _)
@@ -118,15 +140,25 @@ fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 fn detection_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
-    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY]);
+    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
 
-    let matches_count = detections_array
+    let valid_names_arrays = detections_array
         .iter()
-        .flat_map(|detection| {
+        .map(|detection| {
             expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])
         })
+        .collect::<Option<Vec<_>>>()?;
+
+    let valid_detections_names = valid_names_arrays
+        .into_iter()
+        .flatten()
+        .map(expect_str)
+        .collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_detections_names
+        .into_iter()
         .filter(|detection_name| {
-            ctx.regexp_matches(re, expect_str(detection_name).as_bytes())
+            ctx.regexp_matches(re, detection_name.as_bytes())
         })
         .count();
 
@@ -139,17 +171,26 @@ fn detection_string(
     matching_string: RuntimeString,
 ) -> Option<i64> {
     let received_json = get_json(ctx);
-    let matching_string =
-        matching_string.to_str(ctx).expect("should be able to convert");
+    let matching_string = matching_string.to_str(ctx).ok()?;
 
-    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY]);
+    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
 
-    let matches_count = detections_array
+    let valid_names_arrays = detections_array
         .iter()
-        .flat_map(|detection| {
+        .map(|detection| {
             expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])
         })
-        .filter(|detection_name| expect_str(detection_name) == matching_string)
+        .collect::<Option<Vec<_>>>()?;
+
+    let valid_detections_names = valid_names_arrays
+        .into_iter()
+        .flatten()
+        .map(expect_str)
+        .collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_detections_names
+        .into_iter()
+        .filter(|detection_name| *detection_name == matching_string)
         .count();
 
     Some(matches_count as _)
@@ -161,25 +202,50 @@ fn detection_regexp_av(
     av_filter: RuntimeString,
     re: RegexpId,
 ) -> Option<i64> {
+    // let received_json = get_json(ctx);
+    // let av_filter = av_filter.to_str(ctx).expect("should be able to convert");
+
+    // let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY]);
+
+    // let matches_count = detections_array
+    //     .iter()
+    //     .filter(|detection| {
+    //         let actual_av =
+    //             expect_str(&detection[AV_WITHIN_DETECTIONS_JSON_KEY]);
+    //         actual_av == av_filter
+    //     })
+    //     .flat_map(|detection| {
+    //         expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])
+    //     })
+    //     .filter(|detection_name| {
+    //         ctx.regexp_matches(re, expect_str(detection_name).as_bytes())
+    //     })
+    //     .count();
+
+    // Some(matches_count as _)
+
     let received_json = get_json(ctx);
-    let av_filter = av_filter.to_str(ctx).expect("should be able to convert");
+    let av_filter = av_filter.to_str(ctx).ok()?;
 
-    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY]);
+    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
 
-    let matches_count = detections_array
-        .iter()
-        .filter(|detection| {
-            let actual_av =
-                expect_str(&detection[AV_WITHIN_DETECTIONS_JSON_KEY]);
-            actual_av == av_filter
-        })
-        .flat_map(|detection| {
-            expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])
-        })
-        .filter(|detection_name| {
-            ctx.regexp_matches(re, expect_str(detection_name).as_bytes())
-        })
-        .count();
+    let mut matches_count = 0;
+    for detection in detections_array.iter() {
+        let actual_av = expect_str(&detection[AV_WITHIN_DETECTIONS_JSON_KEY])?;
+        if actual_av != av_filter {
+            continue;
+        }
+
+        let names_array =
+            expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])?;
+
+        for name in names_array.iter() {
+            let name_str = expect_str(name)?;
+            if ctx.regexp_matches(re, name_str.as_bytes()) {
+                matches_count += 1;
+            }
+        }
+    }
 
     Some(matches_count as _)
 }
@@ -190,25 +256,51 @@ fn detection_string_av(
     av_filter: RuntimeString,
     matching_string: RuntimeString,
 ) -> Option<i64> {
+    // let received_json = get_json(ctx);
+    // let av_filter = av_filter.to_str(ctx).expect("should be able to convert");
+    // let matching_string =
+    //     matching_string.to_str(ctx).expect("should be able to convert");
+
+    // let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY]);
+
+    // let matches_count = detections_array
+    //     .iter()
+    //     .filter(|detection| {
+    //         let actual_av =
+    //             expect_str(&detection[AV_WITHIN_DETECTIONS_JSON_KEY]);
+    //         actual_av == av_filter
+    //     })
+    //     .flat_map(|detection| {
+    //         expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])
+    //     })
+    //     .filter(|detection_name| expect_str(detection_name) == matching_string)
+    //     .count();
+
+    // Some(matches_count as _)
+
     let received_json = get_json(ctx);
-    let av_filter = av_filter.to_str(ctx).expect("should be able to convert");
-    let matching_string =
-        matching_string.to_str(ctx).expect("should be able to convert");
+    let av_filter = av_filter.to_str(ctx).ok()?;
+    let matching_string = matching_string.to_str(ctx).ok()?;
 
-    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY]);
+    let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
 
-    let matches_count = detections_array
-        .iter()
-        .filter(|detection| {
-            let actual_av =
-                expect_str(&detection[AV_WITHIN_DETECTIONS_JSON_KEY]);
-            actual_av == av_filter
-        })
-        .flat_map(|detection| {
-            expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])
-        })
-        .filter(|detection_name| expect_str(detection_name) == matching_string)
-        .count();
+    let mut matches_count = 0;
+    for detection in detections_array.iter() {
+        let actual_av = expect_str(&detection[AV_WITHIN_DETECTIONS_JSON_KEY])?;
+        if actual_av != av_filter {
+            continue;
+        }
+
+        let names_array =
+            expect_array(&detection[NAMES_IN_DETECTIONS_JSON_KEY])?;
+
+        for name in names_array.iter() {
+            let name_str = expect_str(name)?;
+            if name_str == matching_string {
+                matches_count += 1;
+            }
+        }
+    }
 
     Some(matches_count as _)
 }
@@ -219,12 +311,15 @@ fn detection_string_av(
 fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
-    let arpot_object = expect_object(&received_json[ARPOT_JSON_KEY]);
-    let dlls = expect_array(&arpot_object[DLLS_IN_ARPOT_JSON_KEY]);
+    let arpot_object = expect_object(&received_json[ARPOT_JSON_KEY])?;
+    let dlls = expect_array(&arpot_object[DLLS_IN_ARPOT_JSON_KEY])?;
 
-    let matches_count = dlls
+    let valid_dlls =
+        dlls.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_dlls
         .iter()
-        .filter(|dll| ctx.regexp_matches(re, expect_str(dll).as_bytes()))
+        .filter(|dll| ctx.regexp_matches(re, dll.as_bytes()))
         .count();
 
     Some(matches_count as _)
@@ -234,14 +329,15 @@ fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
-    let arpot_object = expect_object(&received_json[ARPOT_JSON_KEY]);
-    let processes = expect_array(&arpot_object[PROCESSES_IN_ARPOT_JSON_KEY]);
+    let arpot_object = expect_object(&received_json[ARPOT_JSON_KEY])?;
+    let processes = expect_array(&arpot_object[PROCESSES_IN_ARPOT_JSON_KEY])?;
 
-    let matches_count = processes
+    let valid_processes =
+        processes.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_processes
         .iter()
-        .filter(|process| {
-            ctx.regexp_matches(re, expect_str(process).as_bytes())
-        })
+        .filter(|process| ctx.regexp_matches(re, process.as_bytes()))
         .count();
 
     Some(matches_count as _)
@@ -253,12 +349,15 @@ fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
-    let idp_object = expect_object(&received_json[IDP_JSON_KEY]);
-    let rules = expect_array(&idp_object[RULES_IN_IDP_JSON_KEY]);
+    let idp_object = expect_object(&received_json[IDP_JSON_KEY])?;
+    let rules = expect_array(&idp_object[RULES_IN_IDP_JSON_KEY])?;
 
-    let matches_count = rules
+    let valid_rules =
+        rules.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_rules
         .iter()
-        .filter(|rule| ctx.regexp_matches(re, expect_str(rule).as_bytes()))
+        .filter(|rule| ctx.regexp_matches(re, rule.as_bytes()))
         .count();
 
     Some(matches_count as _)
@@ -270,12 +369,15 @@ fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 fn source_url_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
-    let source_object = expect_object(&received_json[SOURCE_JSON_KEY]);
-    let urls = expect_array(&source_object[URLS_IN_SOURCE_JSON_KEY]);
+    let source_object = expect_object(&received_json[SOURCE_JSON_KEY])?;
+    let urls = expect_array(&source_object[URLS_IN_SOURCE_JSON_KEY])?;
 
-    let matches_count = urls
+    let valid_urls =
+        urls.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_urls
         .iter()
-        .filter(|url| ctx.regexp_matches(re, expect_str(url).as_bytes()))
+        .filter(|url| ctx.regexp_matches(re, url.as_bytes()))
         .count();
 
     Some(matches_count as _)
@@ -288,13 +390,17 @@ fn parent_process_path_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = get_json(ctx);
 
     let parent_process_object =
-        expect_object(&received_json[PARENT_PROCESS_JSON_KEY]);
-    let paths =
-        expect_array(&parent_process_object[PATHS_IN_PARENT_PROCESS_JSON_KEY]);
+        expect_object(&received_json[PARENT_PROCESS_JSON_KEY])?;
+    let paths = expect_array(
+        &parent_process_object[PATHS_IN_PARENT_PROCESS_JSON_KEY],
+    )?;
 
-    let matches_count = paths
+    let valid_paths =
+        paths.iter().map(expect_str).collect::<Option<Vec<_>>>()?;
+
+    let matches_count = valid_paths
         .iter()
-        .filter(|path| ctx.regexp_matches(re, expect_str(path).as_bytes()))
+        .filter(|path| ctx.regexp_matches(re, path.as_bytes()))
         .count();
 
     Some(matches_count as _)
