@@ -111,7 +111,7 @@ magic-module = [
 # The `math` module.
 math-module = []
 
-metadata-module = []
+metadata-module = ["dep:json"]
 
 # The `pe` module parses PE files.
 pe-module = [
