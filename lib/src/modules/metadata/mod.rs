@@ -2,12 +2,9 @@ use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::metadata::*;
 
-// todo; just wanted to see how stuff works, serious refactor needed
-// - [x] make it work
-// - [ ] make it right
-// - [ ] make it fast
+// json keys
 
-const FILE_NAMES_JSON_KEY: &str = "file_names"; // key in the json file
+const FILE_NAMES_JSON_KEY: &str = "file_names";
 
 const DETECTIONS_JSON_KEY: &str = "detections";
 const NAMES_IN_DETECTIONS_JSON_KEY: &str = "names";
