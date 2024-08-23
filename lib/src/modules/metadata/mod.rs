@@ -9,8 +9,43 @@ use crate::modules::protos::metadata::*;
 
 const FILE_NAMES_JSON_KEY: &str = "file_names"; // key in the json file
 
-/// Counts the number of times a string appears in a json list of strings
-pub fn match_list_string(
+const DETECTIONS_JSON_KEY: &str = "detections";
+const NAMES_IN_DETECTIONS_JSON_KEY: &str = "names";
+const AV_WITHIN_DETECTIONS_JSON_KEY: &str = "av";
+
+const ARPOT_JSON_KEY: &str = "arpot";
+const DLLS_IN_ARPOT_JSON_KEY: &str = "dlls";
+const PROCESSES_IN_ARPOT_JSON_KEY: &str = "processes";
+
+const IDP_JSON_KEY: &str = "idp";
+const RULES_IN_IDP_JSON_KEY: &str = "rules";
+
+const SOURCE_JSON_KEY: &str = "source";
+const URLS_IN_SOURCE_JSON_KEY: &str = "urls";
+
+const PARENT_PROCESS_JSON_KEY: &str = "parent_process";
+const PATHS_IN_PARENT_PROCESS_JSON_KEY: &str = "paths";
+
+#[module_main]
+fn main(_data: &[u8]) -> Metadata {
+    let parsed = serde_json::from_slice::<serde_json::Value>(_data).unwrap();
+
+    // todo fix & remove before prod / upstream merge
+    if cfg!(not(debug_assertions)) {
+        panic!(
+            r"
+        this module is not meant to be used in production yet
+        currently, we are abusing the `_data` arg to send the json file -> fix this
+        "
+        )
+    }
+
+    let mut res = Metadata::new();
+    res.set_json(parsed.to_string());
+    res
+}
+
+fn match_list_string(
     ctx: &ScanContext,
     json_array: &json::Array,
     match_value: &RuntimeString,
@@ -55,25 +90,6 @@ fn match_list_regex(
             ctx.regexp_matches(re, actual.as_bytes()).then_some(())
         })
         .count()
-}
-
-#[module_main]
-fn main(_data: &[u8]) -> Metadata {
-    let parsed = serde_json::from_slice::<serde_json::Value>(_data).unwrap();
-
-    // todo fix & remove before prod / upstream merge
-    if cfg!(not(debug_assertions)) {
-        panic!(
-            r"
-        this module is not meant to be used in production yet
-        currently, we are abusing the `_data` arg to send the json file -> fix this
-        "
-        )
-    }
-
-    let mut res = Metadata::new();
-    res.set_json(parsed.to_string());
-    res
 }
 
 fn get_file_names_array(ctx: &ScanContext) -> json::Array {
@@ -122,9 +138,6 @@ fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 }
 
 // detection
-
-const DETECTIONS_JSON_KEY: &str = "detections";
-const NAMES_IN_DETECTIONS_JSON_KEY: &str = "names";
 
 #[module_export(name = "detection.name")]
 fn detection_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
@@ -204,8 +217,6 @@ fn detection_string(
 
     Some(matches_count as _)
 }
-
-const AV_WITHIN_DETECTIONS_JSON_KEY: &str = "av";
 
 #[module_export(name = "detection.name")]
 fn detection_regexp_av(
@@ -321,9 +332,6 @@ fn detection_string_av(
 
 // arpot
 
-const ARPOT_JSON_KEY: &str = "arpot";
-const DLLS_IN_ARPOT_JSON_KEY: &str = "dlls";
-
 #[module_export(name = "arpot.dll")]
 fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = ctx
@@ -358,8 +366,6 @@ fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
     Some(matches_count as _)
 }
-
-const PROCESSES_IN_ARPOT_JSON_KEY: &str = "processes";
 
 #[module_export(name = "arpot.process")]
 fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
@@ -398,9 +404,6 @@ fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 // idp
 
-const IDP_JSON_KEY: &str = "idp";
-const RULES_IN_IDP_JSON_KEY: &str = "rules";
-
 #[module_export(name = "idp.rule_name")]
 fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = ctx
@@ -437,9 +440,6 @@ fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 // source
 
-const SOURCE_JSON_KEY: &str = "source";
-const URLS_IN_SOURCE_JSON_KEY: &str = "urls";
-
 #[module_export(name = "source.url")]
 fn source_url_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
     let received_json = ctx
@@ -474,9 +474,6 @@ fn source_url_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 }
 
 // parent_process
-
-const PARENT_PROCESS_JSON_KEY: &str = "parent_process";
-const PATHS_IN_PARENT_PROCESS_JSON_KEY: &str = "paths";
 
 #[module_export(name = "parent_process.path")]
 fn parent_process_path_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
