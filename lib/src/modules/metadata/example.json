@@ -1,0 +1,27 @@
+{
+  "file_names": ["foo", "foo", "foooooooo"],
+  "detections": [
+    {
+      "av": "AntiVir",
+      "names": ["test123", "not mathing", "test123", "test123"]
+    },
+    {
+      "av": "not AntiVir",
+      "names": ["test123", "not mathing", "test123", "test123"]
+    }
+  ],
+  "arpot": {
+    "processes": ["test123", "not matching", "test123"],
+    "dlls": ["test123", "not matching", "test123"]
+  },
+  "idp": {
+    "rules": ["test123", "not matching", "test123"]
+  },
+  "parent_process": {
+    "paths": ["test123", "not matching", "test123"]
+  },
+  "source": {
+    "urls": ["test123", "not matching", "test123"]
+  },
+  "additionalProp1": {}
+}
