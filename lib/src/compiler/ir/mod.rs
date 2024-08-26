@@ -610,6 +610,7 @@ pub(in crate::compiler) struct ForIn {
 #[derive(Debug)]
 pub(in crate::compiler) struct With {
     pub identifiers: Vec<Var>,
+    pub expressions: Vec<Expr>,
     pub condition: Expr,
     pub stack_frame: VarStackFrame,
 }

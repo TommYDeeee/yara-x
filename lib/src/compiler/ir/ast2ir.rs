@@ -1103,13 +1103,11 @@ fn with_expr_from_ast(
     ctx: &mut CompileContext,
     with: &ast::With,
 ) -> Result<Expr, Box<CompileError>> {
-    // Create stack frame with capacity for the loop variables, plus 4
-    // temporary variables used for controlling the loop (see emit_for),
-    // plus one additional variable used in loops over arrays and maps
-    // (see emit_for_in_array and emit_for_in_map).
+    // Create stack frame with capacity for the with statement variables
     let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32 + 5);
     let mut symbols = SymbolTable::new();
     let mut identifiers = Vec::new();
+    let mut expressions = Vec::new();
 
     for item in with.items.iter() {
         let type_value = expr_from_ast(ctx, &item.expression)?
@@ -1118,6 +1116,7 @@ fn with_expr_from_ast(
         let var = stack_frame.new_var(type_value.ty());
 
         identifiers.push(var);
+        expressions.push(expr_from_ast(ctx, &item.expression)?);
         symbols.insert(
             item.identifier.name,
             Symbol::new(type_value, SymbolKind::Var(var)),
@@ -1129,12 +1128,17 @@ fn with_expr_from_ast(
 
     let condition = bool_expr_from_ast(ctx, &with.condition)?;
 
-    // Leaving the condition's scope. Remove loop variables.
+    // Leaving nested condition's scope. Remove with statement variables.
     ctx.symbol_table.pop();
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::With(Box::new(With { identifiers, condition, stack_frame })))
+    Ok(Expr::With(Box::new(With {
+        identifiers,
+        expressions,
+        condition,
+        stack_frame,
+    })))
 }
 
 fn iterable_from_ast(

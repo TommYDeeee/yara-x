@@ -2132,9 +2132,17 @@ fn emit_for<I, B, C, A>(
 fn emit_with(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
-    for_in: &mut With,
+    with: &mut With,
 ) {
-    todo!()
+    // Emit the code that sets the variables in the `with` statement.
+    for (idx, &item) in with.identifiers.iter().enumerate() {
+        let expr = &mut with.expressions[idx];
+        set_var(ctx, instr, item, |ctx, instr| {
+            emit_expr(ctx, instr, expr);
+        });
+    }
+
+    emit_bool_expr(ctx, instr, &mut with.condition)
 }
 
 /// Produces a switch statement by calling a `branch_generator` function
