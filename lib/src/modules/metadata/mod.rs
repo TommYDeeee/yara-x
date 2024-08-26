@@ -1,6 +1,9 @@
+use regex_syntax::hir::print;
+
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::metadata::*;
+use crate::scanner::ScanInputRaw;
 
 // json keys
 
@@ -24,8 +27,11 @@ const PARENT_PROCESS_JSON_KEY: &str = "parent_process";
 const PATHS_IN_PARENT_PROCESS_JSON_KEY: &str = "paths";
 
 #[module_main]
-fn main(_data: &[u8]) -> Metadata {
-    let parsed = serde_json::from_slice::<serde_json::Value>(_data).unwrap();
+fn main(data: &ScanInputRaw) -> Metadata {
+    let parsed = serde_json::from_slice::<serde_json::Value>(
+        data.meta.expect("meta should be present when calling this module"),
+    )
+    .unwrap();
 
     // todo fix & remove before prod / upstream merge
     if cfg!(not(debug_assertions)) {

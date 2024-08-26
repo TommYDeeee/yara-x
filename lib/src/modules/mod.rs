@@ -3,6 +3,8 @@ use protobuf::reflect::MessageDescriptor;
 use protobuf::MessageDyn;
 use rustc_hash::FxHashMap;
 
+use crate::scanner::ScanInputRaw;
+
 pub mod protos {
     include!(concat!(env!("OUT_DIR"), "/protos/mod.rs"));
 }
@@ -24,7 +26,8 @@ pub(crate) mod prelude {
 include!("modules.rs");
 
 /// Type of module's main function.
-type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
+// type MainFn = fn(&[u8]) -> Box<dyn MessageDyn>;
+type MainFn = fn(&ScanInputRaw) -> Box<dyn MessageDyn>;
 
 /// Describes a YARA module.
 pub(crate) struct Module {
@@ -242,7 +245,11 @@ pub mod mods {
                 module.root_struct_descriptor.full_name() == proto_name
             })?;
 
-        Some(module.main_fn?(data))
+        todo!(
+            "changes need to be made ever since sending metadata to the main (besides just `&[u8]` target-file data)"
+        )
+
+        // Some(module.main_fn?(data))
     }
 
     /// Invoke all YARA modules and return the data produced by them.

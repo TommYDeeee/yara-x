@@ -1,15 +1,17 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::eml;
+use crate::ScanInputRaw;
 use mail_parser::*;
 use protobuf::MessageField;
 
 #[module_main]
-fn main(data: &[u8]) -> eml::EML {
+// fn main(data: &ScanInputRaw) -> eml::EML {
+fn main(data: &ScanInputRaw) -> eml::EML {
     let mut eml_proto = eml::EML::new();
 
     let parser = MessageParser::new();
 
-    if let Some(message) = parser.parse(data) {
+    if let Some(message) = parser.parse(data.target) {
         eml_proto.set_is_eml(true);
         serialize_headers(&message, &mut eml_proto);
         serialize_body(&message, &mut eml_proto);
@@ -31,7 +33,10 @@ fn serialize_mailbox(mailbox: &Addr) -> eml::Mailbox {
     proto_mailbox
 }
 
-fn serialize_addresses_from_header(header: &Header, into: &mut Vec<eml::Mailbox>) {
+fn serialize_addresses_from_header(
+    header: &Header,
+    into: &mut Vec<eml::Mailbox>,
+) {
     if let HeaderValue::Address(mailbox_list) = &header.value {
         match mailbox_list {
             Address::List(list) => {

@@ -11,7 +11,9 @@ pub(crate) fn impl_module_main_macro(
 
     let main_stub = quote! {
         use protobuf::MessageDyn;
-        pub(crate) fn __main__(data: &[u8]) -> Box<dyn MessageDyn> {
+        // todo unsure about how good of a practice it is to use the type path like this (`crate::ScanInputRaw`)
+        // is it "hygienic" enough?
+        pub(crate) fn __main__(data: &crate::ScanInputRaw) -> Box<dyn MessageDyn> {
             Box::new(#fn_name(data))
         }
     };

@@ -12,7 +12,7 @@ use superconsole::style::Stylize;
 use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
-use yara_x::{Rule, Rules, ScanError, Scanner};
+use yara_x::{Rule, Rules, ScanError, ScanInput, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -125,11 +125,11 @@ pub fn scan() -> Command {
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut rules_path = args.get_many::<PathBuf>("RULES_PATH").unwrap();
-    // let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
+    let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
 
-    let target_path = args.get_one::<PathBuf>("module-data").unwrap();
+    let metadata_path = args.get_one::<PathBuf>("module-data");
 
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
@@ -259,14 +259,22 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let now = Instant::now();
 
+            // todo shouldnt the files be in a better structure than vec? (`retain` is O(n))
+            // ofc the perf might still be better with vec - benchmarks needed
             state
                 .files_in_progress
                 .lock()
                 .unwrap()
                 .push((file_path.clone(), now));
 
+            // todo this forces a weird lifetime upon the `target_file` -> `scan_results`
+            let target_file = file_path.as_path();
+            let metadata_file = metadata_path.map(|p| p.as_path());
+
+            let scan_input = ScanInput { target_file, metadata_file };
+
             let scan_results = scanner
-                .scan_file(&file_path)
+                .scan_file(&scan_input)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state
