@@ -5,20 +5,20 @@ mod console;
 mod dotnet;
 #[cfg(feature = "elf-module")]
 mod elf;
+#[cfg(feature = "eml-module")]
+mod eml;
 #[cfg(feature = "hash-module")]
 mod hash;
 #[cfg(feature = "lnk-module")]
 mod lnk;
+#[cfg(feature = "macho-module")]
+mod macho;
 #[cfg(feature = "magic-module")]
 mod magic;
 #[cfg(feature = "math-module")]
 mod math;
 #[cfg(feature = "pe-module")]
 mod pe;
-#[cfg(feature = "macho-module")]
-mod macho;
-#[cfg(feature = "eml-module")]
-mod eml;
 #[cfg(feature = "string-module")]
 mod string;
 #[cfg(feature = "test_proto2-module")]

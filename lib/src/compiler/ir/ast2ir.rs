@@ -1109,6 +1109,9 @@ fn with_expr_from_ast(
     let mut identifiers = Vec::new();
     let mut expressions = Vec::new();
 
+    // Iterate over all items in the with statement and create a new variable
+    // for each one. Both identifiers and corresponding expressions are stored
+    // in separate vectors.
     for item in with.items.iter() {
         let type_value = expr_from_ast(ctx, &item.expression)?
             .type_value()
@@ -1117,18 +1120,20 @@ fn with_expr_from_ast(
 
         identifiers.push(var);
         expressions.push(expr_from_ast(ctx, &item.expression)?);
+
+        // Insert the variable into the symbol table.
         symbols.insert(
             item.identifier.name,
             Symbol::new(type_value, SymbolKind::Var(var)),
         );
     }
 
-    // Put the loop variables into scope.
+    // Put the with variables into scope.
     ctx.symbol_table.push(Rc::new(symbols));
 
     let condition = bool_expr_from_ast(ctx, &with.condition)?;
 
-    // Leaving nested condition's scope. Remove with statement variables.
+    // Leaving with statement condition's scope. Remove with statement variables.
     ctx.symbol_table.pop();
 
     ctx.vars.unwind(&stack_frame);

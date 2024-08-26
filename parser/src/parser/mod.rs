@@ -1583,6 +1583,15 @@ impl<'src> ParserImpl<'src> {
             .end()
     }
 
+    /// Parses `with` expression.
+    ///
+    /// ```text
+    /// WITH_EXPR :=
+    ///     `with` WITH_IDENTIFIERS `:`
+    ///         `(`
+    ///             BOOLEAN_EXPR
+    ///         `)`
+    /// ```
     fn with_expr(&mut self) -> &mut Self {
         self.begin(WITH_EXPR)
             .expect(t!(WITH_KW))
@@ -1594,6 +1603,12 @@ impl<'src> ParserImpl<'src> {
             .end()
     }
 
+    /// Parses `with` identifiers.
+    ///
+    /// ```text
+    /// WITH_IDENTIFIERS :=
+    ///     IDENT `=` EXPR (`,` IDENT `=` EXPR)*
+    ///
     fn with_identifier(&mut self) -> &mut Self {
         self.begin(WITH_IDENTIFIERS)
             .expect(t!(IDENT))

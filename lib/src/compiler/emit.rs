@@ -2129,6 +2129,14 @@ fn emit_for<I, B, C, A>(
     });
 }
 
+/// Emits the code for a `with` statement.
+///
+/// Each `with` statement has a corresponding <identifier> = <expression> pair.
+/// Each pair is stored in the `identifiers` and `expressions` fields of the
+/// `with` statement.
+/// For each pair, the code emitted by this function sets the variable
+/// corresponding to the identifier to the value of the emmited expression.
+/// Those variables are later used in the condition of the `with` statement.
 fn emit_with(
     ctx: &mut EmitContext,
     instr: &mut InstrSeqBuilder,
@@ -2142,6 +2150,8 @@ fn emit_with(
         });
     }
 
+    // Emit the code that evaluates the condition of the `with` statement.
+    // This condition is a boolean expression that uses the variables set
     emit_bool_expr(ctx, instr, &mut with.condition)
 }
 

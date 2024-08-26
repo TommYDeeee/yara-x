@@ -6,20 +6,20 @@ add_module!(modules, "console", console, "console.Console", Some("console"), Som
 add_module!(modules, "dotnet", dotnet, "dotnet.Dotnet", Some("dotnet"), Some(dotnet::__main__ as MainFn));
 #[cfg(feature = "elf-module")]
 add_module!(modules, "elf", elf, "elf.ELF", Some("elf"), Some(elf::__main__ as MainFn));
+#[cfg(feature = "eml-module")]
+add_module!(modules, "eml", eml, "eml.EML", Some("eml"), Some(eml::__main__ as MainFn));
 #[cfg(feature = "hash-module")]
 add_module!(modules, "hash", hash, "hash.Hash", Some("hash"), Some(hash::__main__ as MainFn));
 #[cfg(feature = "lnk-module")]
 add_module!(modules, "lnk", lnk, "lnk.Lnk", Some("lnk"), Some(lnk::__main__ as MainFn));
+#[cfg(feature = "macho-module")]
+add_module!(modules, "macho", macho, "macho.Macho", Some("macho"), Some(macho::__main__ as MainFn));
 #[cfg(feature = "magic-module")]
 add_module!(modules, "magic", magic, "magic.Magic", Some("magic"), Some(magic::__main__ as MainFn));
 #[cfg(feature = "math-module")]
 add_module!(modules, "math", math, "math.Math", Some("math"), Some(math::__main__ as MainFn));
 #[cfg(feature = "pe-module")]
 add_module!(modules, "pe", pe, "pe.PE", Some("pe"), Some(pe::__main__ as MainFn));
-#[cfg(feature = "macho-module")]
-add_module!(modules, "macho", macho, "macho.Macho", Some("macho"), Some(macho::__main__ as MainFn));
-#[cfg(feature = "eml-module")]
-add_module!(modules, "eml", eml, "eml.EML", Some("eml"), Some(eml::__main__ as MainFn));
 #[cfg(feature = "string-module")]
 add_module!(modules, "string", string, "string.String", Some("string"), Some(string::__main__ as MainFn));
 #[cfg(feature = "test_proto2-module")]

@@ -372,7 +372,7 @@ pub struct With<'src> {
     pub condition: Expr<'src>,
 }
 
-///
+/// Items in a `with` expression.
 #[derive(Debug)]
 pub struct WithItems<'src> {
     span: Span,
