@@ -1027,13 +1027,13 @@ impl<'src> Builder<'src> {
         self.begin(WITH_IDENTIFIERS)?;
 
         let item = |i: &mut Self| -> Result<WithItems<'src>, Abort> {
-            let ident = i.identifier()?;
-            let mut span = ident.span();
+            let identifier = i.identifier()?;
+            let mut span = identifier.span();
             span = span.combine(&i.expect(EQUAL)?);
             let expression = i.expr()?;
             span = span.combine(&expression.span());
 
-            Ok(WithItems { span, identifier: ident, expression: expression })
+            Ok(WithItems { span, identifier, expression })
         };
 
         let mut items = vec![item(self)?];
