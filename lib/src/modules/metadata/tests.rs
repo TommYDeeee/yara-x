@@ -9,12 +9,12 @@ fn invalid_json_fails_gracefully() {
         import "metadata"
         rule test {
             condition:
-    		    metadata.file.name("test") == 0
+    		    metadata.file.name("test") >= 0 // `>=` ~> `true` iff is not undefined
         }
         "#,
         &[],
         meta.as_bytes(),
-        0
+        0 // should match 0 files (`undefined` is not `>= 0`)
     );
 }
 

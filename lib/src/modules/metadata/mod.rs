@@ -32,9 +32,13 @@ mod tests;
 #[module_main]
 fn main(data: &ScanInputRaw) -> Metadata {
     let parsed = serde_json::from_slice::<serde_json::Value>(
-        data.meta.expect("meta should be present when calling this module"),
+        data.meta.unwrap_or_default(),
     )
-    .unwrap();
+    // on error, returns `Null` json, which should result in "error" (`Null` return) in all the functions
+    // -> intended behavior
+    .unwrap_or_default();
+
+    println!("parsed: {:?}", parsed);
 
     // todo fix & remove before prod / upstream merge
     if cfg!(not(debug_assertions)) {
