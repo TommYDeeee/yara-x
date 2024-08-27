@@ -1,5 +1,3 @@
-use regex_syntax::hir::print;
-
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::metadata::*;
@@ -38,25 +36,12 @@ fn main(data: &ScanInputRaw) -> Metadata {
     // -> intended behavior
     .unwrap_or_default();
 
-    println!("parsed: {:?}", parsed);
-
-    // todo fix & remove before prod / upstream merge
-    if cfg!(not(debug_assertions)) {
-        panic!(
-            r"
-        this module is not meant to be used in production yet
-        currently, we are abusing the `_data` arg to send the json file -> fix this
-        "
-        )
-    }
-
     let mut res = Metadata::new();
     res.set_json(parsed.to_string());
     res
 }
 
 fn get_json(ctx: &ScanContext) -> json::JsonValue {
-    // todo get it from somewhere else than the ctx once implemented in upstream
     let received_json = ctx
         .module_output::<Metadata>()
         .expect("metadata should be set")
@@ -65,11 +50,6 @@ fn get_json(ctx: &ScanContext) -> json::JsonValue {
     json::parse(received_json).expect("json should be valid")
 }
 
-// todo this function is often used in the context of arrays, where we assume that all the values are strings
-// vs this is not documented anywhere
-// original .c code "solves" this by having UB (`strcmp(maybe_null, _)` in `match_list_string`)
-// -> using this function (panicking on non-string values) is likely the way to go
-// would still be nice to write this down somewhere
 fn expect_str(json_value: &json::JsonValue) -> Option<&str> {
     match json_value {
         json::JsonValue::String(actual) => Some(actual),
