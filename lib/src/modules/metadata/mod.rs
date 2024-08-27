@@ -26,6 +26,9 @@ const URLS_IN_SOURCE_JSON_KEY: &str = "urls";
 const PARENT_PROCESS_JSON_KEY: &str = "parent_process";
 const PATHS_IN_PARENT_PROCESS_JSON_KEY: &str = "paths";
 
+#[cfg(test)]
+mod tests;
+
 #[module_main]
 fn main(data: &ScanInputRaw) -> Metadata {
     let parsed = serde_json::from_slice::<serde_json::Value>(

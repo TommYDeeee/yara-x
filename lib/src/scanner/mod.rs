@@ -395,6 +395,20 @@ impl<'r> Scanner<'r> {
         self.scan_impl(data)
     }
 
+    /// scans in-memory data with metadata
+    pub fn scan_with_metadata<'a>(
+        &'a mut self,
+        data: &'a [u8],
+        meta: &'a [u8],
+    ) -> Result<ScanResults<'a, 'r>, ScanError> {
+        let data = ScanInputLoaded {
+            target: ScannedData::Slice(data),
+            meta: Some(ScannedData::Slice(meta)),
+        };
+
+        self.scan_impl(data)
+    }
+
     // todo how to handle the metadata? do i update the calls? or do i just leave it as `None`
     /// Scans in-memory data.
     pub fn scan<'a>(

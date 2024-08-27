@@ -54,6 +54,26 @@ macro_rules! condition_false {
     }};
 }
 
+macro_rules! test_rule_with_metadata {
+    ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
+        let rules = crate::compile($rule).unwrap();
+
+        let num_matching_rules = crate::scanner::Scanner::new(&rules)
+            .scan_with_metadata($data, $metadata)
+            .expect("scan should not fail")
+            .matching_rules()
+            .len();
+
+        assert_eq!(
+            num_matching_rules,
+            $expected_result as usize, // todo should not be just `1`?
+            "\n\n`{}` should be 1, but it is {}",
+            $rule,
+            num_matching_rules
+        );
+    }};
+}
+
 macro_rules! test_rule {
     ($rule:expr,  $data:expr, $expected_result:expr) => {{
         let rules = crate::compile($rule).unwrap();
@@ -150,6 +170,7 @@ pub(crate) use rule_false;
 pub(crate) use rule_true;
 pub(crate) use test_condition;
 pub(crate) use test_rule;
+pub(crate) use test_rule_with_metadata;
 
 #[test]
 fn arithmetic_operations() {
