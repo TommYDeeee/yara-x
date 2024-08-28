@@ -1105,8 +1105,8 @@ fn with_expr_from_ast(
     // Create stack frame with capacity for the with statement variables
     let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32 + 5);
     let mut symbols = SymbolTable::new();
-    let mut identifiers = Vec::new();
-    let mut expressions = Vec::new();
+    let mut identifiers = Vec::with_capacity(with.items.len());
+    let mut expressions = Vec::with_capacity(with.items.len());
 
     // Iterate over all items in the with statement and create a new variable
     // for each one. Both identifiers and corresponding expressions are stored
