@@ -1,25 +1,38 @@
-pub(super) fn expect_str(json_value: &json::JsonValue) -> Option<&str> {
-    match json_value {
-        json::JsonValue::String(actual) => Some(actual),
-        json::JsonValue::Short(short_actual) => Some(short_actual.as_str()),
-        _ => None,
-    }
+#[derive(serde::Deserialize)]
+pub(super) struct Detection {
+    pub av: String,
+    pub names: Vec<String>,
+}
+#[derive(serde::Deserialize)]
+pub(super) struct Arpot {
+    pub processes: Vec<String>,
+    pub dlls: Vec<String>,
 }
 
-pub(super) fn expect_array(
-    json_value: &json::JsonValue,
-) -> Option<&json::Array> {
-    match json_value {
-        json::JsonValue::Array(array) => Some(array),
-        _ => None,
-    }
+#[derive(serde::Deserialize)]
+pub(super) struct Idp {
+    pub rules: Vec<String>,
 }
 
-pub(super) fn expect_object(
-    json_value: &json::JsonValue,
-) -> Option<&json::JsonValue> {
-    match json_value {
-        object @ json::JsonValue::Object(_) => Some(object),
-        _ => None,
-    }
+#[derive(serde::Deserialize)]
+pub(super) struct ParentProcess {
+    pub paths: Vec<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub(super) struct Source {
+    pub urls: Vec<String>,
+}
+
+/// schema of the json file that is expected to be used in this module
+///
+/// serves as a template for the serde deserialization and for type-safe access to the fields
+#[derive(serde::Deserialize)]
+pub(super) struct MetaJson {
+    pub file_names: Vec<String>,
+    pub detections: Vec<Detection>,
+    pub arpot: Arpot,
+    pub idp: Idp,
+    pub parent_process: ParentProcess,
+    pub source: Source,
 }

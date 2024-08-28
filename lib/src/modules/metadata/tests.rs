@@ -19,7 +19,7 @@ fn invalid_json_fails_gracefully() {
 }
 
 #[test]
-fn file_name_string_json_empty_is_ok() {
+fn serde_tolerates_extra_junk() {
     let meta = r#"
         {
         "file_names": [],
@@ -42,7 +42,50 @@ fn file_name_string_json_empty_is_ok() {
         "source": {
             "urls": []
         },
-        "additionalProp1": {}
+        "some_extra_junk": {
+            "that": "should be ignored"
+        }
+        }
+    "#;
+
+    test_rule_with_metadata!(
+        r#"
+        import "metadata"
+        rule test {
+            condition:
+    		    metadata.file.name("") == 0
+        }
+        "#,
+        &[],
+        meta.as_bytes(),
+        1
+    );
+}
+
+#[test]
+fn file_name_string_json_empty_is_ok() {
+    let meta = r#"
+        {
+        "file_names": [],
+        "detections": [
+            {
+            "av": "",
+            "names": []
+            }
+        ],
+        "arpot": {
+            "processes": [],
+            "dlls": []
+        },
+        "idp": {
+            "rules": []
+        },
+        "parent_process": {
+            "paths": []
+        },
+        "source": {
+            "urls": []
+        }
         }
     "#;
 
@@ -83,8 +126,7 @@ fn file_name_regex_json_empty_is_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -125,8 +167,7 @@ fn file_name_string_names_counted() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -167,8 +208,7 @@ fn file_name_regex_names_counted() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -209,8 +249,7 @@ fn file_name_string_other_ignored() {
         },
         "source": {
             "urls": ["test"]
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -251,8 +290,7 @@ fn file_name_regex_other_ignored() {
         },
         "source": {
             "urls": ["test"]
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -293,8 +331,7 @@ fn detection_name_string_empty_is_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -335,8 +372,7 @@ fn detection_name_regex_empty_is_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -381,8 +417,7 @@ fn detection_name_string_counts() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -427,8 +462,7 @@ fn detection_name_regex_counts() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -469,8 +503,7 @@ fn detection_name_string_other_ignored() {
         },
         "source": {
             "urls": ["test"]
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -511,8 +544,7 @@ fn detection_name_regex_other_ignored() {
         },
         "source": {
             "urls": ["test"]
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -557,8 +589,7 @@ fn detection_name_string_filter_filters() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -603,8 +634,7 @@ fn detection_name_regex_filter_filters() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -645,8 +675,7 @@ fn arpot_dll_empty_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -687,8 +716,7 @@ fn arpot_dll_counts() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -729,8 +757,7 @@ fn arpot_dll_other_ignored() {
     },
     "source": {
         "urls": ["test"]
-    },
-    "additionalProp1": {}
+    }
     }
     "#;
 
@@ -771,8 +798,7 @@ fn arpot_process_empty_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -813,8 +839,7 @@ fn arpot_process_counts() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -855,8 +880,7 @@ fn arpot_process_other_ignored() {
     },
     "source": {
         "urls": ["test"]
-    },
-    "additionalProp1": {}
+    }
     }
     "#;
 
@@ -897,8 +921,7 @@ fn idp_rule_name_empty_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -939,8 +962,7 @@ fn idp_rule_name_counts() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -981,8 +1003,7 @@ fn idp_rule_name_other_ignored() {
     },
     "source": {
         "urls": ["test"]
-    },
-    "additionalProp1": {}
+    }
     }
     "#;
 
@@ -1023,8 +1044,7 @@ fn source_url_empty_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -1065,8 +1085,7 @@ fn source_url_counts() {
         },
         "source": {
             "urls": ["test", "not a match", "test"]
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -1107,8 +1126,7 @@ fn source_url_other_ignored() {
     },
     "source": {
         "urls": []
-    },
-    "additionalProp1": {}
+    }
     }
     "#;
 
@@ -1149,8 +1167,7 @@ fn parent_process_path_empty_ok() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -1191,8 +1208,7 @@ fn parent_process_path_counts() {
         },
         "source": {
             "urls": []
-        },
-        "additionalProp1": {}
+        }
         }
     "#;
 
@@ -1233,8 +1249,7 @@ fn parent_process_path_ignored() {
     },
     "source": {
         "urls": ["test"]
-    },
-    "additionalProp1": {}
+    }
     }
     "#;
 
