@@ -2,7 +2,6 @@
 
 use std::borrow::Borrow;
 use std::collections::BTreeSet;
-use std::env::var;
 use std::iter;
 use std::ops::RangeInclusive;
 use std::rc::Rc;
