@@ -79,6 +79,8 @@ elf-module = [
 
 eml-module = [
     "dep:mail-parser",
+    "dep:sha2",
+    "dep:deunicode",
 ]
 
 # The `hash` module provides functions for computing md5, sha1, sha-256,
@@ -212,7 +214,7 @@ roxmltree = { workspace = true, optional = true }
 rsa = { workspace = true, optional = true }
 smallvec = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["rc"] }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 thiserror = { workspace = true }
 tlsh-fixed = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true, features = ["v4"] }
@@ -221,10 +223,11 @@ wasmtime = { workspace = true, features = ["cranelift", "parallel-compilation"] 
 x509-parser = { workspace = true, optional = true }
 yansi = { workspace = true }
 yara-x-macros = { workspace = true }
-yara-x-parser = { workspace = true }
+yara-x-parser = { workspace = true, features = ["serde"] }
 
 lingua = { version = "1.6.0", optional = true, default-features = false, features = ["english", "german", "french", "spanish"] }
 mail-parser = { version = "0.9.3", optional = true }
+deunicode = { version = "1.6.0", optional = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

@@ -266,4 +266,11 @@ pub mod mods {
         info.eml = protobuf::MessageField(invoke::<EML>(data));
         info
     }
+
+    /// Iterator over built-in module names.
+    ///
+    /// See the "debug modules" command.
+    pub fn module_names() -> impl Iterator<Item = &'static str> {
+        super::BUILTIN_MODULES.keys().copied()
+    }
 }

@@ -1,0 +1,78 @@
+is_eml: true
+date: 1720081265  # 2024-07-04 08:21:05 UTC
+other:
+  - name: "X-SPAM"
+    value: "ok"
+other_count: 1
+subject: "test resending"
+subject_ascii: "test resending"
+comments_count: 0
+keywords_count: 0
+from:
+  - address: "mike@resender.net"
+    name: "Mike"
+to:
+  - address: "john@resender.net"
+    name: "John"
+from_count: 1
+to_count: 1
+cc_count: 0
+bcc_count: 0
+message_id: "original@resender.net"
+in_reply_to_count: 0
+references_count: 0
+resent:
+  - from:
+      - address: "robert@resender.net"
+        name: "Robert"
+    to:
+      - address: "richard@resender.net"
+        name: "Richard"
+    date: 1721494823  # 2024-07-20 17:00:23 UTC
+    msg_id: "third@resender.net"
+    from_count: 1
+    to_count: 1
+    cc_count: 0
+    bcc_count: 0
+    reply_to_count: 0
+  - from:
+      - address: "daniel@resender.net"
+        name: "Daniel"
+    to:
+      - address: "robert@resender.net"
+        name: "Robert"
+    date: 1721470764  # 2024-07-20 10:19:24 UTC
+    msg_id: "second@resender.net"
+    from_count: 1
+    to_count: 1
+    cc_count: 0
+    bcc_count: 0
+    reply_to_count: 0
+  - from:
+      - address: "john@resender.net"
+        name: "John"
+    to:
+      - address: "daniel@resender.net"
+        name: "Daniel"
+    date: 1721463236  # 2024-07-20 08:13:56 UTC
+    msg_id: "first@resender.net"
+    from_count: 1
+    to_count: 1
+    cc_count: 0
+    bcc_count: 0
+    reply_to_count: 0
+resent_count: 3
+received_count: 0
+return_path_count: 0
+texts_count: 1
+htmls_count: 0
+attachments_count: 0
+messages_count: 0
+texts:
+  - data: "Test of Resent-* headers."
+    length: 25
+    headers_start: 0
+    body_start: 688
+    body_end: 713
+    hash: "10fe0c36803ed1de46978e844e3c0acf4e9592219fe53674fb3d767e132559df"
+    headers_count: 0

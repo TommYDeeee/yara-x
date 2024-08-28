@@ -1,0 +1,85 @@
+is_eml: true
+date: 880127706  # 1997-11-21 15:55:06 UTC
+other:
+  - name: "X-VirusScan"
+    value: "safe"
+  - name: "X-Other-Unknown"
+    value: "unknown header\'s value"
+other_count: 2
+subject: "Re: mail designed to test common RFC822 headers"
+subject_ascii: "Re: mail designed to test common RFC822 headers"
+comments:
+  - "made with GIGA_mail_Client_3000"
+keywords:
+  - "friends"
+  - "personal mails"
+  - "secret"
+  - "test"
+comments_count: 1
+keywords_count: 4
+from:
+  - address: "michelle@subject.com"
+    name: "Michelle"
+  - address: "michelleProxy@subject.com"
+to:
+  - address: "friend@friends.com"
+    name: "Secret Friend"
+  - address: "somebody.else@friends.com"
+    name: "Someone else"
+cc:
+  - address: "drive@friends.com"
+    name: "backup account"
+  - address: "super.backup@cloud.net"
+bcc:
+  - address: "secret@friends.com"
+    name: "secret FRIEND"
+reply_to:
+  - address: "somebody.else@friends.com"
+    name: "Someone else"
+sender:
+    address: "michelleProxy@subject.com"
+from_count: 2
+to_count: 2
+cc_count: 2
+bcc_count: 1
+message_id: "001001@ID.SUBJECT.COM"
+in_reply_to:
+  - "002001@ID.FRIENDS.COM"
+references:
+  - "002001@ID.FRIENDS.COM"
+  - "500204@another.ID.hidden.service.net"
+in_reply_to_count: 1
+references_count: 2
+resent_count: 0
+received:
+  - from: "SERVER.X01.SUPERMAIL.COM"
+    from_ip: "d874:ca10:de49:c05d:87d5:2bff:bb54:fbc0"
+    by: "server.eu08.supermail.com"
+    with: "SMTP"
+    tls_version: "TLSv1.2"
+    tls_cipher: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+    id: "19.26.7699.45"
+    via: " Client"
+    date: 1718735446  # 2024-06-18 18:30:46 UTC
+  - from: "mega.mailservice.net"
+    from_ip: "48.86.54.37"
+    by: " spam.detector.x01"
+    with: "SMTP"
+    id: "18.15.745.32"
+    date: 1718776740  # 2024-06-19 05:59:00 UTC
+received_count: 2
+return_path:
+  - "any_return_path@domain.com"
+return_path_count: 1
+texts_count: 1
+htmls_count: 0
+attachments_count: 0
+messages_count: 0
+texts:
+  - data: "Testing basic headers."
+    length: 22
+    headers_start: 0
+    body_start: 1270
+    body_end: 1292
+    hash: "4d250a3c275a3519e9c6c18948256a87b5a6eab87a35dd7931d631f24fd902dd"
+    headers_count: 0

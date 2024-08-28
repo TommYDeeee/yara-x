@@ -1,0 +1,42 @@
+is_eml: true
+date: 1722540896  # 2024-08-01 19:34:56 UTC
+other_count: 0
+subject: "Test, Überprüfung, テスト, тест, Testíček"
+subject_ascii: "Test, Uberprufung, tesuto, test, Testicek"
+comments_count: 0
+keywords_count: 0
+from:
+  - address: "globetrotter@spacemail.com"
+to:
+  - address: "neil@aliens.net"
+from_count: 1
+to_count: 1
+cc_count: 0
+bcc_count: 0
+in_reply_to_count: 0
+references_count: 0
+resent_count: 0
+received_count: 0
+return_path_count: 0
+content_type:
+    type: "text"
+    subtype: "plain"
+    attributes:
+        "charset": "UTF-8"
+texts_count: 1
+htmls_count: 0
+attachments_count: 0
+messages_count: 0
+texts:
+  - data: "Hello fellow space creatures!\n\nThis message tests the transliteration of subject from unicode to ascii."
+    length: 103
+    headers_start: 0
+    body_start: 228
+    body_end: 331
+    hash: "8dd1f3e9891ab341662ce0cdc0ba2330cd3c266a3f3a81ccd226c5e2b834590e"
+    content_type:
+        type: "text"
+        subtype: "plain"
+        attributes:
+            "charset": "UTF-8"
+    headers_count: 0

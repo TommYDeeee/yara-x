@@ -26,14 +26,14 @@ use crate::compiler::{
     NamespaceId, PatternId, RegexpId, RuleId, Rules, SubPattern,
     SubPatternAtom, SubPatternFlagSet, SubPatternFlags, SubPatternId,
 };
-use crate::re::fast::fastvm::FastVM;
-use crate::re::thompson::pikevm::PikeVM;
+use crate::re::fast::FastVM;
+use crate::re::thompson::PikeVM;
 use crate::re::Action;
 use crate::scanner::matches::{Match, PatternMatches, UnconfirmedMatch};
+use crate::scanner::ScanError;
 use crate::scanner::HEARTBEAT_COUNTER;
 use crate::types::{Array, Map, Struct};
 use crate::wasm::MATCHING_RULES_BITMAP_BASE;
-use crate::ScanError;
 
 /// Structure that holds information about the current scan.
 pub(crate) struct ScanContext<'r> {
