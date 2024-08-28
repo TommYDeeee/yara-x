@@ -126,12 +126,25 @@ type CompileError struct {
 	Text string
 }
 
+// Warning represents each of the warnings returned by [Compiler.Warnings].
+type Warning struct {
+	// Error code (e.g: "slow_pattern").
+	Code string
+	// Error title (e.g: "slow pattern").
+	Title string
+	// Each of the labels in the error report.
+	Labels []Label
+	// The error's full report, as shown by the command-line tool.
+	Text string
+}
+
 // Label represents a label in a [CompileError].
 type Label struct {
 	// Label's level (e.g: "error", "warning", "info", "note", "help").
 	Level string
+	// Origin of the code where the error occurred.
 	CodeOrigin string
-	// The code span covered by the label.
+	// The code span highlighted by this label.
 	Span Span
 	// Text associated to the label.
 	Text string
@@ -204,7 +217,21 @@ func (c *Compiler) initialize() error {
 
 // AddSource adds some YARA source code to be compiled.
 //
-// This function can be called multiple times.
+// This method may be invoked multiple times to add several sets of
+// YARA rules. If the rules provided in src contain errors that prevent
+// compilation, the first error encountered will be returned. Additionally,
+// the compiler will store this error, along with any others discovered
+// during compilation, which can be accessed using [Compiler.Errors].
+//
+// Even if a previous invocation resulted in a compilation error, you can
+// continue calling this method for adding more rules. In such cases, any
+// rules that failed to compile will not be included in the final compiled
+// [Rules].
+//
+// When adding rules to the compiler you can also provide a string containing
+// information about the origin of the rules using the [WithOrigin] option.
+// The origin is usually the path of the file containing the rules, but it can
+// be any string that conveys information about the origin of the rules.
 //
 // Examples:
 //
@@ -335,7 +362,6 @@ func (c *Compiler) DefineGlobal(ident string, value interface{}) error {
 	return nil
 }
 
-
 // Errors that occurred during the compilation, across multiple calls to
 // [Compiler.AddSource].
 func (c *Compiler) Errors() []CompileError {
@@ -358,10 +384,32 @@ func (c *Compiler) Errors() []CompileError {
 	return result
 }
 
+// Warnings that occurred during the compilation, across multiple calls to
+// [Compiler.AddSource].
+func (c *Compiler) Warnings() []Warning {
+	var buf *C.YRX_BUFFER
+	if C.yrx_compiler_warnings_json(c.cCompiler, &buf) != C.SUCCESS {
+		panic("yrx_compiler_warnings_json failed")
+	}
+
+	defer C.yrx_buffer_destroy(buf)
+	runtime.KeepAlive(c)
+
+	jsonWarnings := C.GoBytes(unsafe.Pointer(buf.data), C.int(buf.length))
+
+	var result []Warning
+
+	if err := json.Unmarshal(jsonWarnings, &result); err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
 // Build creates a [Rules] object containing a compiled version of all the
 // YARA rules previously added to the compiler.
 //
-// Once this function is called the compiler is reset to its initial state
+// Once this method is called the compiler is reset to its initial state
 // (i.e: the state it had after NewCompiler returned).
 func (c *Compiler) Build() *Rules {
 	r := &Rules{cRules: C.yrx_compiler_build(c.cCompiler)}
