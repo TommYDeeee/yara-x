@@ -41,13 +41,12 @@ fn main(data: &ScanInputRaw) -> Metadata {
     res
 }
 
-fn get_json(ctx: &ScanContext) -> json::JsonValue {
-    let received_json = ctx
-        .module_output::<Metadata>()
-        .expect("metadata should be set")
-        .json();
+fn get_json(ctx: &ScanContext) -> Option<json::JsonValue> {
+    let received_json = ctx.module_output::<Metadata>()?.json();
 
-    json::parse(received_json).expect("json should be valid")
+    let parsed = json::parse(received_json).ok()?;
+
+    Some(parsed)
 }
 
 fn expect_str(json_value: &json::JsonValue) -> Option<&str> {
@@ -77,7 +76,7 @@ fn name_string(
     ctx: &ScanContext,
     matched_string: RuntimeString,
 ) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
     let matched_string = matched_string.to_str(ctx).ok()?;
 
     let file_names_array = expect_array(&received_json[FILE_NAMES_JSON_KEY])?;
@@ -95,7 +94,7 @@ fn name_string(
 
 #[module_export(name = "file.name")]
 fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let file_names_array = expect_array(&received_json[FILE_NAMES_JSON_KEY])?;
 
@@ -114,7 +113,7 @@ fn name_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 #[module_export(name = "detection.name")]
 fn detection_regex(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
 
@@ -139,7 +138,7 @@ fn detection_string(
     ctx: &ScanContext,
     matching_string: RuntimeString,
 ) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
     let matching_string = matching_string.to_str(ctx).ok()?;
 
     let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
@@ -166,7 +165,7 @@ fn detection_regexp_av(
     av_filter: RuntimeString,
     re: RegexpId,
 ) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
     let av_filter = av_filter.to_str(ctx).ok()?;
 
     let detections_array = expect_array(&received_json[DETECTIONS_JSON_KEY])?;
@@ -198,7 +197,7 @@ fn detection_string_av(
     av_filter: RuntimeString,
     matching_string: RuntimeString,
 ) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
     let av_filter = av_filter.to_str(ctx).ok()?;
     let matching_string = matching_string.to_str(ctx).ok()?;
 
@@ -229,7 +228,7 @@ fn detection_string_av(
 
 #[module_export(name = "arpot.dll")]
 fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let arpot_object = expect_object(&received_json[ARPOT_JSON_KEY])?;
     let dlls = expect_array(&arpot_object[DLLS_IN_ARPOT_JSON_KEY])?;
@@ -247,7 +246,7 @@ fn arpot_dll_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 #[module_export(name = "arpot.process")]
 fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let arpot_object = expect_object(&received_json[ARPOT_JSON_KEY])?;
     let processes = expect_array(&arpot_object[PROCESSES_IN_ARPOT_JSON_KEY])?;
@@ -267,7 +266,7 @@ fn arpot_process_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 #[module_export(name = "idp.rule_name")]
 fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let idp_object = expect_object(&received_json[IDP_JSON_KEY])?;
     let rules = expect_array(&idp_object[RULES_IN_IDP_JSON_KEY])?;
@@ -287,7 +286,7 @@ fn idp_rule_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 #[module_export(name = "source.url")]
 fn source_url_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let source_object = expect_object(&received_json[SOURCE_JSON_KEY])?;
     let urls = expect_array(&source_object[URLS_IN_SOURCE_JSON_KEY])?;
@@ -307,7 +306,7 @@ fn source_url_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
 
 #[module_export(name = "parent_process.path")]
 fn parent_process_path_regexp(ctx: &ScanContext, re: RegexpId) -> Option<i64> {
-    let received_json = get_json(ctx);
+    let received_json = get_json(ctx)?;
 
     let parent_process_object =
         expect_object(&received_json[PARENT_PROCESS_JSON_KEY])?;
