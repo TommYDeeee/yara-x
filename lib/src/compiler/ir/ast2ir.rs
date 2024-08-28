@@ -1105,7 +1105,7 @@ fn for_in_expr_from_ast(
 fn with_expr_from_ast(
     ctx: &mut CompileContext,
     with: &ast::With,
-) -> Result<Expr, Box<CompileError>> {
+) -> Result<Expr, CompileError> {
     // Create stack frame with capacity for the with statement variables
     let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32 + 5);
     let mut symbols = SymbolTable::new();
