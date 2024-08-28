@@ -47,8 +47,9 @@ pub(in crate::compiler) use ast2ir::patterns_from_ast;
 use yara_x_parser::ast::Ident;
 use yara_x_parser::Span;
 
+use crate::compiler::errors::{CompileError, NumberOutOfRange};
 use crate::compiler::ir::dfs::{DepthFirstSearch, Event};
-use crate::{re, CompileError};
+use crate::re;
 
 mod ast2ir;
 mod dfs;
@@ -667,9 +668,154 @@ pub(in crate::compiler) enum Iterable {
 }
 
 impl Expr {
+    /// Creates a new [`Expr::Not`].
+    pub fn not(operand: Expr) -> Self {
+        Self::Not { operand: Box::new(operand) }
+    }
+
+    /// Creates a new [`Expr::And`].
+    pub fn and(operands: Vec<Expr>) -> Self {
+        Self::And { operands }
+    }
+
+    /// Creates a new [`Expr::Or`].
+    pub fn or(operands: Vec<Expr>) -> Self {
+        Self::Or { operands }
+    }
+
+    /// Creates a new [`Expr::Minus`].
+    pub fn minus(operand: Expr) -> Self {
+        Self::Minus { operand: Box::new(operand) }
+    }
+
+    /// Creates a new [`Expr::Defined`].
+    pub fn defined(operand: Expr) -> Self {
+        Self::Defined { operand: Box::new(operand) }
+    }
+
+    /// Creates a new [`Expr::BitwiseNot`].
+    pub fn bitwise_not(operand: Expr) -> Self {
+        Self::BitwiseNot { operand: Box::new(operand) }
+    }
+
+    /// Creates a new [`Expr::BitwiseAnd`].
+    pub fn bitwise_and(lhs: Expr, rhs: Expr) -> Self {
+        Self::BitwiseAnd { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::BitwiseOr`].
+    pub fn bitwise_or(lhs: Expr, rhs: Expr) -> Self {
+        Self::BitwiseOr { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::BitwiseXor`].
+    pub fn bitwise_xor(lhs: Expr, rhs: Expr) -> Self {
+        Self::BitwiseXor { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Shl`].
+    pub fn shl(lhs: Expr, rhs: Expr) -> Self {
+        Self::Shl { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Shr`].
+    pub fn shr(lhs: Expr, rhs: Expr) -> Self {
+        Self::Shr { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
     /// Creates a new [`Expr::Add`].
     pub fn add(operands: Vec<Expr>) -> Self {
         Self::Add { operands }
+    }
+
+    /// Creates a new [`Expr::Sub`].
+    pub fn sub(operands: Vec<Expr>) -> Self {
+        Self::Sub { operands }
+    }
+
+    /// Creates a new [`Expr::Mul`].
+    pub fn mul(operands: Vec<Expr>) -> Self {
+        Self::Mul { operands }
+    }
+
+    /// Creates a new [`Expr::Div`].
+    pub fn div(operands: Vec<Expr>) -> Self {
+        Self::Div { operands }
+    }
+
+    /// Creates a new [`Expr::Mod`].
+    pub fn modulus(operands: Vec<Expr>) -> Self {
+        Self::Mod { operands }
+    }
+
+    /// Creates a new [`Expr::FieldAccess`].
+    pub fn field_access(operands: Vec<Expr>) -> Self {
+        Self::FieldAccess { operands }
+    }
+
+    /// Creates a new [`Expr::Eq`].
+    pub fn eq(lhs: Expr, rhs: Expr) -> Self {
+        Self::Eq { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Ne`].
+    pub fn ne(lhs: Expr, rhs: Expr) -> Self {
+        Self::Ne { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Ge`].
+    pub fn ge(lhs: Expr, rhs: Expr) -> Self {
+        Self::Ge { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Gt`].
+    pub fn gt(lhs: Expr, rhs: Expr) -> Self {
+        Self::Gt { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Le`].
+    pub fn le(lhs: Expr, rhs: Expr) -> Self {
+        Self::Le { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Lt`].
+    pub fn lt(lhs: Expr, rhs: Expr) -> Self {
+        Self::Lt { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::Contains`].
+    pub fn contains(lhs: Expr, rhs: Expr) -> Self {
+        Self::Contains { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::IContains`].
+    pub fn icontains(lhs: Expr, rhs: Expr) -> Self {
+        Self::IContains { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::StartsWith`].
+    pub fn starts_with(lhs: Expr, rhs: Expr) -> Self {
+        Self::StartsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::IStartsWith`].
+    pub fn istarts_with(lhs: Expr, rhs: Expr) -> Self {
+        Self::IStartsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::EndsWith`].
+    pub fn ends_with(lhs: Expr, rhs: Expr) -> Self {
+        Self::EndsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::IEndsWith`].
+    pub fn iends_with(lhs: Expr, rhs: Expr) -> Self {
+        Self::IEndsWith { lhs: Box::new(lhs), rhs: Box::new(rhs) }
+    }
+
+    /// Creates a new [`Expr::IEquals`].
+    pub fn iequals(lhs: Expr, rhs: Expr) -> Self {
+        Self::IEquals { lhs: Box::new(lhs), rhs: Box::new(rhs) }
     }
 
     /// Returns an iterator that does a DFS traversal of the IR tree.
@@ -823,7 +969,7 @@ impl Expr {
         self,
         ctx: &mut CompileContext,
         span: Span,
-    ) -> Result<Self, Box<CompileError>> {
+    ) -> Result<Self, CompileError> {
         match self {
             Expr::Minus { ref operand } => match operand.type_value() {
                 TypeValue::Integer(Value::Const(v)) => {
@@ -917,7 +1063,7 @@ impl Expr {
         span: Span,
         operands: Vec<Expr>,
         f: F,
-    ) -> Result<Self, Box<CompileError>>
+    ) -> Result<Self, CompileError>
     where
         F: FnMut(f64, f64) -> f64,
     {
@@ -945,12 +1091,12 @@ impl Expr {
         } else if result >= i64::MIN as f64 && result <= i64::MAX as f64 {
             Ok(Expr::Const(TypeValue::const_integer_from(result as i64)))
         } else {
-            Err(Box::new(CompileError::number_out_of_range(
+            Err(NumberOutOfRange::build(
                 ctx.report_builder,
                 i64::MIN,
                 i64::MAX,
                 span.into(),
-            )))
+            ))
         }
     }
 }
@@ -958,7 +1104,7 @@ impl Expr {
 impl Debug for Expr {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut level = 0;
+        let mut level = 1;
 
         let anchor_str = |anchor: &MatchAnchor| match anchor {
             MatchAnchor::None => "",
