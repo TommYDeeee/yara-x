@@ -12,6 +12,5 @@ option (yara.module_options) = {
 };
 
 message Metadata {
-  // todo probably remove this once we have a better way to pass the json to the module
-  required string json = 1;
+  // This module contains only exported functions, and doesn't return any data
 }
