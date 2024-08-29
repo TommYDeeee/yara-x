@@ -14,7 +14,7 @@ fn invalid_json_fails_gracefully() {
         "#,
         &[],
         Some(meta.as_bytes()),
-        1
+        0
     );
 }
 

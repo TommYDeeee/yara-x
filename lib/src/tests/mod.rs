@@ -65,11 +65,9 @@ macro_rules! test_rule_with_metadata {
             .len();
 
         assert_eq!(
-            num_matching_rules,
-            $expected_result as usize, // todo should not be just `1`?
-            "\n\n`{}` should be 1, but it is {}",
-            $rule,
-            num_matching_rules
+            num_matching_rules, $expected_result as usize,
+            "\n\n`{}` expected {} rule(s) to match, but {} did",
+            $rule, $expected_result, num_matching_rules
         );
     }};
 }
@@ -86,7 +84,7 @@ macro_rules! test_rule {
 
         assert_eq!(
             num_matching_rules, $expected_result as usize,
-            "\n\n`{}` should be {}, but it is {}",
+            "\n\n`{}` expected {} rule(s) to match, but {} did",
             $rule, $expected_result, !$expected_result
         );
     }};
