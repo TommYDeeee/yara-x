@@ -54,7 +54,7 @@ macro_rules! condition_false {
     }};
 }
 
-macro_rules! test_rule_with_metadata {
+macro_rules! test_rule {
     ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
         let rules = crate::compile($rule).unwrap();
 
@@ -70,9 +70,6 @@ macro_rules! test_rule_with_metadata {
             $rule, $expected_result, num_matching_rules
         );
     }};
-}
-
-macro_rules! test_rule {
     ($rule:expr,  $data:expr, $expected_result:expr) => {{
         let rules = crate::compile($rule).unwrap();
 
@@ -168,7 +165,6 @@ pub(crate) use rule_false;
 pub(crate) use rule_true;
 pub(crate) use test_condition;
 pub(crate) use test_rule;
-pub(crate) use test_rule_with_metadata;
 
 #[test]
 fn arithmetic_operations() {

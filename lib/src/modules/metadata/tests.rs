@@ -1,10 +1,10 @@
-use crate::tests::test_rule_with_metadata;
+use crate::tests::test_rule;
 
 #[test]
 fn invalid_json_fails_gracefully() {
     let meta = "invalid json";
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -48,7 +48,7 @@ fn serde_tolerates_extra_junk() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -89,7 +89,7 @@ fn file_name_string_json_empty_is_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -130,7 +130,7 @@ fn file_name_regex_json_empty_is_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -171,7 +171,7 @@ fn file_name_string_names_counted() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -212,7 +212,7 @@ fn file_name_regex_names_counted() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -253,7 +253,7 @@ fn file_name_string_other_ignored() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -294,7 +294,7 @@ fn file_name_regex_other_ignored() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -335,7 +335,7 @@ fn detection_name_string_empty_is_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -376,7 +376,7 @@ fn detection_name_regex_empty_is_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -421,7 +421,7 @@ fn detection_name_string_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -466,7 +466,7 @@ fn detection_name_regex_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -507,7 +507,7 @@ fn detection_name_string_other_ignored() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -548,7 +548,7 @@ fn detection_name_regex_other_ignored() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -593,7 +593,7 @@ fn detection_name_string_filter_filters() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -638,7 +638,7 @@ fn detection_name_regex_filter_filters() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -679,7 +679,7 @@ fn arpot_dll_empty_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -720,7 +720,7 @@ fn arpot_dll_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -761,7 +761,7 @@ fn arpot_dll_other_ignored() {
     }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -802,7 +802,7 @@ fn arpot_process_empty_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -843,7 +843,7 @@ fn arpot_process_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -884,7 +884,7 @@ fn arpot_process_other_ignored() {
     }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -925,7 +925,7 @@ fn idp_rule_name_empty_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -966,7 +966,7 @@ fn idp_rule_name_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1007,7 +1007,7 @@ fn idp_rule_name_other_ignored() {
     }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1048,7 +1048,7 @@ fn source_url_empty_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1089,7 +1089,7 @@ fn source_url_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1130,7 +1130,7 @@ fn source_url_other_ignored() {
     }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1171,7 +1171,7 @@ fn parent_process_path_empty_ok() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1212,7 +1212,7 @@ fn parent_process_path_counts() {
         }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
@@ -1253,7 +1253,7 @@ fn parent_process_path_ignored() {
     }
     "#;
 
-    test_rule_with_metadata!(
+    test_rule!(
         r#"
         import "metadata"
         rule test {
