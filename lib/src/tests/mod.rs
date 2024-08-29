@@ -55,7 +55,8 @@ macro_rules! condition_false {
 }
 
 macro_rules! test_rule {
-    ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
+    // Helper macro to avoid repetition
+    (__impl $rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
         let rules = crate::compile($rule).unwrap();
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
@@ -70,21 +71,15 @@ macro_rules! test_rule {
             $rule, $expected_result, num_matching_rules
         );
     }};
-    ($rule:expr,  $data:expr, $expected_result:expr) => {{
-        let rules = crate::compile($rule).unwrap();
 
-        let num_matching_rules = crate::scanner::Scanner::new(&rules)
-            .scan($data, None)
-            .expect("scan should not fail")
-            .matching_rules()
-            .len();
-
-        assert_eq!(
-            num_matching_rules, $expected_result as usize,
-            "\n\n`{}` expected {} rule(s) to match, but {} did",
-            $rule, $expected_result, !$expected_result
-        );
+    ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
+        test_rule!(__impl $rule, $data, $metadata, $expected_result);
     }};
+
+    ($rule:expr, $data:expr, $expected_result:expr) => {{
+        test_rule!(__impl $rule, $data, None, $expected_result);
+    }};
+
     ($rule:expr) => {{
         rule_true!($rule, &[]);
     }};
