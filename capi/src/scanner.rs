@@ -87,7 +87,7 @@ pub unsafe extern "C" fn yrx_scanner_scan(
     };
 
     let scanner = scanner.as_mut().unwrap();
-    let scan_results = scanner.inner.scan(data);
+    let scan_results = scanner.inner.scan(data, None);
 
     if let Err(err) = scan_results {
         LAST_ERROR.set(Some(CString::new(err.to_string()).unwrap()));

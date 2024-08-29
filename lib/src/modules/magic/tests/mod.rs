@@ -34,7 +34,7 @@ fn e2e_test() {
     .unwrap();
 
     let mut scanner = crate::scanner::Scanner::new(&rules);
-    let results = scanner.scan(b"Maestro\r").unwrap();
+    let results = scanner.scan(b"Maestro\r", None).unwrap();
 
     assert_eq!(results.matching_rules().len(), 1);
 }

@@ -20,7 +20,7 @@ rule rule_4 { condition: false }
     .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(&[]).expect("scan should not fail");
+    let results = scanner.scan(&[], None).expect("scan should not fail");
 
     let mut iter = results.matching_rules();
 
@@ -59,7 +59,7 @@ fn matches() {
 
     let mut matches = vec![];
     let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(b"foobar").expect("scan should not fail");
+    let results = scanner.scan(b"foobar", None).expect("scan should not fail");
 
     for matching_rule in results.matching_rules() {
         for pattern in matching_rule.patterns() {
@@ -97,7 +97,7 @@ fn metadata() {
 
     let mut metas = vec![];
     let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(b"").expect("scan should not fail");
+    let results = scanner.scan(b"", None).expect("scan should not fail");
     let matching_rule = results.matching_rules().next().unwrap();
 
     for meta in matching_rule.metadata() {
@@ -146,7 +146,7 @@ fn xor_matches() {
     let mut matches = vec![];
 
     for matching_rule in Scanner::new(&rules)
-        .scan(b"lhrrhrrhqqh")
+        .scan(b"lhrrhrrhqqh", None)
         .expect("scan should not fail")
         .matching_rules()
     {
@@ -181,7 +181,7 @@ fn reuse_scanner() {
 
     assert_eq!(
         scanner
-            .scan(b"")
+            .scan(b"", None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -189,7 +189,7 @@ fn reuse_scanner() {
     );
     assert_eq!(
         scanner
-            .scan(b"123")
+            .scan(b"123", None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -197,7 +197,7 @@ fn reuse_scanner() {
     );
     assert_eq!(
         scanner
-            .scan(b"")
+            .scan(b"", None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -220,7 +220,7 @@ fn module_output() {
     .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    let scan_results = scanner.scan(b"", None).expect("scan should not fail");
 
     let output = scan_results
         .module_output("test_proto2")
@@ -247,7 +247,7 @@ fn module_outputs() {
     .unwrap();
 
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    let scan_results = scanner.scan(b"", None).expect("scan should not fail");
 
     let mut outputs = scan_results.module_outputs();
 
@@ -287,7 +287,7 @@ fn variables_1() {
 
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -298,7 +298,7 @@ fn variables_1() {
 
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -309,7 +309,7 @@ fn variables_1() {
 
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -356,7 +356,7 @@ fn variables_2() {
     let mut scanner = Scanner::new(&rules);
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -366,7 +366,7 @@ fn variables_2() {
     scanner.set_global("some_bool", false).unwrap();
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -376,7 +376,7 @@ fn variables_2() {
     scanner.set_global("some_str", "foo").unwrap();
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -386,7 +386,7 @@ fn variables_2() {
     scanner.set_global("some_bool", true).unwrap();
     assert_eq!(
         scanner
-            .scan(&[])
+            .scan(&[], None)
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -440,7 +440,7 @@ fn global_rules() {
 
     let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);
-    let results = scanner.scan(&[]).expect("scan should not fail");
+    let results = scanner.scan(&[], None).expect("scan should not fail");
 
     assert_eq!(results.matching_rules().len(), 1);
 
@@ -487,7 +487,7 @@ fn private_rules() {
     let rules = compiler.build();
 
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan(&[]).expect("scan should not fail");
+    let scan_results = scanner.scan(&[], None).expect("scan should not fail");
 
     // Only the matching non-private rule should be reported.
     assert_eq!(scan_results.matching_rules().len(), 1);
@@ -518,7 +518,7 @@ fn max_matches_per_pattern() {
     let mut scanner = Scanner::new(&rules);
     scanner.max_matches_per_pattern(1);
     let scan_results =
-        scanner.scan(b"foofoofoo").expect("scan should not fail");
+        scanner.scan(b"foofoofoo", None).expect("scan should not fail");
 
     assert_eq!(scan_results.matching_rules().len(), 1);
 
@@ -542,7 +542,7 @@ fn max_matches_per_pattern() {
 
     // If the scanner is used again it should produce results because the
     // number of matches must be reset to 0 for the new scan.
-    assert_eq!(scanner.scan(b"foo").unwrap().matching_rules().len(), 1);
+    assert_eq!(scanner.scan(b"foo", None).unwrap().matching_rules().len(), 1);
 }
 
 #[test]
@@ -575,12 +575,12 @@ fn set_module_output() {
 
     // The data being scanned is empty, but we set the output for the PE module
     // by ourselves.
-    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    let scan_results = scanner.scan(b"", None).expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 1);
 
     // In this second call we haven't set a value for entry point, so it's
     // undefined.
-    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    let scan_results = scanner.scan(b"", None).expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 0);
 
     // This should fail because `foobar` is not a valid module name.
@@ -608,7 +608,7 @@ fn set_module_output() {
 
     // Now test by passing a valid protobuf for the PE module.
     scanner.set_module_output_raw("pe", pe_data_raw.as_slice()).unwrap();
-    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    let scan_results = scanner.scan(b"", None).expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 1);
 
     // Try calling `set_module_output_raw` but this time pass the fully-qualified
@@ -619,7 +619,7 @@ fn set_module_output() {
             pe_data_raw.as_slice(),
         )
         .unwrap();
-    let scan_results = scanner.scan(b"").expect("scan should not fail");
+    let scan_results = scanner.scan(b"", None).expect("scan should not fail");
     assert_eq!(scan_results.matching_rules().len(), 1);
 }
 
@@ -637,7 +637,8 @@ fn namespaces() {
 
     let rules = compiler.build();
     let mut scanner = Scanner::new(&rules);
-    let scan_results = scanner.scan(b"foobar").expect("scan should not fail");
+    let scan_results =
+        scanner.scan(b"foobar", None).expect("scan should not fail");
     let matching_rules: Vec<_> = scan_results.matching_rules().collect();
 
     assert_eq!(matching_rules.len(), 2);

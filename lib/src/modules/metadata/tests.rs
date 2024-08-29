@@ -13,7 +13,7 @@ fn invalid_json_fails_gracefully() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -57,7 +57,7 @@ fn serde_tolerates_extra_junk() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -98,7 +98,7 @@ fn file_name_string_json_empty_is_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -139,7 +139,7 @@ fn file_name_regex_json_empty_is_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -180,7 +180,7 @@ fn file_name_string_names_counted() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -221,7 +221,7 @@ fn file_name_regex_names_counted() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -262,7 +262,7 @@ fn file_name_string_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -303,7 +303,7 @@ fn file_name_regex_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -344,7 +344,7 @@ fn detection_name_string_empty_is_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -385,7 +385,7 @@ fn detection_name_regex_empty_is_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -430,7 +430,7 @@ fn detection_name_string_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -475,7 +475,7 @@ fn detection_name_regex_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -516,7 +516,7 @@ fn detection_name_string_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -557,7 +557,7 @@ fn detection_name_regex_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -602,7 +602,7 @@ fn detection_name_string_filter_filters() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -647,7 +647,7 @@ fn detection_name_regex_filter_filters() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -688,7 +688,7 @@ fn arpot_dll_empty_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -729,7 +729,7 @@ fn arpot_dll_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -770,7 +770,7 @@ fn arpot_dll_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -811,7 +811,7 @@ fn arpot_process_empty_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -852,7 +852,7 @@ fn arpot_process_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -893,7 +893,7 @@ fn arpot_process_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -934,7 +934,7 @@ fn idp_rule_name_empty_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -975,7 +975,7 @@ fn idp_rule_name_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1016,7 +1016,7 @@ fn idp_rule_name_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1057,7 +1057,7 @@ fn source_url_empty_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1098,7 +1098,7 @@ fn source_url_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1139,7 +1139,7 @@ fn source_url_other_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1180,7 +1180,7 @@ fn parent_process_path_empty_ok() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1221,7 +1221,7 @@ fn parent_process_path_counts() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }
@@ -1262,7 +1262,7 @@ fn parent_process_path_ignored() {
         }
         "#,
         &[],
-        meta.as_bytes(),
+        Some(meta.as_bytes()),
         1
     );
 }

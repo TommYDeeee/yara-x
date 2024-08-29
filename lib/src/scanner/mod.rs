@@ -150,7 +150,6 @@ pub(crate) struct ScanInputLoaded<'a, 'b> {
     pub meta: Option<ScannedData<'b>>,
 }
 
-// todo one of the two are probably not needed (ScanInputLoaded or ScanInputRaw)
 /// Holds the data that will be scanned.
 pub struct ScanInputRaw<'a, 'b> {
     /// The target data that will be scanned.
@@ -395,28 +394,16 @@ impl<'r> Scanner<'r> {
         self.scan_impl(data)
     }
 
-    /// scans in-memory data with metadata
-    pub fn scan_with_metadata<'a>(
-        &'a mut self,
-        data: &'a [u8],
-        meta: &'a [u8],
-    ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let data = ScanInputLoaded {
-            target: ScannedData::Slice(data),
-            meta: Some(ScannedData::Slice(meta)),
-        };
-
-        self.scan_impl(data)
-    }
-
-    // todo how to handle the metadata? do i update the calls? or do i just leave it as `None`
-    /// Scans in-memory data.
+    /// scans in-memory data (with optional metadata)
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
+        meta: Option<&'a [u8]>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let data =
-            ScanInputLoaded { target: ScannedData::Slice(data), meta: None };
+        let data = ScanInputLoaded {
+            target: ScannedData::Slice(data),
+            meta: meta.map(ScannedData::Slice),
+        };
 
         self.scan_impl(data)
     }

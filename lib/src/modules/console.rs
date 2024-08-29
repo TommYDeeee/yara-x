@@ -94,7 +94,7 @@ mod tests {
 
         crate::scanner::Scanner::new(&rules)
             .console_log(|message| messages.push(message))
-            .scan(b"")
+            .scan(b"", None)
             .expect("scan should not fail");
 
         assert_eq!(
