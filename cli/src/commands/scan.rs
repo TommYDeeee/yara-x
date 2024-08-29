@@ -114,7 +114,7 @@ pub fn scan() -> Command {
         )
         .arg(
             arg!(-x --"module-data")
-                .help("pass FILE's content as extra data to MODULE")
+                .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)
                 .required(false)
                 .value_name("MODULE=FILE")
