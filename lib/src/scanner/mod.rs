@@ -390,7 +390,7 @@ impl<'r> Scanner<'r> {
         let target = Self::load_file(target_file)?;
         let meta = metadata_file.map(Self::load_file).transpose()?;
 
-        let data = ScanInputLoaded { target, meta }; // todo @here - get the meta
+        let data = ScanInputLoaded { target, meta };
 
         self.scan_impl(data)
     }
@@ -568,14 +568,10 @@ impl<'r> Scanner<'r> {
 impl<'r> Scanner<'r> {
     fn scan_impl<'a>(
         &'a mut self,
-        all_data: ScanInputLoaded<'a, 'a>,
-        // data: ScannedData<'a>,
-        // data: ScanInput, // todo @here - mby just ref
+        data: ScanInputLoaded<'a, 'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
-
-        let ScanInputLoaded { target, meta } = all_data;
 
         // Timeout in seconds. This is either the value provided by the user or
         // 315.360.000 which is the number of seconds in a year. Using u64::MAX
@@ -625,7 +621,7 @@ impl<'r> Scanner<'r> {
         self.filesize
             .set(
                 self.wasm_store.as_context_mut(),
-                Val::I64(target.as_ref().len() as i64),
+                Val::I64(data.target.as_ref().len() as i64),
             )
             .unwrap();
 
@@ -635,8 +631,8 @@ impl<'r> Scanner<'r> {
         // what purpose does the ctx serve exactly?
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
-        ctx.scanned_data = target.as_ref().as_ptr();
-        ctx.scanned_data_len = target.as_ref().len();
+        ctx.scanned_data = data.target.as_ref().as_ptr();
+        ctx.scanned_data_len = data.target.as_ref().len();
 
         // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
@@ -659,15 +655,12 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                // todo weird shit
-                let mut main_input =
-                    ScanInputRaw { target: target.as_ref(), meta: None };
-
-                if let Some(ref inner_meta) = meta {
-                    main_input.meta = Some(inner_meta.as_ref());
+                let main_fn_input = ScanInputRaw {
+                    target: data.target.as_ref(),
+                    meta: data.meta.as_ref().map(|m| m.as_ref()),
                 };
 
-                module.main_fn.map(|main_fn| main_fn(&main_input))
+                module.main_fn.map(|main_fn| main_fn(&main_fn_input))
             };
 
             if let Some(module_output) = &module_output {
@@ -771,7 +764,7 @@ impl<'r> Scanner<'r> {
         }
 
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), target)),
+            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data.target)),
             Ok(1) => Err(ScanError::Timeout),
             Ok(_) => unreachable!(),
             Err(err) if err.is::<ScanError>() => {

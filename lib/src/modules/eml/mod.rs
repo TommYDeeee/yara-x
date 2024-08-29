@@ -5,7 +5,6 @@ use mail_parser::*;
 use protobuf::MessageField;
 
 #[module_main]
-// fn main(data: &ScanInputRaw) -> eml::EML {
 fn main(data: &ScanInputRaw) -> eml::EML {
     let mut eml_proto = eml::EML::new();
 

@@ -13,7 +13,7 @@ mod tests;
 
 mod utils;
 
-// ugly hack to modify the "return type" of the module `main` function
+// hack allowing us to "extend the return type" of the module `main` function
 //
 // the `main` is supposed to return `Metadata` (an empty struct),
 // but we need the parsed `serde_json::Value` in the other functions
@@ -26,7 +26,7 @@ thread_local! {
     };
 }
 
-/// ugly hack to extract the json value from the thread-local storage
+/// hack to extract the json value from the thread-local storage
 ///
 /// expects that the `main` function has already set the value
 ///
