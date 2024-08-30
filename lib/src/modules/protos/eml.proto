@@ -14,12 +14,20 @@ option (yara.module_options) = {
 
 message EML {
   required bool is_eml = 1;
-  map<string, Header> header_fields = 2;
+  optional uint64 date = 2 [(yaml.field).fmt = "t"];
+  repeated Header other = 3; // all other headers
+  optional uint64 other_count = 4;
 
+  // Informational headers
   optional string subject = 11;
-  repeated string comments = 12;
-  repeated string keywords = 13;
+  optional string subject_ascii = 12;
+  repeated string comments = 13;
+  repeated string keywords = 14;
 
+  optional uint64 comments_count = 15;
+  optional uint64 keywords_count = 16;
+
+  // Mailbox headers
   repeated Mailbox from = 20;
   repeated Mailbox to = 21;
   repeated Mailbox cc = 22;
@@ -27,13 +35,43 @@ message EML {
   repeated Mailbox reply_to = 24;
   optional Mailbox sender = 25;
 
-  optional string message_id = 30;
-  repeated string in_reply_to = 31;
-  repeated string references = 32;
+  optional uint64 from_count = 26;
+  optional uint64 to_count = 27;
+  optional uint64 cc_count = 28;
+  optional uint64 bcc_count = 29;
+  optional uint64 reply_to_count = 30;
 
-  optional uint64 date = 40 [(yaml.field).fmt = "t"];;
+  // MessageID headers
+  optional string message_id = 31;
+  repeated string in_reply_to = 32;
+  repeated string references = 33;
 
-  repeated MessagePart parts = 100;
+  optional uint64 in_reply_to_count = 34;
+  optional uint64 references_count = 35;
+
+  // Resent headers
+  repeated Resent resent = 40;
+  optional uint64 resent_count = 41;
+
+  // Trace headers
+  repeated Received received = 46;
+  optional uint64 received_count = 47;
+  repeated string return_path = 48;
+  optional uint64 return_path_count = 49;
+
+  // MIME
+  optional string mime_version = 50;
+  optional ContentAttributes content_type = 51;
+
+  // Message parts
+  optional uint64 texts_count = 100;
+  optional uint64 htmls_count = 101;
+  optional uint64 attachments_count = 102;
+  optional uint64 messages_count = 103;
+  repeated MailPart texts = 104;
+  repeated MailPart htmls = 105;
+  repeated MailPart attachments = 106;
+  repeated MailPart messages = 107;
 }
 
 message Mailbox {
@@ -46,19 +84,59 @@ message Header {
   optional string value = 2;
 }
 
-message MessagePart {
-  required PartType type = 1;
-  repeated uint32 children = 2;
-  required uint64 offset_header = 3;
-  required uint64 offset_body = 4;
-  required uint64 offset_end = 5;
-  optional bytes decoded_data = 6;
+message Resent {
+  repeated Mailbox from = 1;
+  repeated Mailbox to = 2;
+  repeated Mailbox cc = 3;
+  repeated Mailbox bcc = 4;
+  repeated Mailbox reply_to = 5;
+  optional Mailbox sender = 6;
+  optional uint64 date = 7 [(yaml.field).fmt = "t"];
+  optional string msg_id = 8;
+
+  optional uint64 from_count = 11;
+  optional uint64 to_count = 12;
+  optional uint64 cc_count = 13;
+  optional uint64 bcc_count = 14;
+  optional uint64 reply_to_count = 15;
 }
 
-enum PartType {
-  option (yara.enum_options).inline = true;
-  PART_MULTI = 0;
-  PART_TEXT = 1;
-  PART_BINARY = 2;
-  PART_NESTED_MSG = 3;
+message Received {
+  optional string from = 1;
+  optional string from_ip = 2;
+  optional string from_iprev = 3;
+  optional string by = 4;
+  optional string for = 5;
+  optional string with = 6;
+  optional string tls_version = 7;
+  optional string tls_cipher = 8;
+  optional string id = 9;
+  optional string ident = 10;
+  optional string via = 11;
+  optional uint64 date = 12 [(yaml.field).fmt = "t"];
+}
+
+message ContentAttributes { // for Content-Type and Content-Disposition headers
+  optional string type = 1;
+  optional string subtype = 2;
+  map<string, string> attributes = 3;
+}
+
+message MailPart {
+  required bytes data = 1;
+  required uint64 length = 2;
+  required uint64 headers_start = 3;
+  required uint64 body_start = 4;
+  required uint64 body_end = 5;
+  required string hash = 6; // sha256 (lowercase form)
+
+  optional string encoding = 10;
+  optional ContentAttributes content_type = 11;
+  optional string content_id = 12;
+  optional ContentAttributes content_disposition = 13;
+  optional string content_description = 14;
+  optional string filename = 15;
+
+  repeated Header headers = 20; // all other headers
+  optional uint64 headers_count = 21;
 }

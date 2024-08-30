@@ -10,17 +10,19 @@ mod scan;
 pub use check::*;
 pub use compile::*;
 pub use completion::*;
+#[cfg(feature = "debug-cmd")]
 pub use debug::*;
 pub use dump::*;
 pub use fix::*;
 pub use fmt::*;
 pub use scan::*;
 
+use std::borrow::Cow;
 use std::fs;
 use std::io::stdout;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use clap::{command, crate_authors, Command};
 use crossterm::tty::IsTty;
 use serde_json::Value;
@@ -29,8 +31,7 @@ use yansi::Color::Green;
 use yansi::Paint;
 
 use crate::{commands, APP_HELP_TEMPLATE};
-use yara_x::{Compiler, Rules};
-use yara_x_parser::SourceCode;
+use yara_x::{Compiler, Rules, SourceCode};
 
 use crate::walk::Walker;
 
@@ -54,6 +55,7 @@ pub fn cli() -> Command {
             commands::scan(),
             commands::compile(),
             commands::check(),
+            #[cfg(feature = "debug-cmd")]
             commands::debug(),
             commands::dump(),
             commands::fmt(),
@@ -145,11 +147,9 @@ where
                         .new_namespace(file_path.to_string_lossy().as_ref());
                 }
 
-                let result = compiler.add_source(src);
+                let _ = compiler.add_source(src);
 
                 state.file_in_progress = None;
-
-                result?;
 
                 state.num_compiled_files =
                     state.num_compiled_files.saturating_add(1);
@@ -166,15 +166,23 @@ where
         }
     }
 
-    let rules = compiler.build();
-
     if let Some(console) = console {
         console.finalize(&state).unwrap();
     }
 
-    for warning in rules.warnings() {
+    for error in compiler.errors() {
+        eprintln!("{}", error);
+    }
+
+    for warning in compiler.warnings() {
         eprintln!("{}", warning);
     }
+
+    if !compiler.errors().is_empty() {
+        bail!("{} errors found", compiler.errors().len());
+    }
+
+    let rules = compiler.build();
 
     Ok(rules)
 }
@@ -212,10 +220,10 @@ impl Component for CompileState {
     }
 }
 
-fn truncate_with_ellipsis(s: String, max_length: usize) -> String {
+fn truncate_with_ellipsis(s: Cow<str>, max_length: usize) -> Cow<str> {
     if s.len() <= max_length {
         s
     } else {
-        format!("{}...", &s[..max_length - 3])
+        format!("{}...", &s[..max_length - 3]).into()
     }
 }

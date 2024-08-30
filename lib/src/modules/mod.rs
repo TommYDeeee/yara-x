@@ -172,7 +172,7 @@ pub mod mods {
     pub use super::protos::eml::EML;
 
     /// Data structures defined by the `lnk` module.
-    ///     
+    ///
     /// The main structure produced by the module is [`lnk::Lnk`]. The rest of
     /// them are used by one or more fields in the main structure.
     ///
@@ -274,5 +274,12 @@ pub mod mods {
         info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
         info.eml = protobuf::MessageField(invoke::<EML>(data));
         info
+    }
+
+    /// Iterator over built-in module names.
+    ///
+    /// See the "debug modules" command.
+    pub fn module_names() -> impl Iterator<Item = &'static str> {
+        super::BUILTIN_MODULES.keys().copied()
     }
 }

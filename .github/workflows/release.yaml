@@ -32,7 +32,7 @@ jobs:
         - build: windows
           os: windows-latest
           target: x86_64-pc-windows-msvc
-    
+
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
       with:
         name: yr-${{ matrix.target }}
         path: yara-x-*
-  
+
   build-py:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -82,9 +82,6 @@ jobs:
       matrix:
         python-version:
         - cp39
-        - cp310
-        - cp311
-        - cp312
         - pp38
         - pp39
         - pp310
@@ -103,7 +100,7 @@ jobs:
         - build: windows
           os: windows-latest
           arch: 'x86 AMD64'
-    
+
     steps:
     - name: Checkout sources
       uses: actions/checkout@v4
@@ -136,8 +133,8 @@ jobs:
     - name: Build sdist
       if: matrix.build == 'linux' && matrix.python-version == 'cp312'
       run: |
-        pip install maturin build
-        python -m build --sdist -o wheelhouse py
+        pip install maturin==1.7.1
+        maturin sdist --manifest-path py/Cargo.toml -o wheelhouse
 
     - name: Build ${{ matrix.platform || matrix.os }} binaries
       run: cibuildwheel --output-dir wheelhouse py
@@ -171,11 +168,11 @@ jobs:
       with:
         name: pypi-source-${{ strategy.job-index }}
         path: ./wheelhouse/*.tar.gz
-  
+
   publish-cli:
     needs: [ build-cli ]
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Download artifacts
       uses: actions/download-artifact@v4
@@ -191,7 +188,7 @@ jobs:
       with:
         draft: true
         files: yr-*/yara-x-*
-  
+
   publish-crate:
     needs: [ publish-cli ]
     runs-on: ubuntu-latest
@@ -203,7 +200,7 @@ jobs:
       env:
         # Don't re-generate the files `modules.rs` and `add_modules.rs`, use
         # the ones in the repository. These files can't be regenerated because
-        # `cargo publish` checks that the repository doesn't change during 
+        # `cargo publish` checks that the repository doesn't change during
         # the build. See: https://github.com/rust-lang/cargo/pull/5584
         YRX_REGENERATE_MODULES_RS: "no"
       run: |
@@ -213,7 +210,7 @@ jobs:
         cargo publish -p yara-x-proto-yaml
         cargo publish -p yara-x-parser
         cargo publish -p yara-x        
-  
+
   publish-py:
     needs: [ build-py ]
     runs-on: ubuntu-latest

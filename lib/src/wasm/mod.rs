@@ -71,8 +71,8 @@ indexes: the index of `some_module` within the global structure, the index
 of `some_struct` within `some_module`, and finally the index of `some_int`,
 within `some_struct`. These indexes are stored starting at offset 1024 in
 the WASM module's main memory (see "Memory layout") before calling
-[`lookup_integer`], while the global variable `lookup_num_lookup_indexes` says how
-many indexes to lookup.
+[`lookup_integer`], while the global variable `lookup_num_lookup_indexes` says
+how many indexes to lookup.
 
 See the [`lookup_field`] function.
 
@@ -94,12 +94,11 @@ use yara_x_macros::wasm_export;
 
 use crate::compiler::{LiteralId, PatternId, RegexpId, RuleId};
 use crate::modules::BUILTIN_MODULES;
-use crate::scanner::{RuntimeObjectHandle, ScanContext};
+use crate::scanner::{RuntimeObjectHandle, ScanContext, ScanError};
 use crate::types::{
     Array, Func, FuncSignature, Map, Struct, TypeValue, Value,
 };
 use crate::wasm::string::RuntimeString;
-use crate::ScanError;
 
 pub(crate) mod builder;
 pub(crate) mod string;
@@ -135,7 +134,7 @@ pub(crate) struct WasmExport {
     /// [`yara_x_parser::types::MangledFnName`].
     pub mangled_name: &'static str,
     /// True if the function is visible from YARA rules. Functions exported by
-    /// modules, as well as built-in functions like uint8, uint16, etc are
+    /// modules, as well as built-in functions like uint8, uint16, etc, are
     /// public, but many other functions callable from WASM are for internal
     /// use only and therefore are not public.
     pub public: bool,
@@ -599,6 +598,7 @@ fn type_id_to_wasmtime(
 /// and implements the [`WasmExportedFn`] trait for them.
 macro_rules! impl_wasm_exported_fn {
     ($name:ident $($args:ident)*) => {
+        #[allow(dead_code)]
         pub(super) struct $name <$($args,)* R>
         where
             $($args: 'static,)*
@@ -610,6 +610,7 @@ macro_rules! impl_wasm_exported_fn {
                           + 'static),
         }
 
+        #[allow(dead_code)]
         impl<$($args,)* R> WasmExportedFn for $name<$($args,)* R>
         where
             $(ValRaw: WasmArg<$args>,)*
@@ -1097,7 +1098,7 @@ pub(crate) fn array_indexing_struct(
     _: &mut Caller<'_, ScanContext>,
     array: Rc<Array>,
     index: i64,
-) -> Option<Rc<Struct>> { 
+) -> Option<Rc<Struct>> {
     array
         .as_struct_array()
         .get(index as usize)
@@ -1450,10 +1451,8 @@ macro_rules! gen_xint_fn {
                 .data()
                 .scanned_data()
                 .get(offset..offset + mem::size_of::<$return_type>())
-                .map_or(None, |bytes| {
-                    let value =
-                        <$return_type>::$from_fn(bytes.try_into().unwrap());
-                    Some(value as i64)
+                .map(|bytes| {
+                    <$return_type>::$from_fn(bytes.try_into().unwrap()) as i64
                 })
         }
     };

@@ -1,154 +1,127 @@
+use darling::ast::NestedMeta;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput, ItemFn};
+use syn::{parse_macro_input, DeriveInput, Error, ItemFn};
 
 mod error;
 mod module_export;
 mod module_main;
-mod span;
 mod wasm_export;
 
-/// The `HasSpan` derive macro implements the [`HasSpan`] trait for structs and
-/// enums.
+/// The `ErrorStruct` derive macro generates boilerplate code for structs that
+/// define YARA errors and warnings.
 ///
-/// The struct must have a field named `span` of type `Span`, and the macro
-/// will add to it a `span` method that returns the value from the field with
-/// the same name.
-///
-/// When used with an enum, all variants must be either a struct that has a
-/// field named `span` or a single-item tuple where the item implements the
-/// [`HasSpan`] trait.
-///
-/// # Examples
-///
-/// Using `HasSpan` on a structure. Notice the required `span` field in the
-/// structure.
+/// Let's see an example:
 ///
 /// ```text
-/// #[macros(Debug, HasSpan)]
-/// pub struct LiteralStr<'src> {
-///     pub(crate) span: Span,
-///     pub value: &'src str,
+/// #[derive(ErrorStruct)]
+/// #[associated_enum(CompileError)]
+/// #[error(code = "E021", title = "duplicate tag `{tag}`")]
+/// #[label("duplicate tag", loc)]
+/// pub struct DuplicateTag {
+///    report: Report,
+///    tag: String,
+///    loc: SourceRef,
+/// }
+///
+/// #[derive(ErrorEnum)]
+/// pub enum CompileError {
+///    DuplicateTag(DuplicateTag),
+///    ... more variants
 /// }
 /// ```
 ///
-/// Using `HasSpan` on an enum. The `True` variant is a struct that has a `span`
-/// field, and the `LiteralInt` variant contains a `Box<LiteralInt>`, which
-/// implements the [`HasSpan`] trait.
+/// Now let's dissect the example line by line:
 ///
 /// ```text
-/// #[macros(Debug, HasSpan)]
-/// pub enum Expr<'src> {
-///     // Ok. The struct has a `span` field of type `Span`.
-///     True {
-///         span: Span,
-///     },
+/// #[derive(ErrorStruct)]
+/// ```
 ///
-///     // Ok. It's a single-element tuple where `Box<LiteralInt>` implements
-///     // the `HasSpan` trait.
-///     LiteralInt(Box<LiteralInt>),
+/// 1. The first line is the derive attribute itself.
 ///
-///     // Wrong. Unitary variants are not allowed. There's no way for
-///     // determining its span.
-///     False
+/// ```text
+/// #[associated_enum(CompileError)]
+/// ```
+///
+/// 2. The `associated_enum` attribute indicates the name of an enum type that
+///    contains a variant for each error/warning type, including the one being
+///    defined here. In this case the struct is `DuplicateTag`, so the enum must
+///    contain the variant `DuplicateTag(DuplicateTag)`. This attribute is
+///    required.
+///
+/// ```text
+/// #[error(code = "E021", title = "duplicate tag `{tag}`")]
+/// ```
+///
+/// 3. The `error` attribute indicates that this is an error with code "E021"
+///    and title "duplicate tag `{tag}`". Notice the use of format arguments
+///    in the title for specifying the tag. For each format argument there must
+///    be a field in the structure with that name. The value of that field is
+///    used when rendering the title. When defining a warning you use
+///    `#[warning(...)]` instead of `#[error(...)]`, but one of the two
+///    attributes must be present.
+///
+/// ```text
+/// #[label("duplicate tag", loc, Level::Error)]
+/// ```
+///
+/// 4. Then comes one or more `label` attributes, where each label is composed
+///    of a text, the name of some field of type `SourceRef` in the structure,
+///    and optionally, the label's error level. Valid error levels are:
+///
+///     - `Level::Error`
+///     - `Level::Warning`
+///     - `Level::Info`
+///     - `Level::Note`
+///     - `Level::Help`
+///
+///    If the level is omitted it will be either `Level::Error` or
+///    `Level::Warning`, depending on whether we are defining an error with
+///    `#[error(...)]`, or a warning with `#[warning(...)]`.
+///
+/// ```text
+/// pub struct DuplicateTag {
+///    report: Report,
+///    tag: String,
+///    loc: SourceRef,
 /// }
 /// ```
 ///
-#[proc_macro_derive(HasSpan)]
-pub fn span_macro_derive(input: TokenStream) -> TokenStream {
+/// 4. Finally, we have the struct. The first field in the structure must be
+///    `report: Report`. The rest of the fields vary from error to error
+///
+///
+/// This is how the error looks when printed:
+///
+/// ```text
+/// error[E021]: duplicate tag `tag1`
+/// --> test.yar:1:18
+///   |
+/// 1 | rule test : tag1 tag1 { condition: true }
+///   |                  ^^^^ duplicate tag
+///   |
+/// ```
+///
+#[proc_macro_derive(
+    ErrorStruct,
+    attributes(error, warning, label, note, associated_enum)
+)]
+pub fn error_struct_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    span::impl_span_macro(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
+    error::impl_error_struct_macro(input)
+        .unwrap_or_else(Error::into_compile_error)
         .into()
 }
 
-/// The `Error` derive macro generates boilerplate code for YARA error types.
+/// The `ErrorEnum` macro is used with enums that define YARA errors and
+/// warnings.
 ///
-/// This macro can be applied only to enums with struct-like variants. It
-/// won't work if the enum contains unit-like or tuple-like variants. Each
-/// variant in the enum must have a `detailed_report` field of [`String`]
-/// type. This field will contain fully detailed error message, like
-/// this one...
-///
-/// ```text
-/// error[E100]: duplicate tag `tag1`
-///    ╭─[line:1:18]
-///    │
-///  1 │ rule test : tag1 tag1 { condition: true }
-///    ·                  ──┬─  
-///    ·                    ╰─── duplicate tag
-/// ───╯
-/// ```
-///
-/// The rest of the fields vary from variant to variant. But they usually
-/// contain information that is used for rendering the detailed report.
-///
-/// Each variant in the enum must be tagged with `#[error(...)]` or
-/// `#[warning(...)]`, both of these tags receive two arguments: code and
-/// description. The code is a string that uniquely identify the error,
-/// like "E201", and the description is a brief text describing the error.
-///
-/// ```text
-/// #[derive(Error)]
-/// pub enum Error {
-///    #[error("E102", "duplicate tag `{tag}`")]
-///    #[label("duplicate tag", tag_span)]
-///    DuplicateTag {
-///      detailed_report: String,
-///      tag: String,
-///      tag_span: Span,
-///    },
-/// }
-/// ```
-///
-/// Notice how the placeholder {tag} is used for building an error title that
-/// takes the name of the tag from the `tag` field in the structure. So, if
-/// the value for the `tag` field is `foo`, the error title will be
-/// "duplicate rule `foo`"
-///
-/// In addition to `#[error(...)]` or `#[warning(...)]`, each variant must
-/// also have at least one label, defined with `#[label(...)]`. The arguments
-/// passed to `#[label(...)]` are also passed to [`format!`] for creating a
-/// label, except for the last one, which should be the name of a field of
-/// type `Span` in the structure. The label will be associated to the code
-/// span indicated by that field.
-///
-/// In the example above we use `#[label("duplicate tag", tag_span)]` for
-/// creating a label with the text "duplicate tag" associated to the span
-/// indicated in `tag_span`. You can specify more than one label if
-/// necessary.
-///
-/// For changing the style of a label you can use `style="style"` as an
-/// optional last argument. For example:
-///
-/// `#[label("duplicate tag", tag_span, style="note")]`
-///
-/// Valid styles are: "error", "warning" and "note", the default one is
-/// "error" for labels accompanied by `#[error(...)]` and "warning" for
-/// those accompanied by `#[warning(...)]`.
-///
-/// Also, for each variant a new function for creating instances of that
-/// variant is automatically generated. The functions have a name similar to
-/// the variant, but using snake-case instead of camel-case. For example, for
-/// variant `DuplicateTag` the function would be named `duplicate_tag`.
-///
-/// Each function receives as arguments the fields declared in the
-/// corresponding structure, with the same names and types. Except for the
-/// `detailed_report` field, which won't appear in the function arguments.
-/// Also, the first argument for the function is always `&ReportBuilder`.
-///
-/// So, the function for the `DuplicateTag` example above will be...
-///
-/// ```text
-/// duplicate_tag(
-///     report_builder: &ReportBuilder,
-///     tag: String,
-///     tag_span: Span) -> Error
-/// ```
-#[proc_macro_derive(Error, attributes(error, warning, label, note))]
-pub fn error_macro_derive(input: TokenStream) -> TokenStream {
+/// This macro is used in combination with `ErrorStruct`, see the documentation
+/// of `ErrorStruct` for details.
+#[proc_macro_derive(ErrorEnum)]
+pub fn error_enum_macro_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    error::impl_error_macro(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
+    error::impl_error_enum_macro(input)
+        .unwrap_or_else(Error::into_compile_error)
         .into()
 }
 
@@ -164,7 +137,7 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// #[module_main]
-/// fn main(data: &[u8]) -> SomeProto {   
+/// fn main(data: &[u8]) -> SomeProto {
 ///     let some_proto = SomeProto::new();
 ///     // ... fill some_proto with data ...
 ///     some_proto
@@ -174,7 +147,7 @@ pub fn error_macro_derive(input: TokenStream) -> TokenStream {
 pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemFn);
     module_main::impl_module_main_macro(input)
-        .unwrap_or_else(syn::Error::into_compile_error)
+        .unwrap_or_else(Error::into_compile_error)
         .into()
 }
 
@@ -204,7 +177,7 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// #[wasm_export]
-/// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+/// fn add(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 /// ```
@@ -221,12 +194,12 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// use wasmtime::Caller;
 ///
 /// #[wasm_export(name = "add")]
-/// fn add_i64(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {   
+/// fn add_i64(caller: Caller<'_, ScanContext>, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 ///
 /// #[wasm_export(name = "add")]
-/// fn add_f64(caller: Caller<'_, ScanContext>, a: f64, b: f64) -> f64 {   
+/// fn add_f64(caller: Caller<'_, ScanContext>, a: f64, b: f64) -> f64 {
 ///      a + b
 /// }
 /// ```
@@ -244,11 +217,16 @@ pub fn module_main(_attr: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
-    let input = parse_macro_input!(input as ItemFn);
-    wasm_export::impl_wasm_export_macro(args, input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    let args = match NestedMeta::parse_meta_list(args.into()) {
+        Ok(args) => args,
+        Err(e) => return darling::Error::from(e).write_errors().into(),
+    };
+    wasm_export::impl_wasm_export_macro(
+        args,
+        parse_macro_input!(input as ItemFn),
+    )
+    .unwrap_or_else(Error::into_compile_error)
+    .into()
 }
 
 /// Indicates that a function is exported from a YARA module and therefore
@@ -277,7 +255,7 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ```text
 /// #[module_export]
-/// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {   
+/// fn add(ctx: &ScanContext, a: i64, b: i64) -> i64 {
 ///     a + b
 /// }
 /// ```
@@ -294,7 +272,7 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[module_export(add)]
-/// fn add_f64(ctx: &ScanContext, a: f64, b: f64) -> f64 {   
+/// fn add_f64(ctx: &ScanContext, a: f64, b: f64) -> f64 {
 ///     a + b
 /// }
 /// ```
@@ -311,9 +289,14 @@ pub fn wasm_export(args: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_attribute]
 pub fn module_export(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = parse_macro_input!(args as AttributeArgs);
-    let input = parse_macro_input!(input as ItemFn);
-    module_export::impl_module_export_macro(args, input)
-        .unwrap_or_else(syn::Error::into_compile_error)
-        .into()
+    let args = match NestedMeta::parse_meta_list(args.into()) {
+        Ok(args) => args,
+        Err(e) => return darling::Error::from(e).write_errors().into(),
+    };
+    module_export::impl_module_export_macro(
+        args,
+        parse_macro_input!(input as ItemFn),
+    )
+    .unwrap_or_else(Error::into_compile_error)
+    .into()
 }
