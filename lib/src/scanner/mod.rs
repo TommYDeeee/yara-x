@@ -1107,7 +1107,7 @@ impl<'a, 'r> Metadata<'a, 'r> {
     /// let mut scanner = yara_x::Scanner::new(&rules);
     ///
     /// let scan_results = scanner
-    ///     .scan(&[])
+    ///     .scan(&[], None)
     ///     .unwrap();
     ///
     /// let matching_rule = scan_results
