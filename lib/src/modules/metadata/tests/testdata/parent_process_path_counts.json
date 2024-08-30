@@ -1,0 +1,22 @@
+{
+  "file_names": [],
+  "detections": [
+    {
+      "av": "",
+      "names": []
+    }
+  ],
+  "arpot": {
+    "processes": [],
+    "dlls": []
+  },
+  "idp": {
+    "rules": []
+  },
+  "parent_process": {
+    "paths": ["test", "not a match", "test"]
+  },
+  "source": {
+    "urls": []
+  }
+}

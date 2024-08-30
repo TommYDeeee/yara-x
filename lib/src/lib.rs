@@ -35,7 +35,7 @@ let rules = compiler.build();
 let mut scanner = yara_x::Scanner::new(&rules);
 
 // Scan some data.
-let results = scanner.scan("Lorem ipsum".as_bytes()).unwrap();
+let results = scanner.scan("Lorem ipsum".as_bytes(), None).unwrap();
 
 assert_eq!(results.matching_rules().len(), 1);
 ```
@@ -59,6 +59,9 @@ pub use scanner::NonMatchingRules;
 pub use scanner::Pattern;
 pub use scanner::Patterns;
 pub use scanner::Rule;
+pub use scanner::ScanError;
+pub use scanner::ScanInput;
+pub use scanner::ScanInputRaw; // todo mby not export this?
 pub use scanner::ScanResults;
 pub use scanner::Scanner;
 pub use variables::Variable;

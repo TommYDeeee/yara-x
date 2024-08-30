@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+import "yara.proto";
+
+package metadata;
+
+option (yara.module_options) = {
+  name : "metadata"
+  root_message: "metadata.Metadata"
+  rust_module: "metadata"
+  cargo_feature: "metadata-module"
+};
+
+message Metadata {
+  // This module contains only exported functions, and doesn't return any data
+}

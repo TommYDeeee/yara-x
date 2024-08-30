@@ -123,6 +123,43 @@ pub struct Scanner<'r> {
     timeout: Option<Duration>,
 }
 
+#[derive(Clone, PartialEq, Eq)]
+/// Holds paths to files necessary for scanning.
+pub struct ScanInput<'trgt, 'meta> {
+    /// The path to the target file that will be scanned.
+    pub target_file: &'trgt Path,
+    /// An optional path to a metadata file associated with the target file.
+    pub metadata_file: Option<&'meta Path>,
+}
+
+impl<'trgt, 'meta> ScanInput<'trgt, 'meta> {
+    /// Creates a new `ScanInput`.
+    pub fn new(
+        target_file: &'trgt Path,
+        metadata_file: Option<&'meta Path>,
+    ) -> Self {
+        Self { target_file, metadata_file }
+    }
+
+    /// Creates a new `ScanInput` with only the target file. (metadata None)
+    pub fn just_target(target_file: &'trgt Path) -> Self {
+        Self { target_file, metadata_file: None }
+    }
+}
+
+pub(crate) struct ScanInputLoaded<'a, 'b> {
+    pub target: ScannedData<'a>,
+    pub meta: Option<ScannedData<'b>>,
+}
+
+/// Holds the data that will be scanned.
+pub struct ScanInputRaw<'a, 'b> {
+    /// The target data that will be scanned.
+    pub target: &'a [u8],
+    /// An optional metadata associated with the target data.
+    pub meta: Option<&'b [u8]>,
+}
+
 impl<'r> Scanner<'r> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
@@ -312,16 +349,7 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    /// Scans a file.
-    pub fn scan_file<'a, P>(
-        &'a mut self,
-        path: P,
-    ) -> Result<ScanResults<'a, 'r>, ScanError>
-    where
-        P: AsRef<Path>,
-    {
-        let path = path.as_ref();
-
+    fn load_file(path: &Path) -> Result<ScannedData, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), source: err }
         })?;
@@ -346,15 +374,40 @@ impl<'r> Scanner<'r> {
             ScannedData::Mmap(mapped_file)
         };
 
+        Ok(data)
+    }
+
+    /// Scans a file.
+    pub fn scan_file<'a, 'target, 'meta>(
+        &'a mut self,
+        scan_input: &ScanInput<'target, 'meta>,
+    ) -> Result<ScanResults<'a, 'r>, ScanError>
+    where
+        'target: 'a,
+        'meta: 'a,
+    {
+        let ScanInput { target_file, metadata_file } = scan_input;
+
+        let target = Self::load_file(target_file)?;
+        let meta = metadata_file.map(Self::load_file).transpose()?;
+
+        let data = ScanInputLoaded { target, meta };
+
         self.scan_impl(data)
     }
 
-    /// Scans in-memory data.
+    /// scans in-memory data (with optional metadata)
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
+        meta: Option<&'a [u8]>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        self.scan_impl(ScannedData::Slice(data))
+        let data = ScanInputLoaded {
+            target: ScannedData::Slice(data),
+            meta: meta.map(ScannedData::Slice),
+        };
+
+        self.scan_impl(data)
     }
 
     /// Sets the value of a global variable.
@@ -504,7 +557,7 @@ impl<'r> Scanner<'r> {
 impl<'r> Scanner<'r> {
     fn scan_impl<'a>(
         &'a mut self,
-        data: ScannedData<'a>,
+        data: ScanInputLoaded<'a, 'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -557,16 +610,18 @@ impl<'r> Scanner<'r> {
         self.filesize
             .set(
                 self.wasm_store.as_context_mut(),
-                Val::I64(data.as_ref().len() as i64),
+                Val::I64(data.target.as_ref().len() as i64),
             )
             .unwrap();
 
         let ctx = self.wasm_store.data_mut();
 
+        // todo do i also need to set the metadata file here?
+        // what purpose does the ctx serve exactly?
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
-        ctx.scanned_data = data.as_ref().as_ptr();
-        ctx.scanned_data_len = data.as_ref().len();
+        ctx.scanned_data = data.target.as_ref().as_ptr();
+        ctx.scanned_data_len = data.target.as_ref().len();
 
         // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
@@ -589,7 +644,12 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                module.main_fn.map(|main_fn| main_fn(data.as_ref()))
+                let main_fn_input = ScanInputRaw {
+                    target: data.target.as_ref(),
+                    meta: data.meta.as_ref().map(|m| m.as_ref()),
+                };
+
+                module.main_fn.map(|main_fn| main_fn(&main_fn_input))
             };
 
             if let Some(module_output) = &module_output {
@@ -693,7 +753,7 @@ impl<'r> Scanner<'r> {
         }
 
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
+            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data.target)),
             Ok(1) => Err(ScanError::Timeout),
             Ok(_) => unreachable!(),
             Err(err) if err.is::<ScanError>() => {
@@ -1047,7 +1107,7 @@ impl<'a, 'r> Metadata<'a, 'r> {
     /// let mut scanner = yara_x::Scanner::new(&rules);
     ///
     /// let scan_results = scanner
-    ///     .scan(&[])
+    ///     .scan(&[], None)
     ///     .unwrap();
     ///
     /// let matching_rule = scan_results
