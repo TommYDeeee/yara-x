@@ -292,9 +292,7 @@ impl Scanner {
         Python::with_gil(|py| {
             scan_results_to_py(
                 py,
-                self.inner
-                    .scan(data, None)
-                    .map_err(map_scan_err)?,
+                self.inner.scan(data, None).map_err(map_scan_err)?,
             )
         })
     }

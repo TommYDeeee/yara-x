@@ -131,9 +131,8 @@ fn test_modules() {
         let mut scanner = crate::scanner::Scanner::new(&rules);
 
         // Scan the data.
-        let scan_results = scanner
-            .scan(&data, None)
-            .expect("scan should not fail");
+        let scan_results =
+            scanner.scan(&data, None).expect("scan should not fail");
 
         // Get the module output.
         let output =
