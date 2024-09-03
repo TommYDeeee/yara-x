@@ -90,10 +90,11 @@ pub(crate) struct ScanContext<'r> {
     /// (metadata must be set for each file). The overhead of cloning the
     /// vector alternative could be non-trivial (`O(1)` vs `O(n)`) for a single
     /// iteration/file.
-    // Chose `Arc<_>` over `Rc<_>` for `Arc<_>` compatibility with `Send` and
-    // `Sync` traits.
-    //
-    // Avoided `&[u8]` because of lifetimes
+    ///
+    /// Chose `Arc<_>` over `Rc<_>` for `Arc<_>` compatibility with `Send` and
+    /// `Sync` traits.
+    ///
+    /// Avoided `&[u8]` because of lifetimes
     pub module_meta: FxHashMap<String, Arc<[u8]>>,
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
