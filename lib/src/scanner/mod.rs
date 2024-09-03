@@ -614,10 +614,8 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                // full name is the thing uniquely identifying the module (& its metadata)
-                let full_name = module.root_struct_descriptor.full_name();
-
-                let meta = ctx.module_meta.get(full_name).map(|data| &**data);
+                let meta =
+                    ctx.module_meta.get(module_name).map(|data| &**data);
 
                 let data = data.as_ref();
 
