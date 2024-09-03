@@ -24,18 +24,24 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
-// todo update after the multiple values (module-specific) are permitted
 pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
 
-Some modules (including, but not limited to the `metadata` module) require extra data
-input (besides just the analyzed file) to work. This option allows to pass such data
-to the module.
+Some modules require extra data input (besides just the analyzed file) to work. This
+option allows to pass such data to those modules.
+
+The flag can be used multiple times (or given comma-separated values) to pass data to
+multiple modules.
 
 The content of the FILE is loaded and interpreted by the module.
 
 Examples:
 
---module-data ./example.json"#;
+--module-data=mymodule0=./example0.json
+--module-data=mymodule1=./example1.json,mymodule2=./example2.json
+
+such invocation will result in passing the content of `example0.json`, `example1.json`
+and `example2.json` to `mymodule0`, `mymodule1` and `mymodule2` respectively.
+"#;
 
 pub const DEPTH_LONG_HELP: &str = r#"Walk directories recursively up to a given depth
 

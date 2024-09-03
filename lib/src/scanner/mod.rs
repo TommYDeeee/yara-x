@@ -462,9 +462,9 @@ impl<'r> Scanner<'r> {
         Ok(())
     }
 
-    /// todo some docs
+    /// Updates the metadata for a module specified by its fully-qualified name.
     ///
-    /// inserts the metadata if `Some(_)`, removes it if `None`
+    /// If the `meta` argument is `None`, the metadata for the module is removed.
     pub fn set_module_meta(
         &mut self,
         module_full_name: &str,
@@ -474,7 +474,7 @@ impl<'r> Scanner<'r> {
             self.wasm_store
                 .data_mut()
                 .module_meta
-                .insert(module_full_name.to_string(), meta.to_vec());
+                .insert(module_full_name.to_string(), meta.to_vec()); // todo(@chudicek) avoid the allocation here
         } else {
             self.wasm_store.data_mut().module_meta.remove(module_full_name);
         }
