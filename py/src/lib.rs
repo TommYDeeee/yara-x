@@ -31,7 +31,7 @@ use pyo3::types::{
 };
 use pyo3_file::PyFileLikeObject;
 
-use ::yara_x::{self as yrx, ScanInput};
+use ::yara_x as yrx;
 
 /// Compiles a YARA source code producing a set of compiled [`Rules`].
 ///

@@ -123,43 +123,6 @@ pub struct Scanner<'r> {
     timeout: Option<Duration>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-/// Holds paths to files necessary for scanning.
-pub struct ScanInput<'trgt, 'meta> {
-    /// The path to the target file that will be scanned.
-    pub target_file: &'trgt Path,
-    /// An optional path to a metadata file associated with the target file.
-    pub metadata_file: Option<&'meta Path>,
-}
-
-impl<'trgt, 'meta> ScanInput<'trgt, 'meta> {
-    /// Creates a new `ScanInput`.
-    pub fn new(
-        target_file: &'trgt Path,
-        metadata_file: Option<&'meta Path>,
-    ) -> Self {
-        Self { target_file, metadata_file }
-    }
-
-    /// Creates a new `ScanInput` with only the target file. (metadata None)
-    pub fn just_target(target_file: &'trgt Path) -> Self {
-        Self { target_file, metadata_file: None }
-    }
-}
-
-pub(crate) struct ScanInputLoaded<'a, 'b> {
-    pub target: ScannedData<'a>,
-    pub meta: Option<ScannedData<'b>>,
-}
-
-/// Holds the data that will be scanned.
-pub struct ScanInputRaw<'a, 'b> {
-    /// The target data that will be scanned.
-    pub target: &'a [u8],
-    /// An optional metadata associated with the target data.
-    pub meta: Option<&'b [u8]>,
-}
-
 impl<'r> Scanner<'r> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
@@ -564,7 +527,6 @@ impl<'r> Scanner<'r> {
 impl<'r> Scanner<'r> {
     fn scan_impl<'a>(
         &'a mut self,
-        // data: ScanInputLoaded<'a, 'a>,
         data: ScannedData<'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
@@ -656,10 +618,9 @@ impl<'r> Scanner<'r> {
                 let meta =
                     ctx.module_meta.get(full_name).map(|data| data.as_slice());
 
-                let main_fn_input =
-                    ScanInputRaw { meta, target: data.as_ref() };
+                let data = data.as_ref();
 
-                module.main_fn.map(|main_fn| main_fn(&main_fn_input))
+                module.main_fn.map(|main_fn| main_fn(data, meta))
             };
 
             if let Some(module_output) = &module_output {
@@ -1117,7 +1078,7 @@ impl<'a, 'r> Metadata<'a, 'r> {
     /// let mut scanner = yara_x::Scanner::new(&rules);
     ///
     /// let scan_results = scanner
-    ///     .scan(&[], None)
+    ///     .scan(&[])
     ///     .unwrap();
     ///
     /// let matching_rule = scan_results
