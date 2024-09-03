@@ -23,7 +23,7 @@ macro_rules! test_condition {
         let rules = crate::compile(src.as_str()).unwrap();
 
         let num_matching_rules = crate::scanner::Scanner::new(&rules)
-            .scan($data, None)
+            .scan($data)
             .expect("scan should not fail")
             .matching_rules()
             .len();
@@ -59,8 +59,11 @@ macro_rules! test_rule {
     (__impl $rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
         let rules = crate::compile($rule).unwrap();
 
-        let num_matching_rules = crate::scanner::Scanner::new(&rules)
-            .scan($data, $metadata)
+        let mut scanner = crate::scanner::Scanner::new(&rules);
+        scanner.set_module_meta("metadata.Metadata", $metadata).expect("the metadata module should be recognized");
+
+        let num_matching_rules = scanner
+            .scan($data)
             .expect("scan should not fail")
             .matching_rules()
             .len();
@@ -131,7 +134,7 @@ macro_rules! pattern_match {
         let rules = crate::compile(src.as_str()).unwrap();
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
-        let scan_results = scanner.scan($data, None).expect("scan should not fail");
+        let scan_results = scanner.scan($data).expect("scan should not fail");
         let matching_data = scan_results
             .matching_rules()
             .next()
@@ -2851,7 +2854,7 @@ fn filesize() {
 
     assert_eq!(
         scanner
-            .scan(b"", None)
+            .scan(b"")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -2859,7 +2862,7 @@ fn filesize() {
     );
     assert_eq!(
         scanner
-            .scan(b"a", None)
+            .scan(b"a")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -2867,7 +2870,7 @@ fn filesize() {
     );
     assert_eq!(
         scanner
-            .scan(b"ab", None)
+            .scan(b"ab")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -3098,7 +3101,7 @@ fn rule_reuse_1() {
 
     assert_eq!(
         scanner
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -3144,7 +3147,7 @@ fn rule_reuse_2() {
 
     assert_eq!(
         scanner
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -3198,7 +3201,7 @@ fn eight_rules() {
 
     assert_eq!(
         scanner
-            .scan(b"foo", None)
+            .scan(b"foo")
             .expect("scan should not fail")
             .matching_rules()
             .len(),

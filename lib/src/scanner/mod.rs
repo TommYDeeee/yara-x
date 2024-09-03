@@ -383,7 +383,6 @@ impl<'r> Scanner<'r> {
         // pub fn scan_file<'a, TP, MP>(
         &'a mut self,
         target: &'target Path,
-        meta: Option<&'meta Path>,
         // target: TP,
         // meta: Option<MP>,
     ) -> Result<ScanResults<'a, 'r>, ScanError>
@@ -399,25 +398,16 @@ impl<'r> Scanner<'r> {
         // let meta = meta.as_ref().map(|m| m.as_ref());
 
         let target = Self::load_file(target)?;
-        let meta = meta.map(Self::load_file).transpose()?;
 
-        let data = ScanInputLoaded { target, meta };
-
-        self.scan_impl(data)
+        self.scan_impl(target)
     }
 
     /// scans in-memory data (with optional metadata)
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
-        meta: Option<&'a [u8]>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let data = ScanInputLoaded {
-            target: ScannedData::Slice(data),
-            meta: meta.map(ScannedData::Slice),
-        };
-
-        self.scan_impl(data)
+        self.scan_impl(ScannedData::Slice(data))
     }
 
     /// Sets the value of a global variable.
@@ -598,7 +588,8 @@ impl<'r> Scanner<'r> {
 impl<'r> Scanner<'r> {
     fn scan_impl<'a>(
         &'a mut self,
-        data: ScanInputLoaded<'a, 'a>,
+        // data: ScanInputLoaded<'a, 'a>,
+        data: ScannedData<'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -651,7 +642,7 @@ impl<'r> Scanner<'r> {
         self.filesize
             .set(
                 self.wasm_store.as_context_mut(),
-                Val::I64(data.target.as_ref().len() as i64),
+                Val::I64(data.as_ref().len() as i64),
             )
             .unwrap();
 
@@ -659,8 +650,8 @@ impl<'r> Scanner<'r> {
 
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
-        ctx.scanned_data = data.target.as_ref().as_ptr();
-        ctx.scanned_data_len = data.target.as_ref().len();
+        ctx.scanned_data = data.as_ref().as_ptr();
+        ctx.scanned_data_len = data.as_ref().len();
 
         // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
@@ -683,18 +674,14 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                let main_fn_input = ScanInputRaw {
-                    target: data.target.as_ref(),
-                    meta: data.meta.as_ref().map(|m| m.as_ref()),
-                };
-
                 // full name is the thing uniquely identifying the module (& its metadata)
                 let full_name = module.root_struct_descriptor.full_name();
 
                 let meta =
                     ctx.module_meta.get(full_name).map(|data| data.as_slice());
 
-                let main_fn_input = ScanInputRaw { meta, ..main_fn_input };
+                let main_fn_input =
+                    ScanInputRaw { meta, target: data.as_ref() };
 
                 module.main_fn.map(|main_fn| main_fn(&main_fn_input))
             };
@@ -800,7 +787,7 @@ impl<'r> Scanner<'r> {
         }
 
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data.target)),
+            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
             Ok(1) => Err(ScanError::Timeout),
             Ok(_) => unreachable!(),
             Err(err) if err.is::<ScanError>() => {

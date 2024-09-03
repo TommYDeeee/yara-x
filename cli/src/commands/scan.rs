@@ -314,13 +314,13 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .push((file_path.clone(), now));
 
             let target_file = file_path.as_path();
-            // let metadata_file = metadata_path.map(|p| p.as_path());
-            // todo this parameter is useless; meta file now extracted from the scanner object
-            //  -> get rid of it from the whole function "stack"
-            let metadata_file = None;
+
+            // todo the PR comment requires that the `scan` fn (`scan_file` fn?) should reset the metadata
+            // this means setting the metadata each time a new file is scanned
+            // intended like this??
 
             let scan_results = scanner
-                .scan_file(target_file, metadata_file)
+                .scan_file(target_file)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state
