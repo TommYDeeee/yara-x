@@ -563,3 +563,29 @@ fn parent_process_path_ignored() {
         1
     );
 }
+
+#[test]
+fn scan_resets_metadata() {
+    let meta = include_bytes!("./testdata/empty_valid_json.json");
+
+    let rule = r#"
+        import "metadata"
+        rule test {
+            condition:
+    		    metadata.file.name("") == 0
+        }
+        "#;
+
+    let rules = crate::compile(rule).unwrap();
+    let mut scanner = crate::scanner::Scanner::new(&rules);
+
+    let arcd_meta = std::sync::Arc::<[u8]>::from(meta.to_vec());
+
+    scanner.set_module_meta("metadata.Metadata", Some(&arcd_meta));
+
+    // first scan should have metadata
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+
+    // second scan should not have metadata -> no rules match
+    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 0);
+}
