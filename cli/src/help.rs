@@ -24,6 +24,7 @@ Examples:
 --define some_bool=true
 --define some_str=\"foobar\""#;
 
+// todo update after the multiple values (module-specific) are permitted
 pub const MODULE_DATA_LONG_HELP: &str = r#"Pass FILE's content as extra data to MODULE
 
 Some modules (including, but not limited to the `metadata` module) require extra data

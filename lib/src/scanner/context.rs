@@ -83,6 +83,8 @@ pub(crate) struct ScanContext<'r> {
     /// operation. Keys are the fully qualified protobuf message names, and
     /// values are the protobuf messages set with [`Scanner::set_module_output`].
     pub user_provided_module_outputs: FxHashMap<String, Box<dyn MessageDyn>>,
+
+    pub module_meta: FxHashMap<String, Vec<u8>>, // todo `Vec` to avoid lifetimes rn
     /// Hash map that tracks the matches occurred during a scan. The keys
     /// are the PatternId of the matching pattern, and values are a list
     /// of matches.

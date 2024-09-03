@@ -61,7 +61,7 @@ pub use scanner::Patterns;
 pub use scanner::Rule;
 pub use scanner::ScanError;
 pub use scanner::ScanInput;
-pub use scanner::ScanInputRaw; // todo mby not export this?
+pub use scanner::ScanInputRaw;
 pub use scanner::ScanResults;
 pub use scanner::Scanner;
 pub use variables::Variable;

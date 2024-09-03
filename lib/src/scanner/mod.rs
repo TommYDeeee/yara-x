@@ -194,6 +194,7 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
+                module_meta: FxHashMap::default(),
                 pattern_matches: PatternMatches::new(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
@@ -379,17 +380,26 @@ impl<'r> Scanner<'r> {
 
     /// Scans a file.
     pub fn scan_file<'a, 'target, 'meta>(
+        // pub fn scan_file<'a, TP, MP>(
         &'a mut self,
-        scan_input: &ScanInput<'target, 'meta>,
+        target: &'target Path,
+        meta: Option<&'meta Path>,
+        // target: TP,
+        // meta: Option<MP>,
     ) -> Result<ScanResults<'a, 'r>, ScanError>
     where
         'target: 'a,
         'meta: 'a,
+        // TP: AsRef<Path>,
+        // MP: AsRef<Path>,
     {
-        let ScanInput { target_file, metadata_file } = scan_input;
+        // let ScanInput { target_file, metadata_file } = scan_input;
 
-        let target = Self::load_file(target_file)?;
-        let meta = metadata_file.map(Self::load_file).transpose()?;
+        // let target = target.as_ref();
+        // let meta = meta.as_ref().map(|m| m.as_ref());
+
+        let target = Self::load_file(target)?;
+        let meta = meta.map(Self::load_file).transpose()?;
 
         let data = ScanInputLoaded { target, meta };
 
@@ -510,6 +520,37 @@ impl<'r> Scanner<'r> {
         Ok(())
     }
 
+    /// todo some docs
+    ///
+    /// inserts the metadata if `Some(_)`, removes it if `None`
+    pub fn set_module_meta(
+        &mut self,
+        module_full_name: &str, // todo different than in `set_module_output` - unify?
+        meta: Option<&[u8]>,
+    ) -> Result<(), ScanError> {
+        // Check if the protobuf message passed to this function corresponds
+        // with any of the existing modules.
+        if !BUILTIN_MODULES.iter().any(|m| {
+            m.1.root_struct_descriptor.full_name() == module_full_name
+        }) {
+            return Err(ScanError::UnknownModule {
+                module: module_full_name.to_string(),
+            });
+        }
+
+        // todo is there a method that does this
+        if let Some(meta) = meta {
+            self.wasm_store
+                .data_mut()
+                .module_meta
+                .insert(module_full_name.to_string(), meta.to_vec());
+        } else {
+            self.wasm_store.data_mut().module_meta.remove(module_full_name);
+        }
+
+        Ok(())
+    }
+
     /// Similar to [`Scanner::set_module_output`], but receives a module name
     /// and the protobuf message as raw data.
     ///
@@ -616,8 +657,6 @@ impl<'r> Scanner<'r> {
 
         let ctx = self.wasm_store.data_mut();
 
-        // todo do i also need to set the metadata file here?
-        // what purpose does the ctx serve exactly?
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
         ctx.scanned_data = data.target.as_ref().as_ptr();
@@ -648,6 +687,14 @@ impl<'r> Scanner<'r> {
                     target: data.target.as_ref(),
                     meta: data.meta.as_ref().map(|m| m.as_ref()),
                 };
+
+                // full name is the thing uniquely identifying the module (& its metadata)
+                let full_name = module.root_struct_descriptor.full_name();
+
+                let meta =
+                    ctx.module_meta.get(full_name).map(|data| data.as_slice());
+
+                let main_fn_input = ScanInputRaw { meta, ..main_fn_input };
 
                 module.main_fn.map(|main_fn| main_fn(&main_fn_input))
             };
