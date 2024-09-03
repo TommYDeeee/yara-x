@@ -23,6 +23,8 @@ use crate::commands::{
 use crate::walk::Message;
 use crate::{help, walk};
 
+use super::meta_file_value_parser;
+
 #[derive(Clone, ValueEnum)]
 enum OutputFormats {
     /// Default output format.
@@ -154,11 +156,9 @@ pub fn scan() -> Command {
             arg!(-x --"module-data")
                 .help("Pass FILE's content as extra data to MODULE")
                 .long_help(help::MODULE_DATA_LONG_HELP)
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
+                .required(false)
                 .value_name("MODULE=FILE")
-                .value_parser(value_parser!(String))
+                .value_parser(meta_file_value_parser)
                 .action(ArgAction::Append)
         )
 }
@@ -168,7 +168,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
-    let metadata = args.get_many::<String>("module-data").unwrap();
     let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
@@ -179,6 +178,12 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
+    let metadata = args
+        .get_many::<(String, PathBuf)>("module-data")
+        .into_iter()
+        .flatten()
+        // collect to eagerly call the parser on each element
+        .collect::<Vec<_>>();
 
     let rules = if compiled_rules {
         if rules_path.len() > 1 {
@@ -261,14 +266,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
     let all_metadata = {
         let mut all_metadata = Vec::new();
-        for keyval in metadata.clone() {
-            // cases where there are `=` in the strings themselves are not handled
-            // but neither are in the original yara
-            let (module_full_name, metadata_path) =
-                keyval.split_once('=').ok_or(anyhow::anyhow!(
-                    "expected exactly one `=` in the metadata argument"
-                ))?;
-
+        for (module_full_name, metadata_path) in metadata {
             let meta = std::fs::read(Path::new(metadata_path))?;
 
             let arcd_meta = Arc::<[u8]>::from(meta);
