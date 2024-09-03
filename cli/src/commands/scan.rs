@@ -3,7 +3,7 @@ use std::cmp::min;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Error};
@@ -262,6 +262,8 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let all_metadata = {
         let mut all_metadata = Vec::new();
         for keyval in metadata.clone() {
+            // cases where there are `=` in the strings themselves are not handled
+            // but neither are in the original yara
             let (module_full_name, metadata_path) =
                 keyval.split_once('=').ok_or(anyhow::anyhow!(
                     "expected exactly one `=` in the metadata argument"
@@ -269,7 +271,9 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let meta = std::fs::read(Path::new(metadata_path))?;
 
-            all_metadata.push((module_full_name.to_string(), meta));
+            let arcd_meta = Arc::<[u8]>::from(meta);
+
+            all_metadata.push((module_full_name.to_string(), arcd_meta));
         }
         all_metadata
     };

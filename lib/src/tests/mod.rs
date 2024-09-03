@@ -76,7 +76,8 @@ macro_rules! test_rule {
     }};
 
     ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
-        test_rule!(__impl $rule, $data, $metadata, $expected_result);
+        let arcd_meta = ($metadata).map(|meta| std::sync::Arc::<[u8]>::from(meta.to_vec()));
+        test_rule!(__impl $rule, $data, arcd_meta.as_ref(), $expected_result);
     }};
 
     ($rule:expr, $data:expr, $expected_result:expr) => {{

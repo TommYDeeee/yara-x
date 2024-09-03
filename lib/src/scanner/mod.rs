@@ -13,7 +13,7 @@ use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Once;
+use std::sync::{Arc, Once};
 use std::time::Duration;
 use std::{cmp, fs, thread};
 
@@ -465,16 +465,18 @@ impl<'r> Scanner<'r> {
     /// Updates the metadata for a module specified by its fully-qualified name.
     ///
     /// If the `meta` argument is `None`, the metadata for the module is removed.
+    ///
+    /// See [`Scanner::module_meta`] for the reasoning behind choosing `Arc<_>`
     pub fn set_module_meta(
         &mut self,
         module_full_name: &str,
-        meta: Option<&[u8]>,
+        meta: Option<&Arc<[u8]>>,
     ) {
         if let Some(meta) = meta {
             self.wasm_store
                 .data_mut()
                 .module_meta
-                .insert(module_full_name.to_string(), meta.to_vec()); // todo(@chudicek) avoid the allocation here
+                .insert(module_full_name.to_string(), meta.clone());
         } else {
             self.wasm_store.data_mut().module_meta.remove(module_full_name);
         }
@@ -615,8 +617,7 @@ impl<'r> Scanner<'r> {
                 // full name is the thing uniquely identifying the module (& its metadata)
                 let full_name = module.root_struct_descriptor.full_name();
 
-                let meta =
-                    ctx.module_meta.get(full_name).map(|data| data.as_slice());
+                let meta = ctx.module_meta.get(full_name).map(|data| &**data);
 
                 let data = data.as_ref();
 
