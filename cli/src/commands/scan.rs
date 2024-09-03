@@ -259,6 +259,21 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let start_time = Instant::now();
     let state = ScanState::new(start_time);
 
+    let all_metadata = {
+        let mut all_metadata = Vec::new();
+        for keyval in metadata.clone() {
+            let (module_full_name, metadata_path) =
+                keyval.split_once('=').ok_or(anyhow::anyhow!(
+                    "expected exactly one `=` in the metadata argument"
+                ))?;
+
+            let meta = std::fs::read(Path::new(metadata_path))?;
+
+            all_metadata.push((module_full_name.to_string(), meta));
+        }
+        all_metadata
+    };
+
     w.walk(
         state,
         // Initialization
@@ -280,17 +295,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                     // we already verified that external variables are correct.
                     scanner.set_global(ident.as_str(), value).unwrap();
                 }
-            }
-
-            for keyval in metadata.clone() {
-                let (module_full_name, metadata_path) =
-                    keyval.split_once('=').unwrap(); // todo do not unwrap
-
-                let meta = std::fs::read(Path::new(metadata_path)).unwrap(); // todo do not unwrap
-
-                scanner
-                    .set_module_meta(module_full_name, Some(meta.as_slice()))
-                    .unwrap(); // todo do not unwrap
             }
 
             scanner
@@ -318,6 +322,10 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
             // todo the PR comment requires that the `scan` fn (`scan_file` fn?) should reset the metadata
             // this means setting the metadata each time a new file is scanned
             // intended like this??
+
+            for (module_full_name, meta) in all_metadata.iter() {
+                scanner.set_module_meta(module_full_name, Some(meta));
+            }
 
             let scan_results = scanner
                 .scan_file(target_file)

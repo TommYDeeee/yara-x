@@ -350,7 +350,7 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    fn load_file(path: &Path) -> Result<ScannedData, ScanError> {
+    fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), source: err }
         })?;
@@ -379,25 +379,14 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans a file.
-    pub fn scan_file<'a, 'target, 'meta>(
-        // pub fn scan_file<'a, TP, MP>(
+    pub fn scan_file<'a, P>(
         &'a mut self,
-        target: &'target Path,
-        // target: TP,
-        // meta: Option<MP>,
+        target: P,
     ) -> Result<ScanResults<'a, 'r>, ScanError>
     where
-        'target: 'a,
-        'meta: 'a,
-        // TP: AsRef<Path>,
-        // MP: AsRef<Path>,
+        P: AsRef<Path>,
     {
-        // let ScanInput { target_file, metadata_file } = scan_input;
-
-        // let target = target.as_ref();
-        // let meta = meta.as_ref().map(|m| m.as_ref());
-
-        let target = Self::load_file(target)?;
+        let target = Self::load_file(target.as_ref())?;
 
         self.scan_impl(target)
     }
@@ -515,20 +504,9 @@ impl<'r> Scanner<'r> {
     /// inserts the metadata if `Some(_)`, removes it if `None`
     pub fn set_module_meta(
         &mut self,
-        module_full_name: &str, // todo different than in `set_module_output` - unify?
+        module_full_name: &str,
         meta: Option<&[u8]>,
-    ) -> Result<(), ScanError> {
-        // Check if the protobuf message passed to this function corresponds
-        // with any of the existing modules.
-        if !BUILTIN_MODULES.iter().any(|m| {
-            m.1.root_struct_descriptor.full_name() == module_full_name
-        }) {
-            return Err(ScanError::UnknownModule {
-                module: module_full_name.to_string(),
-            });
-        }
-
-        // todo is there a method that does this
+    ) {
         if let Some(meta) = meta {
             self.wasm_store
                 .data_mut()
@@ -537,8 +515,6 @@ impl<'r> Scanner<'r> {
         } else {
             self.wasm_store.data_mut().module_meta.remove(module_full_name);
         }
-
-        Ok(())
     }
 
     /// Similar to [`Scanner::set_module_output`], but receives a module name

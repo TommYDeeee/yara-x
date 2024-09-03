@@ -60,7 +60,7 @@ macro_rules! test_rule {
         let rules = crate::compile($rule).unwrap();
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
-        scanner.set_module_meta("metadata.Metadata", $metadata).expect("the metadata module should be recognized");
+        scanner.set_module_meta("metadata.Metadata", $metadata);
 
         let num_matching_rules = scanner
             .scan($data)
