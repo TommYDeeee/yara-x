@@ -323,10 +323,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
 
             let target_file = file_path.as_path();
 
-            // todo the PR comment requires that the `scan` fn (`scan_file` fn?) should reset the metadata
-            // this means setting the metadata each time a new file is scanned
-            // intended like this??
-
             for (module_full_name, meta) in all_metadata.iter() {
                 scanner.set_module_meta(module_full_name, Some(meta));
             }

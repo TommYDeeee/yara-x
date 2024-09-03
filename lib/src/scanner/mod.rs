@@ -724,6 +724,9 @@ impl<'r> Scanner<'r> {
             }
         }
 
+        // clear the metadata for all modules
+        self.wasm_store.data_mut().module_meta.clear();
+
         match func_result {
             Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
             Ok(1) => Err(ScanError::Timeout),
