@@ -60,7 +60,10 @@ macro_rules! test_rule {
         let rules = crate::compile($rule).unwrap();
 
         let mut scanner = crate::scanner::Scanner::new(&rules);
-        scanner.set_module_meta("metadata.Metadata", $metadata);
+
+        for (module_name, module_data) in $metadata {
+            scanner.set_module_meta(module_name, Some(module_data));
+        }
 
         let num_matching_rules = scanner
             .scan($data)
@@ -76,12 +79,12 @@ macro_rules! test_rule {
     }};
 
     ($rule:expr, $data:expr, $metadata:expr, $expected_result:expr) => {{
-        let arcd_meta = ($metadata).map(|meta| std::sync::Arc::<[u8]>::from(meta.to_vec()));
+        let arcd_meta = ($metadata).map(|(name, meta)| (name, std::sync::Arc::<[u8]>::from(meta.to_vec())));
         test_rule!(__impl $rule, $data, arcd_meta.as_ref(), $expected_result);
     }};
 
     ($rule:expr, $data:expr, $expected_result:expr) => {{
-        test_rule!(__impl $rule, $data, None, $expected_result);
+        test_rule!(__impl $rule, $data, [] /* no metadata */, $expected_result);
     }};
 
     ($rule:expr) => {{

@@ -13,7 +13,7 @@ fn invalid_json_fails_gracefully() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -31,7 +31,7 @@ fn serde_tolerates_extra_junk() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -49,7 +49,7 @@ fn file_name_string_json_empty_is_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -67,7 +67,7 @@ fn file_name_regex_json_empty_is_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -86,7 +86,7 @@ fn file_name_string_names_counted() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -104,7 +104,7 @@ fn file_name_regex_names_counted() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -123,7 +123,7 @@ fn file_name_string_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -141,7 +141,7 @@ fn file_name_regex_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -159,7 +159,7 @@ fn detection_name_string_empty_is_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -177,7 +177,7 @@ fn detection_name_regex_empty_is_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -195,7 +195,7 @@ fn detection_name_string_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -213,7 +213,7 @@ fn detection_name_regex_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -232,7 +232,7 @@ fn detection_name_string_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -251,7 +251,7 @@ fn detection_name_regex_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -270,7 +270,7 @@ fn detection_name_string_filter_filters() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -289,7 +289,7 @@ fn detection_name_regex_filter_filters() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -307,7 +307,7 @@ fn arpot_dll_empty_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -325,7 +325,7 @@ fn arpot_dll_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -343,7 +343,7 @@ fn arpot_dll_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -361,7 +361,7 @@ fn arpot_process_empty_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -379,7 +379,7 @@ fn arpot_process_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -397,7 +397,7 @@ fn arpot_process_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -415,7 +415,7 @@ fn idp_rule_name_empty_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -433,7 +433,7 @@ fn idp_rule_name_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -451,7 +451,7 @@ fn idp_rule_name_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -469,7 +469,7 @@ fn source_url_empty_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -487,7 +487,7 @@ fn source_url_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -505,7 +505,7 @@ fn source_url_other_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -523,7 +523,7 @@ fn parent_process_path_empty_ok() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -541,7 +541,7 @@ fn parent_process_path_counts() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -559,7 +559,7 @@ fn parent_process_path_ignored() {
         }
         "#,
         &[],
-        Some(meta),
+        [("metadata", meta)],
         1
     );
 }
@@ -581,7 +581,7 @@ fn scan_resets_metadata() {
 
     let arcd_meta = std::sync::Arc::<[u8]>::from(meta.to_vec());
 
-    scanner.set_module_meta("metadata.Metadata", Some(&arcd_meta));
+    scanner.set_module_meta("metadata", Some(&arcd_meta));
 
     // first scan should have metadata
     assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);

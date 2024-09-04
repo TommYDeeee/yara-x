@@ -367,7 +367,7 @@ fn export_hash(ctx: &mut ScanContext) -> Option<RuntimeString> {
 }
 
 #[module_main]
-fn main(data: &[u8], meta: Option<&[u8]>) -> Macho {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> Macho {
     match parser::MachO::parse(data) {
         Ok(macho) => macho.into(),
         Err(_) => Macho::new(),
