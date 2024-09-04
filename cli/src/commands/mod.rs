@@ -87,7 +87,7 @@ fn meta_file_value_parser(
     option: &str,
 ) -> Result<(String, PathBuf), anyhow::Error> {
     let (var, value) = option.split_once('=').ok_or(anyhow!(
-        "the equal sign is missing, use the syntax VAR=VALUE (example: {}=file.yar)",
+        "the equal sign is missing, use the syntax MODULE=FILE (example: {}=file)",
         option
     ))?;
 
