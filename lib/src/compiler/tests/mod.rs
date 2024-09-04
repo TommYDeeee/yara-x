@@ -31,7 +31,7 @@ fn serialization() {
     let mut scanner = Scanner::new(&rules);
     assert_eq!(
         scanner
-            .scan(b"foo", None)
+            .scan(b"foo")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -148,7 +148,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -167,7 +167,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -186,7 +186,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -205,7 +205,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -224,7 +224,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -243,7 +243,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -262,7 +262,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -281,7 +281,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -300,7 +300,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -319,7 +319,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -338,7 +338,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -357,7 +357,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -379,7 +379,7 @@ fn globals() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(b"foo", None)
+            .scan(b"foo")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -408,7 +408,7 @@ fn globals() {
 
         assert_eq!(
             Scanner::new(&rules)
-                .scan(&[], None)
+                .scan(&[])
                 .expect("scan should not fail")
                 .matching_rules()
                 .len(),
@@ -450,7 +450,7 @@ fn globals_json() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -503,7 +503,7 @@ fn relaxed_re_syntax() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(b"XYZ", None)
+            .scan(b"XYZ")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -512,7 +512,7 @@ fn relaxed_re_syntax() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(b"xyz{", None)
+            .scan(b"xyz{")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -521,7 +521,7 @@ fn relaxed_re_syntax() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(b"xyz>", None)
+            .scan(b"xyz>")
             .expect("scan should not fail")
             .matching_rules()
             .len(),
@@ -560,7 +560,7 @@ fn unsupported_modules() {
 
     assert_eq!(
         Scanner::new(&rules)
-            .scan(&[], None)
+            .scan(&[])
             .expect("scan should not fail")
             .matching_rules()
             .len(),

@@ -1,6 +1,5 @@
 use crate::modules::prelude::*;
 use crate::modules::protos::eml;
-use crate::ScanInputRaw;
 use deunicode::deunicode;
 use mail_parser::*;
 use nom::Slice;
@@ -11,14 +10,14 @@ use sha2::{Digest, Sha256};
 mod tests;
 
 #[module_main]
-fn main(data: &ScanInputRaw) -> eml::EML {
+fn main(data: &[u8], _meta: Option<&[u8]>) -> eml::EML {
     let mut eml_proto = eml::EML::new();
 
     let parser = MessageParser::new();
 
-    if let Some(message) = parser.parse(data.target) {
+    if let Some(message) = parser.parse(data) {
         serialize_headers(&message, &mut eml_proto);
-        serialize_body(&message, data.target, &mut eml_proto);
+        serialize_body(&message, data, &mut eml_proto);
         initialize_count_fields(&mut eml_proto);
 
         // According to RFC5322, origination date field and originator address field are mandatory.

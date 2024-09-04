@@ -13,7 +13,7 @@ use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Once;
+use std::sync::{Arc, Once};
 use std::time::Duration;
 use std::{cmp, fs, thread};
 
@@ -123,43 +123,6 @@ pub struct Scanner<'r> {
     timeout: Option<Duration>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-/// Holds paths to files necessary for scanning.
-pub struct ScanInput<'trgt, 'meta> {
-    /// The path to the target file that will be scanned.
-    pub target_file: &'trgt Path,
-    /// An optional path to a metadata file associated with the target file.
-    pub metadata_file: Option<&'meta Path>,
-}
-
-impl<'trgt, 'meta> ScanInput<'trgt, 'meta> {
-    /// Creates a new `ScanInput`.
-    pub fn new(
-        target_file: &'trgt Path,
-        metadata_file: Option<&'meta Path>,
-    ) -> Self {
-        Self { target_file, metadata_file }
-    }
-
-    /// Creates a new `ScanInput` with only the target file. (metadata None)
-    pub fn just_target(target_file: &'trgt Path) -> Self {
-        Self { target_file, metadata_file: None }
-    }
-}
-
-pub(crate) struct ScanInputLoaded<'a, 'b> {
-    pub target: ScannedData<'a>,
-    pub meta: Option<ScannedData<'b>>,
-}
-
-/// Holds the data that will be scanned.
-pub struct ScanInputRaw<'a, 'b> {
-    /// The target data that will be scanned.
-    pub target: &'a [u8],
-    /// An optional metadata associated with the target data.
-    pub meta: Option<&'b [u8]>,
-}
-
 impl<'r> Scanner<'r> {
     const DEFAULT_SCAN_TIMEOUT: u64 = 315_360_000;
 
@@ -194,6 +157,7 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
+                module_meta: FxHashMap::default(),
                 pattern_matches: PatternMatches::new(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
@@ -349,7 +313,7 @@ impl<'r> Scanner<'r> {
         self
     }
 
-    fn load_file(path: &Path) -> Result<ScannedData, ScanError> {
+    fn load_file(path: &Path) -> Result<ScannedData<'static>, ScanError> {
         let mut file = fs::File::open(path).map_err(|err| {
             ScanError::OpenError { path: path.to_path_buf(), source: err }
         })?;
@@ -378,36 +342,24 @@ impl<'r> Scanner<'r> {
     }
 
     /// Scans a file.
-    pub fn scan_file<'a, 'target, 'meta>(
+    pub fn scan_file<'a, P>(
         &'a mut self,
-        scan_input: &ScanInput<'target, 'meta>,
+        target: P,
     ) -> Result<ScanResults<'a, 'r>, ScanError>
     where
-        'target: 'a,
-        'meta: 'a,
+        P: AsRef<Path>,
     {
-        let ScanInput { target_file, metadata_file } = scan_input;
+        let target = Self::load_file(target.as_ref())?;
 
-        let target = Self::load_file(target_file)?;
-        let meta = metadata_file.map(Self::load_file).transpose()?;
-
-        let data = ScanInputLoaded { target, meta };
-
-        self.scan_impl(data)
+        self.scan_impl(target)
     }
 
     /// scans in-memory data (with optional metadata)
     pub fn scan<'a>(
         &'a mut self,
         data: &'a [u8],
-        meta: Option<&'a [u8]>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
-        let data = ScanInputLoaded {
-            target: ScannedData::Slice(data),
-            meta: meta.map(ScannedData::Slice),
-        };
-
-        self.scan_impl(data)
+        self.scan_impl(ScannedData::Slice(data))
     }
 
     /// Sets the value of a global variable.
@@ -510,6 +462,26 @@ impl<'r> Scanner<'r> {
         Ok(())
     }
 
+    /// Updates the metadata for a module specified by its fully-qualified name.
+    ///
+    /// If the `meta` argument is `None`, the metadata for the module is removed.
+    ///
+    /// See [`Scanner::module_meta`] for the reasoning behind choosing `Arc<_>`
+    pub fn set_module_meta(
+        &mut self,
+        module_full_name: &str,
+        meta: Option<&Arc<[u8]>>,
+    ) {
+        if let Some(meta) = meta {
+            self.wasm_store
+                .data_mut()
+                .module_meta
+                .insert(module_full_name.to_string(), meta.clone());
+        } else {
+            self.wasm_store.data_mut().module_meta.remove(module_full_name);
+        }
+    }
+
     /// Similar to [`Scanner::set_module_output`], but receives a module name
     /// and the protobuf message as raw data.
     ///
@@ -557,7 +529,7 @@ impl<'r> Scanner<'r> {
 impl<'r> Scanner<'r> {
     fn scan_impl<'a>(
         &'a mut self,
-        data: ScanInputLoaded<'a, 'a>,
+        data: ScannedData<'a>,
     ) -> Result<ScanResults<'a, 'r>, ScanError> {
         // Clear information about matches found in a previous scan, if any.
         self.reset();
@@ -610,18 +582,16 @@ impl<'r> Scanner<'r> {
         self.filesize
             .set(
                 self.wasm_store.as_context_mut(),
-                Val::I64(data.target.as_ref().len() as i64),
+                Val::I64(data.as_ref().len() as i64),
             )
             .unwrap();
 
         let ctx = self.wasm_store.data_mut();
 
-        // todo do i also need to set the metadata file here?
-        // what purpose does the ctx serve exactly?
         ctx.deadline =
             HEARTBEAT_COUNTER.load(Ordering::Relaxed) + timeout_secs;
-        ctx.scanned_data = data.target.as_ref().as_ptr();
-        ctx.scanned_data_len = data.target.as_ref().len();
+        ctx.scanned_data = data.as_ref().as_ptr();
+        ctx.scanned_data_len = data.as_ref().len();
 
         // Free all runtime objects left around by previous scans.
         ctx.runtime_objects.clear();
@@ -644,12 +614,12 @@ impl<'r> Scanner<'r> {
             {
                 Some(output)
             } else {
-                let main_fn_input = ScanInputRaw {
-                    target: data.target.as_ref(),
-                    meta: data.meta.as_ref().map(|m| m.as_ref()),
-                };
+                let meta =
+                    ctx.module_meta.get(module_name).map(|data| &**data);
 
-                module.main_fn.map(|main_fn| main_fn(&main_fn_input))
+                let data = data.as_ref();
+
+                module.main_fn.map(|main_fn| main_fn(data, meta))
             };
 
             if let Some(module_output) = &module_output {
@@ -752,8 +722,11 @@ impl<'r> Scanner<'r> {
             }
         }
 
+        // clear the metadata for all modules
+        self.wasm_store.data_mut().module_meta.clear();
+
         match func_result {
-            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data.target)),
+            Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
             Ok(1) => Err(ScanError::Timeout),
             Ok(_) => unreachable!(),
             Err(err) if err.is::<ScanError>() => {
@@ -1107,7 +1080,7 @@ impl<'a, 'r> Metadata<'a, 'r> {
     /// let mut scanner = yara_x::Scanner::new(&rules);
     ///
     /// let scan_results = scanner
-    ///     .scan(&[], None)
+    ///     .scan(&[])
     ///     .unwrap();
     ///
     /// let matching_rule = scan_results

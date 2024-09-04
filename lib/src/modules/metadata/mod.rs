@@ -1,7 +1,6 @@
 use crate::compiler::RegexpId;
 use crate::modules::prelude::*;
 use crate::modules::protos::metadata::*;
-use crate::scanner::ScanInputRaw;
 
 use std::cell::RefCell;
 
@@ -36,11 +35,11 @@ fn pull_json_out_thin_air() -> Option<MetaJson> {
 }
 
 #[module_main]
-fn main(data: &ScanInputRaw) -> Metadata {
+fn main(_data: &[u8], meta: Option<&[u8]>) -> Metadata {
     // in case the `meta` is invalid json (or is `None`), the "parameter" in the function will be `None`
     // that should be propagated (`return None`) to the caller - graceful failure
     let parsed =
-        serde_json::from_slice::<MetaJson>(data.meta.unwrap_or_default()).ok();
+        serde_json::from_slice::<MetaJson>(meta.unwrap_or_default()).ok();
 
     // set the "parameter" of the function for it to pick up
     JSON_VALUE_GLOBAL_VAR.with(|it| {
