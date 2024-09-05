@@ -5,6 +5,8 @@ mod console;
 mod dotnet;
 #[cfg(feature = "elf-module")]
 mod elf;
+#[cfg(feature = "eml-module")]
+mod eml;
 #[cfg(feature = "hash-module")]
 mod hash;
 #[cfg(feature = "lnk-module")]
@@ -15,6 +17,8 @@ mod macho;
 mod magic;
 #[cfg(feature = "math-module")]
 mod math;
+#[cfg(feature = "metadata-module")]
+mod metadata;
 #[cfg(feature = "pe-module")]
 mod pe;
 #[cfg(feature = "string-module")]
