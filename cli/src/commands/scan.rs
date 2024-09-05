@@ -194,7 +194,6 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let target_path = args.get_one::<PathBuf>("TARGET_PATH").unwrap();
     let compiled_rules = args.get_flag("compiled-rules");
     let num_threads = args.get_one::<u8>("threads");
-    let path_as_namespace = args.get_flag("path-as-namespace");
     let skip_larger = args.get_one::<u64>("skip-larger");
     let disable_console_logs = args.get_flag("disable-console-logs");
     let scan_list = args.get_flag("scan-list");
