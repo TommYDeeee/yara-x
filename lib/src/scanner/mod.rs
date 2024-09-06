@@ -13,7 +13,7 @@ use std::ptr::{null, NonNull};
 use std::rc::Rc;
 use std::slice::Iter;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Once};
+use std::sync::Once;
 use std::time::Duration;
 use std::{cmp, fs, thread};
 
@@ -183,7 +183,6 @@ impl<'r> Scanner<'r> {
                 main_memory: None,
                 module_outputs: FxHashMap::default(),
                 user_provided_module_outputs: FxHashMap::default(),
-                module_meta: FxHashMap::default(),
                 pattern_matches: PatternMatches::new(),
                 unconfirmed_matches: FxHashMap::default(),
                 deadline: 0,
@@ -480,26 +479,6 @@ impl<'r> Scanner<'r> {
         Ok(())
     }
 
-    /// Updates the metadata for a module specified by its fully-qualified name.
-    ///
-    /// If the `meta` argument is `None`, the metadata for the module is removed.
-    ///
-    /// See [`Scanner::module_meta`] for the reasoning behind choosing `Arc<_>`
-    pub fn set_module_meta(
-        &mut self,
-        module_full_name: &str,
-        meta: Option<&Arc<[u8]>>,
-    ) {
-        if let Some(meta) = meta {
-            self.wasm_store
-                .data_mut()
-                .module_meta
-                .insert(module_full_name.to_string(), meta.clone());
-        } else {
-            self.wasm_store.data_mut().module_meta.remove(module_full_name);
-        }
-    }
-
     /// Similar to [`Scanner::set_module_output`], but receives a module name
     /// and the protobuf message as raw data.
     ///
@@ -776,9 +755,6 @@ impl<'r> Scanner<'r> {
                 }
             }
         }
-
-        // clear the metadata for all modules
-        self.wasm_store.data_mut().module_meta.clear();
 
         match func_result {
             Ok(0) => Ok(ScanResults::new(self.wasm_store.data(), data)),
