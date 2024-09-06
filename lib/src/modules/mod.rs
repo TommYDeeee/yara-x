@@ -270,14 +270,14 @@ pub mod mods {
     /// # use yara_x;
     /// let modules_output = yara_x::mods::invoke_all(&[]);
     /// ```
-    pub fn invoke_all(data: &[u8], meta: Option<&[u8]>) -> Box<Modules> {
+    pub fn invoke_all(data: &[u8]) -> Box<Modules> {
         let mut info = Box::new(Modules::new());
-        info.pe = protobuf::MessageField(invoke::<PE>(data, meta));
-        info.elf = protobuf::MessageField(invoke::<ELF>(data, meta));
-        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data, meta));
-        info.macho = protobuf::MessageField(invoke::<Macho>(data, meta));
-        info.lnk = protobuf::MessageField(invoke::<Lnk>(data, meta));
-        info.eml = protobuf::MessageField(invoke::<EML>(data, meta));
+        info.pe = protobuf::MessageField(invoke::<PE>(data));
+        info.elf = protobuf::MessageField(invoke::<ELF>(data));
+        info.dotnet = protobuf::MessageField(invoke::<Dotnet>(data));
+        info.macho = protobuf::MessageField(invoke::<Macho>(data));
+        info.lnk = protobuf::MessageField(invoke::<Lnk>(data));
+        info.eml = protobuf::MessageField(invoke::<EML>(data));
         info
     }
 
