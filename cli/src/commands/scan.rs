@@ -15,7 +15,7 @@ use superconsole::{Component, Line, Lines, Span};
 use yansi::Color::{Cyan, Red, Yellow};
 use yansi::Paint;
 use yara_x::errors::ScanError;
-use yara_x::{MetaValue, Rule, Rules, ScanResults, Scanner};
+use yara_x::{MetaValue, Rule, Rules, ScanOptions, ScanResults, Scanner};
 
 use crate::commands::{
     compile_rules, external_var_parser, truncate_with_ellipsis,
@@ -91,6 +91,16 @@ pub fn scan() -> Command {
                 .action(ArgAction::Append)
         )
         .arg(
+            arg!(-x --"module-data")
+                .help("Pass FILE's content as extra data to MODULE")
+                .long_help(help::MODULE_DATA_LONG_HELP)
+                .required(false)
+                .value_name("MODULE=FILE")
+                .value_parser(value_parser!(PathBuf))
+                .value_parser(meta_file_value_parser)
+                .action(ArgAction::Append)
+        )
+        .arg(
             arg!(-n --"negate")
                 .help("Print non-satisfied rules only")
         )
@@ -155,38 +165,7 @@ pub fn scan() -> Command {
                 .help("Abort scanning after the given number of seconds")
                 .value_parser(value_parser!(u64).range(1..))
         )
-        .arg(
-            arg!(--"relaxed-re-syntax")
-                .help("Use a more relaxed syntax check while parsing regular expressions")
-        )
-        .arg(
-            arg!(-w --"disable-warnings" [WARNING_ID])
-                .help("Disable warnings")
-                .long_help(help::DISABLE_WARNINGS_LONG_HELP)
-                .default_missing_value("all")
-                .num_args(0..)
-                .require_equals(true)
-                .value_delimiter(',')
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-d --"define")
-                .help("Define external variable")
-                .long_help(help::DEFINE_LONG_HELP)
-                .required(false)
-                .value_name("VAR=VALUE")
-                .value_parser(external_var_parser)
-                .action(ArgAction::Append)
-        )
-        .arg(
-            arg!(-x --"module-data")
-                .help("Pass FILE's content as extra data to MODULE")
-                .long_help(help::MODULE_DATA_LONG_HELP)
-                .required(false)
-                .value_name("MODULE=FILE")
-                .value_parser(meta_file_value_parser)
-                .action(ArgAction::Append)
-        )
+
 }
 
 pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
@@ -204,6 +183,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
     let mut external_vars: Option<Vec<(String, serde_json::Value)>> = args
         .get_many::<(String, serde_json::Value)>("define")
         .map(|var| var.cloned().collect());
+
     let metadata = args
         .get_many::<(String, PathBuf)>("module-data")
         .into_iter()
@@ -276,9 +256,7 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
         for (module_full_name, metadata_path) in metadata {
             let meta = std::fs::read(Path::new(metadata_path))?;
 
-            let arcd_meta = Arc::<[u8]>::from(meta);
-
-            all_metadata.push((module_full_name.to_string(), arcd_meta));
+            all_metadata.push((module_full_name.to_string(), meta));
         }
         all_metadata
     };
@@ -330,14 +308,15 @@ pub fn exec_scan(args: &ArgMatches) -> anyhow::Result<()> {
                 .unwrap()
                 .push((file_path.clone(), now));
 
-            let target_file = file_path.as_path();
-
-            for (module_full_name, meta) in all_metadata.iter() {
-                scanner.set_module_meta(module_full_name, Some(meta));
-            }
+            let scan_options = all_metadata.iter().fold(
+                ScanOptions::new(),
+                |acc, (module_name, meta)| {
+                    acc.set_module_metadata(module_name, meta)
+                },
+            );
 
             let scan_results = scanner
-                .scan_file(target_file)
+                .scan_file_with_options(file_path.as_path(), scan_options)
                 .with_context(|| format!("scanning {:?}", &file_path));
 
             state
