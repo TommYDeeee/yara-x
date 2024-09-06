@@ -578,13 +578,19 @@ fn scan_resets_metadata() {
 
     let rules = crate::compile(rule).unwrap();
     let mut scanner = crate::scanner::Scanner::new(&rules);
+    let mut scan_options = crate::scanner::ScanOptions::new();
 
-    let arcd_meta = std::sync::Arc::<[u8]>::from(meta.to_vec());
-
-    scanner.set_module_meta("metadata", Some(&arcd_meta));
+    scan_options = scan_options.set_module_metadata("metadata", meta);
 
     // first scan should have metadata
-    assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 1);
+    assert_eq!(
+        scanner
+            .scan_with_options(&[], scan_options)
+            .unwrap()
+            .matching_rules()
+            .len(),
+        1
+    );
 
     // second scan should not have metadata -> no rules match
     assert_eq!(scanner.scan(&[]).unwrap().matching_rules().len(), 0);
