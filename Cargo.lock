@@ -3242,17 +3242,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_repr"
-version = "0.1.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.77",
-]
-
-[[package]]
 name = "serde_spanned"
 version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3598,16 +3587,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.77",
-]
-
-[[package]]
-name = "syscalls"
-version = "0.6.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43d0e35dc7d73976a53c7e6d7d177ef804a0c0ee774ec77bcc520c2216fd7cbe"
-dependencies = [
- "serde",
- "serde_repr",
 ]
 
 [[package]]
@@ -4617,7 +4596,7 @@ checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yara-x"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "aho-corasick",
  "annotate-snippets",
@@ -4673,7 +4652,6 @@ dependencies = [
  "sha1",
  "sha2 0.10.8",
  "smallvec",
- "syscalls",
  "thiserror",
  "tlsh-fixed",
  "uuid",
@@ -4690,7 +4668,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-capi"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "cbindgen",
  "serde_json",
@@ -4699,7 +4677,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4731,20 +4709,22 @@ dependencies = [
 
 [[package]]
 name = "yara-x-fmt"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
- "anyhow",
  "bitmask",
  "bstr",
+ "globwalk",
+ "goldenfile",
  "lazy_static",
  "pretty_assertions",
+ "rayon",
  "thiserror",
  "yara-x-parser",
 ]
 
 [[package]]
 name = "yara-x-macros"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -4754,7 +4734,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-parser"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "ascii_tree",
@@ -4778,7 +4758,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "protobuf",
  "protobuf-codegen",
@@ -4787,7 +4767,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-proto-yaml"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "globwalk",
@@ -4802,7 +4782,7 @@ dependencies = [
 
 [[package]]
 name = "yara-x-py"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "protobuf-json-mapping",
  "pyo3",

@@ -34,6 +34,7 @@ Commands:
   scan        Scan a file or directory
   compile     Compile rules to binary form
   dump        Show the data produced by YARA modules for a file
+  fmt         Format YARA source files
   completion  Output shell completion code for the specified shell
   help        Print this message or the help of the given subcommand(s)
 
@@ -53,13 +54,18 @@ This is probably the most used command in the CLI, it allows to scan a file
 or directory with one or more YARA rules. The syntax for this command is:
 
 ```
-yr scan [OPTIONS] <RULES_PATH>... <TARGET_PATH>
+yr scan [OPTIONS] <[NAMESPACE:]RULES_PATH>... <TARGET_PATH>
 ```
 
 The command receives one or more `<RULES_PATH>` arguments. Each `<RULES_PATH>`
 is the path of YARA source file or a directory containing source files. When
 `<RULES_PATH>` is a directory YARA-X iterates the directory recursively looking
 for any `*.yar` or `*.yara` files.
+
+Each path can be prefixed with a namespace, the namespace and the path are
+separated by a semicolon (`:`), like in `my_namespace:my_rules.yar`. All
+rules in the path will be put under the specified namespace, isolated from
+rules in other namespaces.
 
 `<TARGET_PATH>` is the path of the file or directory to be scanned.
 
@@ -237,12 +243,17 @@ re-used for multiple scan operations.
 The syntax for this command is:
 
 ```
-yr compile [OPTIONS] <RULES_PATH>...
+yr compile [OPTIONS] <[NAMESPACE:]RULES_PATH>...
 ```
 
 Each `<RULES_PATH>` is the path of YARA source file or a directory containing
 source files. When`<RULES_PATH>` is a directory YARA-X iterates the directory
 recursively looking for any `*.yar` or `*.yara` files.
+
+Each path can be prefixed with a namespace, the namespace and the path are
+separated by a semicolon (`:`), like in `my_namespace:my_rules.yar`. All
+rules in the path will be put under the specified namespace, isolated from
+rules in other namespaces.
 
 ### --disable-warnings
 
@@ -299,7 +310,7 @@ This option can be used multiple times for specifying more than one module.
 For example:
 
 ```
-yr dump --module=pe --module=dotnet [FILE]
+yr dump --module=pe --module=dotnet <FILE>
 ```
 
 ### --no-colors
@@ -310,3 +321,20 @@ By default, both YAML and JSON outputs contains colors that improves their
 legibility, this option turns off colors. When the output of this command is
 redirected from stdout to a file, colors are turned off automatically, even
 if `--no-colors` is missing.
+
+## fmt
+
+Format YARA source files.
+
+This command is similar in spirit to other code formatting tools like `gofmt`
+and `rustfmt`.
+
+```
+yr fmt <FILE>...
+```
+
+### ---check, -c
+
+Run in "check" mode. Doesn't modify any file, but exits error code 0 if the
+files are formatted correctly and no change is necessary, or error code 1
+if otherwise.
