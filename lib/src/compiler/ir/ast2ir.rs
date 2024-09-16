@@ -1107,7 +1107,7 @@ fn with_expr_from_ast(
     with: &ast::With,
 ) -> Result<Expr, CompileError> {
     // Create stack frame with capacity for the with statement variables
-    let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32 + 5);
+    let mut stack_frame = ctx.vars.new_frame(with.items.len() as i32);
     let mut symbols = SymbolTable::new();
     let mut identifiers = Vec::with_capacity(with.items.len());
     let mut expressions = Vec::with_capacity(with.items.len());
