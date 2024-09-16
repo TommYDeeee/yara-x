@@ -619,7 +619,6 @@ pub(in crate::compiler) struct With {
     pub identifiers: Vec<Var>,
     pub expressions: Vec<Expr>,
     pub condition: Expr,
-    pub stack_frame: VarStackFrame,
 }
 
 /// A quantifier used in `for` and `of` expressions.

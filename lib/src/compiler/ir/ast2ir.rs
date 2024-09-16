@@ -1158,12 +1158,7 @@ fn with_expr_from_ast(
 
     ctx.vars.unwind(&stack_frame);
 
-    Ok(Expr::With(Box::new(With {
-        identifiers,
-        expressions,
-        condition,
-        stack_frame,
-    })))
+    Ok(Expr::With(Box::new(With { identifiers, expressions, condition })))
 }
 
 fn iterable_from_ast(
