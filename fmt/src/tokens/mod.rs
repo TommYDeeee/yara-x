@@ -371,7 +371,8 @@ impl<'a> Token<'a> {
             | SyntaxKind::THEM_KW
             | SyntaxKind::TRUE_KW
             | SyntaxKind::WIDE_KW
-            | SyntaxKind::XOR_KW => Token::Keyword(src),
+            | SyntaxKind::XOR_KW
+            | SyntaxKind::WITH_KW => Token::Keyword(src),
             // Punctuation.
             SyntaxKind::ASTERISK
             | SyntaxKind::COLON
