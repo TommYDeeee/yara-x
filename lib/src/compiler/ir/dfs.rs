@@ -213,7 +213,12 @@ impl<'a> Iterator for DepthFirstSearch<'a> {
                     self.stack.push(Event::Enter(&lookup.primary));
                 }
 
-                Expr::With(_) => {}
+                Expr::With(with) => {
+                    self.stack.push(Event::Enter(&with.condition));
+                    for expr in with.expressions.iter().rev() {
+                        self.stack.push(Event::Enter(expr))
+                    }
+                }
             }
         }
 
